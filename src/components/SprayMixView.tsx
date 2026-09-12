@@ -420,6 +420,10 @@ export const SprayMixView: React.FC<SprayMixViewProps> = ({
   const [selectedOrderId, setSelectedOrderId] = useState<string>('');
   const [activePresetId, setActivePresetId] = useState<string>('preset-soja-fungicida');
 
+  // pH Monitoring State
+  const [waterPhInitial, setWaterPhInitial] = useState<number>(7.0);
+  const [mixPhFinal, setMixPhFinal] = useState<number>(5.5);
+
   // Products in the current mix
   const [products, setProducts] = useState<SprayProduct[]>(() => {
     const saved = localStorage.getItem('agrodrone_current_spray_products');
@@ -433,6 +437,39 @@ export const SprayMixView: React.FC<SprayMixViewProps> = ({
     }
     return DEFAULT_PRESET_RECIPES[1].products;
   });
+
+  // Calculate Optimal pH Range based on products
+  const optimalPhRange = useMemo(() => {
+    let minPh = 0;
+    let maxPh = 14;
+    let hasPhData = false;
+
+    products.forEach(prod => {
+      const match = CHEMICAL_LEAFLETS_DATABASE.find(l => 
+        l.commercialName.toLowerCase() === prod.name.toLowerCase() ||
+        prod.name.toLowerCase().includes(l.commercialName.toLowerCase()) ||
+        l.commercialName.toLowerCase().includes(prod.name.toLowerCase()) ||
+        (prod.activeIngredient && l.activeIngredient.toLowerCase().includes(prod.activeIngredient.toLowerCase()))
+      );
+
+      if (match && match.phWaterOptimalRange) {
+        if (match.phWaterOptimalRange.min > minPh) minPh = match.phWaterOptimalRange.min;
+        if (match.phWaterOptimalRange.max < maxPh) maxPh = match.phWaterOptimalRange.max;
+        hasPhData = true;
+      }
+    });
+
+    if (!hasPhData) {
+      return { min: 5.0, max: 6.0 }; // Default safe range
+    }
+
+    // If there's an impossible constraint, loosen it up slightly for the sake of the warning
+    if (minPh > maxPh) {
+      return { min: maxPh, max: minPh }; 
+    }
+
+    return { min: minPh, max: maxPh };
+  }, [products]);
 
   // Save to localStorage when products change
   useEffect(() => {
@@ -1650,6 +1687,101 @@ export const SprayMixView: React.FC<SprayMixViewProps> = ({
                   <p className="text-[10px] text-slate-500 dark:text-slate-400">
                     O volume total misturado ({totalGrossSprayVolume.toFixed(1).replace('.', ',')} L) alimentará sequencialmente <strong>{totalFlightsCount} voos de {tankCapacityL} L</strong> do drone.
                   </p>
+                </div>
+
+                {/* pH Control Card */}
+                <div className="space-y-2 pt-2 border-t border-emerald-200/70 dark:border-emerald-800/70">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-emerald-950 dark:text-emerald-200 flex items-center gap-1.5">
+                      <Droplets className="w-4 h-4 text-sky-500" />
+                      Qualidade da Água & Controle de pH
+                    </label>
+                  </div>
+                  
+                  <div className="p-3.5 rounded-2xl bg-white dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-800 shadow-2xs space-y-3">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-bold text-slate-600 dark:text-slate-400">Faixa Alvo Padrão:</span>
+                      <span className="font-mono font-black text-emerald-600 dark:text-emerald-400">
+                        {optimalPhRange.min.toFixed(1)} a {optimalPhRange.max.toFixed(1)}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">pH da Água Limpa (Inicial)</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="range"
+                          min="0"
+                          max="14"
+                          step="0.1"
+                          value={waterPhInitial}
+                          onChange={(e) => setWaterPhInitial(parseFloat(e.target.value))}
+                          className="flex-1 accent-sky-500"
+                        />
+                        <span className="font-mono font-bold text-sm w-8 text-center">{waterPhInitial.toFixed(1)}</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">pH da Calda (Final)</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="range"
+                          min="0"
+                          max="14"
+                          step="0.1"
+                          value={mixPhFinal}
+                          onChange={(e) => setMixPhFinal(parseFloat(e.target.value))}
+                          className="flex-1 accent-emerald-500"
+                        />
+                        <span className="font-mono font-bold text-sm w-8 text-center">{mixPhFinal.toFixed(1)}</span>
+                      </div>
+                    </div>
+
+                    {/* Visual Gauge */}
+                    <div className="pt-2">
+                      <div className="h-2.5 rounded-full w-full relative overflow-hidden bg-gradient-to-r from-rose-600 via-emerald-400 to-purple-600">
+                        {/* Target Range Indicator */}
+                        <div 
+                          className="absolute h-full bg-white/40 border-x-2 border-white/80"
+                          style={{
+                            left: `${(optimalPhRange.min / 14) * 100}%`,
+                            width: `${((optimalPhRange.max - optimalPhRange.min) / 14) * 100}%`
+                          }}
+                        />
+                        {/* Current Final pH Marker */}
+                        <div 
+                          className="absolute top-0 w-1 h-full bg-slate-900 dark:bg-white shadow-[0_0_4px_rgba(0,0,0,0.5)] z-10"
+                          style={{ left: `${(mixPhFinal / 14) * 100}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between text-[8px] font-mono mt-1 text-slate-400">
+                        <span>Ácido (0)</span>
+                        <span>Neutro (7)</span>
+                        <span>Alcalino (14)</span>
+                      </div>
+                    </div>
+
+                    {/* Alerts */}
+                    {(mixPhFinal > optimalPhRange.max) && (
+                      <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-[10px] text-amber-900 dark:text-amber-200 flex items-start gap-1.5">
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                        <span><strong>pH Alto (Alcalino):</strong> Risco grave de hidrólise alcalina e degradação rápida dos princípios ativos. Adicione redutor de pH / acidificante antes dos defensivos.</span>
+                      </div>
+                    )}
+                    {(mixPhFinal < optimalPhRange.min) && (
+                      <div className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-[10px] text-rose-900 dark:text-rose-200 flex items-start gap-1.5">
+                        <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0 mt-0.5" />
+                        <span><strong>pH Baixo (Muito Ácido):</strong> Risco de precipitação de caldas cúpricas ou fitotoxidez extrema na cultura. Revise a dose do redutor de pH.</span>
+                      </div>
+                    )}
+                    {(mixPhFinal >= optimalPhRange.min && mixPhFinal <= optimalPhRange.max) && (
+                      <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-[10px] text-emerald-900 dark:text-emerald-200 flex items-start gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                        <span><strong>pH Ideal Atingido:</strong> Máxima estabilidade e meia-vida (T½) garantida para os defensivos e fertilizantes da receita.</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
