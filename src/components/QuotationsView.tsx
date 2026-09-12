@@ -29,13 +29,13 @@ import {
   SprayQuotation, 
   ClientProducer, 
   FarmPlot, 
-  AgriculturalDrone, 
-  ServiceOrder, 
-  PricingModel, 
-  QuotationStatus,
-  SprayQuotationItem,
-  SprayQuotationProduct
+  DroneAsset, 
+  ServiceOrder,
+  QuotationItemService,
+  QuotationItemProduct,
+  QuotationStatus
 } from '../types';
+import { showToast } from '../services/notificationService';
 import { ChemicalLeafletModal } from './ChemicalLeafletModal';
 import { BrandLogo } from './BrandLogo';
 import { formatDecimal, formatBRL, formatHectares, formatNumber, formatPercent, toSafeNumber } from '../utils/formatters';
@@ -370,7 +370,7 @@ export const QuotationsView: React.FC<QuotationsViewProps> = ({
   const handleSaveQuotation = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.clientId) {
-      alert('Selecione um cliente.');
+      showToast('Selecione um cliente para o orçamento.', 'warning', 'Cliente Obrigatório');
       return;
     }
 
@@ -479,7 +479,7 @@ export const QuotationsView: React.FC<QuotationsViewProps> = ({
 
   const handleSendSimulated = (q: SprayQuotation) => {
     handleUpdateStatus(q.id, 'SENT');
-    alert(`Orçamento ${q.code} enviado com sucesso por simulação de e-mail e WhatsApp para ${q.clientName}!`);
+    showToast(`Orçamento ${q.code} enviado com sucesso por simulação de e-mail e WhatsApp para ${q.clientName}!`, 'success', 'Orçamento Enviado');
   };
 
   const handleConvertToOS = (q: SprayQuotation) => {
@@ -534,7 +534,7 @@ export const QuotationsView: React.FC<QuotationsViewProps> = ({
       setSelectedQuotation(prev => prev ? { ...prev, status: 'CONVERTED', convertedOSCode: newOSCode } : null);
     }
 
-    alert(`Sucesso! O Orçamento ${q.code} foi aprovado e convertido para a Ordem de Serviço ${newOSCode} agendada.`);
+    showToast(`O Orçamento ${q.code} foi aprovado e convertido na Ordem de Serviço ${newOSCode}!`, 'success', 'Convertido com Sucesso');
   };
 
   const activeTotals = calculateTotals();

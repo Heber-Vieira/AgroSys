@@ -10,6 +10,7 @@ import {
   WhiteLabelTheme,
   ScheduleConflict
 } from '../types';
+import { showConfirm, showToast } from '../services/notificationService';
 import { 
   Calendar as CalendarIcon, 
   Clock, 
@@ -215,10 +216,18 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
 
   const handleDeleteOrder = (orderId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (window.confirm('Tem certeza que deseja desmarcar e cancelar este agendamento?')) {
-      setOrders(prev => prev.filter(o => o.id !== orderId));
-      playSuccessChime();
-    }
+    showConfirm({
+      title: 'Cancelar Agendamento',
+      message: 'Tem certeza que deseja desmarcar e cancelar este agendamento?',
+      confirmLabel: 'Sim, Cancelar',
+      cancelLabel: 'Manter Agendamento',
+      isDanger: true,
+      onConfirm: () => {
+        setOrders(prev => prev.filter(o => o.id !== orderId));
+        playSuccessChime();
+        showToast('Agendamento removido com sucesso.', 'info', 'Agendamento Cancelado');
+      }
+    });
   };
 
   const handleOpenNewModal = (dateStr?: string, timeStr?: string) => {

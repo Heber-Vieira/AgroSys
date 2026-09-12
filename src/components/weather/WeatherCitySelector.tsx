@@ -3,6 +3,8 @@ import { Search, MapPin, Navigation, Mountain, Wheat, Check, Loader2, Sparkles }
 import { CityLocation, POPULAR_AGRO_CITIES, searchCities } from '../../services/weatherService';
 import { FarmPlot } from '../../types';
 
+import { showToast } from '../../services/notificationService';
+
 interface WeatherCitySelectorProps {
   selectedCity: CityLocation;
   onSelectCity: (city: CityLocation) => void;
@@ -59,7 +61,7 @@ export const WeatherCitySelector: React.FC<WeatherCitySelectorProps> = ({
   // Handle GPS Geolocation
   const handleUseGPS = () => {
     if (!navigator.geolocation) {
-      alert('Geolocalização não suportada no seu navegador.');
+      showToast('Geolocalização não suportada no seu navegador.', 'warning', 'GPS Indisponível');
       return;
     }
 

@@ -30,6 +30,7 @@ import { SprayReportModal } from './components/SprayReportModal';
 import { QuotationsView } from './components/QuotationsView';
 import { HomeHubView } from './components/HomeHubView';
 import { DraggableHelpButton } from './components/DraggableHelpButton';
+import { AgroSysToastContainer } from './components/common/AgroSysToastContainer';
 import { HelpCircle, ArrowLeft, ArrowRight } from 'lucide-react';
 
 import { 
@@ -671,15 +672,18 @@ export default function App() {
   // If user is not authenticated, render Login Screen
   if (!isAuthenticated) {
     return (
-      <LoginView
-        theme={theme}
-        onLoginSuccess={(user) => {
-          setCurrentUser(user);
-          setIsAuthenticated(true);
-        }}
-        availableUsers={allUsers}
-        setUsers={setAllUsers}
-      />
+      <>
+        <LoginView
+          theme={theme}
+          onLoginSuccess={(user) => {
+            setCurrentUser(user);
+            setIsAuthenticated(true);
+          }}
+          availableUsers={allUsers}
+          setUsers={setAllUsers}
+        />
+        <AgroSysToastContainer />
+      </>
     );
   }
 
@@ -1063,6 +1067,8 @@ export default function App() {
         pilots={pilots}
         assistants={assistants}
       />
+      {/* Global Toast and Notification Container */}
+      <AgroSysToastContainer />
     </AppLayout>
   );
 }

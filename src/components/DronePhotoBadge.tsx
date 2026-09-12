@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Camera, Upload, X, Check, Image as ImageIcon, Sparkles, RefreshCw, Plane } from 'lucide-react';
 import { AgriculturalDrone } from '../types';
+import { showToast } from '../services/notificationService';
 
 export const PRESET_DRONE_PHOTOS: Record<string, { name: string; url: string; tag: string }> = {
   t20p: {
@@ -343,7 +344,7 @@ export const DronePhotoUploadModal: React.FC<DronePhotoUploadModalProps> = ({
   // Compress image to fast Base64 Data URL
   const handleFileProcess = (file: File) => {
     if (!file.type.startsWith('image/')) {
-      alert('Por favor, selecione um arquivo de imagem válido (JPG, PNG, WebP).');
+      showToast('Por favor, selecione um arquivo de imagem válido (JPG, PNG, WebP).', 'warning', 'Formato Inválido');
       return;
     }
 
@@ -382,7 +383,7 @@ export const DronePhotoUploadModal: React.FC<DronePhotoUploadModalProps> = ({
       };
       img.onerror = () => {
         setIsProcessing(false);
-        alert('Erro ao processar a imagem selecionada.');
+        showToast('Erro ao processar a imagem selecionada.', 'error', 'Erro na Imagem');
       };
       img.src = event.target?.result as string;
     };
@@ -413,7 +414,7 @@ export const DronePhotoUploadModal: React.FC<DronePhotoUploadModalProps> = ({
     const finalUrl = customUrlInput.trim().length > 0 ? customUrlInput.trim() : selectedPhotoUrl;
 
     if (!finalUrl) {
-      alert('Selecione ou envie uma imagem antes de salvar.');
+      showToast('Selecione ou envie uma imagem antes de salvar.', 'warning', 'Imagem Necessária');
       return;
     }
 

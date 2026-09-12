@@ -18,6 +18,7 @@ import {
   UserPlus
 } from 'lucide-react';
 import { signInWithSupabase, signUpWithSupabase } from '../services/supabase';
+import { showToast } from '../services/notificationService';
 import { UserAvatar } from './UserAvatar';
 import { BrandLogo } from './BrandLogo';
 
@@ -387,7 +388,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                     </label>
                     <button
                       type="button"
-                      onClick={() => alert('Para redefinir sua senha, entre em contato com o Administrador do sistema AgroSys.')}
+                      onClick={() => showToast('Para redefinir sua senha, solicite a alteração diretamente ao Administrador no painel de controle.', 'info', 'Redefinição de Senha')}
                       className="text-xs font-bold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
                     >
                       Esqueci minha senha

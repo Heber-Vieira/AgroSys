@@ -7,6 +7,7 @@ import {
   UserProfile,
   WhiteLabelTheme
 } from '../types';
+import { showToast, showConfirm } from '../services/notificationService';
 import { 
   Wrench, 
   X, 
@@ -162,12 +163,12 @@ export const DroneMaintenanceModal: React.FC<DroneMaintenanceModalProps> = ({
     e.preventDefault();
 
     if (!title.trim()) {
-      alert('Por favor, informe o título ou resumo da manutenção.');
+      showToast('Por favor, informe o título ou resumo da manutenção.', 'warning', 'Campo Obrigatório');
       return;
     }
 
     if (!currentDrone) {
-      alert('Selecione uma aeronave válida.');
+      showToast('Selecione uma aeronave válida.', 'warning', 'Aeronave Necessária');
       return;
     }
 
@@ -231,7 +232,7 @@ export const DroneMaintenanceModal: React.FC<DroneMaintenanceModalProps> = ({
       }));
     }
 
-    alert('✅ Registro de manutenção salvo com sucesso!');
+    showToast('Registro de manutenção salvo com sucesso!', 'success', 'Manutenção Registrada');
 
     // Reset Form & Switch to History tab
     setTitle('');
@@ -245,11 +246,19 @@ export const DroneMaintenanceModal: React.FC<DroneMaintenanceModalProps> = ({
   };
 
   const handleDeleteLog = (logId: string) => {
-    if (confirm('Tem certeza que deseja excluir este registro de manutenção?')) {
-      if (setLogs) {
-        setLogs(prev => prev.filter(l => l.id !== logId));
+    showConfirm({
+      title: 'Excluir Manutenção',
+      message: 'Tem certeza que deseja excluir este registro de manutenção? Esta ação não pode ser desfeita.',
+      confirmLabel: 'Sim, Excluir',
+      cancelLabel: 'Cancelar',
+      isDanger: true,
+      onConfirm: () => {
+        if (setLogs) {
+          setLogs(prev => prev.filter(l => l.id !== logId));
+        }
+        showToast('Registro de manutenção excluído com sucesso.', 'info', 'Registro Removido');
       }
-    }
+    });
   };
 
   // Filtered logs

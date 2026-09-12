@@ -13,6 +13,7 @@ import {
   WhiteLabelTheme,
   ThemeMode
 } from '../types';
+import { showToast as showAgroToast, showConfirm } from '../services/notificationService';
 import { 
   ShieldCheck, 
   Users, 
@@ -183,8 +184,9 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
   const [pilotSalaryInput, setPilotSalaryInput] = useState<string>(() => formatDecimal(compensation.pilotBaseSalary, 2));
   const [assistantSalaryInput, setAssistantSalaryInput] = useState<string>(() => formatDecimal(compensation.assistantBaseSalary, 2));
 
-  const showToast = (msg: string) => {
+  const showToast = (msg: string, type: 'success' | 'info' | 'warning' | 'error' = 'success') => {
     setToastMessage(msg);
+    showAgroToast(msg, type);
     setTimeout(() => setToastMessage(null), 3500);
   };
 
@@ -404,13 +406,20 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
 
   const handleDeleteUser = (id: string, name: string) => {
     if (id === currentUser.id) {
-      showToast('Você não pode excluir o usuário conectado no momento.');
+      showToast('Você não pode excluir o usuário conectado no momento.', 'warning');
       return;
     }
-    if (window.confirm(`Tem certeza que deseja remover o usuário ${name}?`)) {
-      setUsers(prev => prev.filter(u => u.id !== id));
-      showToast(`Usuário "${name}" removido.`);
-    }
+    showConfirm({
+      title: 'Remover Usuário',
+      message: `Tem certeza que deseja remover o usuário ${name}?`,
+      confirmLabel: 'Sim, Remover',
+      cancelLabel: 'Cancelar',
+      isDanger: true,
+      onConfirm: () => {
+        setUsers(prev => prev.filter(u => u.id !== id));
+        showToast(`Usuário "${name}" removido.`);
+      }
+    });
   };
 
   const handleToggleUserStatus = (u: UserProfile) => {
@@ -428,39 +437,41 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
       serialNumber: `AGR-SN-${Math.floor(100000 + Math.random() * 900000)}`,
       anacPrefix: `PP-AGR-${String(drones.length + 1).padStart(2, '0')}`,
       deceaRegistration: `SARPAS-${Math.floor(10000 + Math.random() * 90000)}-BR`,
-      tankCapacityL: 20,
+      tankCapacityLiters: 20,
       maxPayloadKg: 25,
       totalFlightHours: 0,
       batteryStatusPct: 100,
       operationalStatus: 'READY',
       nextMaintenanceHours: 50,
-      photoUrl: PRESET_DRONE_PHOTOS.t20p.url,
+      photoUrl: '',
     });
     setIsDroneModalOpen(true);
   };
 
   const handleOpenEditDrone = (d: AgriculturalDrone) => {
     setEditingDrone(d);
-    setDroneFormData({
-      ...d,
-      photoUrl: d.photoUrl || getDronePhotoUrl({ droneId: d.id, modelName: d.modelName }),
-    });
+    setDroneFormData({ ...d });
     setIsDroneModalOpen(true);
   };
 
   const handleSaveDrone = (e: React.FormEvent) => {
     e.preventDefault();
     if (!droneFormData.modelName || !droneFormData.anacPrefix) {
-      showToast('Informe o modelo e o prefixo ANAC.');
+      showToast('Preencha o modelo e o prefixo ANAC.', 'warning');
       return;
     }
 
-    const resolvedPhoto = droneFormData.photoUrl?.trim() || getDronePhotoUrl({ modelName: droneFormData.modelName });
+    const resolvedPhoto = droneFormData.photoUrl || PRESET_DRONE_PHOTOS[droneFormData.modelName.toLowerCase().includes('t50') ? 't50' : droneFormData.modelName.toLowerCase().includes('t40') ? 't40' : droneFormData.modelName.toLowerCase().includes('xag') ? 'xag' : 't20p']?.url || '';
 
     if (editingDrone) {
       setDrones(prev => prev.map(d => d.id === editingDrone.id ? {
         ...d,
         ...droneFormData,
+        tankCapacityLiters: Number(droneFormData.tankCapacityLiters) || 20,
+        maxPayloadKg: Number(droneFormData.maxPayloadKg) || 25,
+        totalFlightHours: Number(droneFormData.totalFlightHours) || 0,
+        batteryStatusPct: Number(droneFormData.batteryStatusPct) || 100,
+        nextMaintenanceHours: Number(droneFormData.nextMaintenanceHours) || 50,
         photoUrl: resolvedPhoto,
       } as AgriculturalDrone : d));
       showToast(`Drone ${droneFormData.anacPrefix} atualizado com sucesso!`);
@@ -468,12 +479,12 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
       const newDrone: AgriculturalDrone = {
         id: `drone-${Date.now()}`,
         brand: droneFormData.brand || 'DJI_AGRICULTURE',
-        modelName: droneFormData.modelName || 'DJI Agras T20P',
-        serialNumber: droneFormData.serialNumber || `SN-${Date.now()}`,
+        modelName: droneFormData.modelName || 'DJI Agras T40',
+        serialNumber: droneFormData.serialNumber || `AGR-SN-${Date.now()}`,
         anacPrefix: droneFormData.anacPrefix || 'PP-AGR-XX',
-        deceaRegistration: droneFormData.deceaRegistration || 'SARPAS-BR',
-        tankCapacityL: Number(droneFormData.tankCapacityL) || 20,
-        maxPayloadKg: Number(droneFormData.maxPayloadKg) || 25,
+        deceaRegistration: droneFormData.deceaRegistration || 'SARPAS-0000-BR',
+        tankCapacityLiters: Number(droneFormData.tankCapacityLiters) || 40,
+        maxPayloadKg: Number(droneFormData.maxPayloadKg) || 40,
         totalFlightHours: Number(droneFormData.totalFlightHours) || 0,
         batteryStatusPct: Number(droneFormData.batteryStatusPct) || 100,
         operationalStatus: droneFormData.operationalStatus || 'READY',
@@ -487,10 +498,17 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
   };
 
   const handleDeleteDrone = (id: string, prefix: string) => {
-    if (window.confirm(`Deseja remover o drone com prefixo ${prefix}?`)) {
-      setDrones(prev => prev.filter(d => d.id !== id));
-      showToast(`Drone ${prefix} removido da frota.`);
-    }
+    showConfirm({
+      title: 'Remover Drone',
+      message: `Deseja remover o drone com prefixo ${prefix} da frota?`,
+      confirmLabel: 'Sim, Remover',
+      cancelLabel: 'Cancelar',
+      isDanger: true,
+      onConfirm: () => {
+        setDrones(prev => prev.filter(d => d.id !== id));
+        showToast(`Drone ${prefix} removido da frota.`);
+      }
+    });
   };
 
   // CLIENT CRUD HANDLERS
@@ -523,7 +541,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
   const handleSaveClient = (e: React.FormEvent) => {
     e.preventDefault();
     if (!clientFormData.name || !clientFormData.cpfCnpj) {
-      showToast('Preencha o nome do produtor e o CPF/CNPJ.');
+      showToast('Preencha o nome do produtor e o CPF/CNPJ.', 'warning');
       return;
     }
 
@@ -557,10 +575,17 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
   };
 
   const handleDeleteClient = (id: string, name: string) => {
-    if (window.confirm(`Deseja remover o cliente ${name}?`)) {
-      setClients(prev => prev.filter(c => c.id !== id));
-      showToast(`Cliente ${name} removido.`);
-    }
+    showConfirm({
+      title: 'Remover Produtor / Cliente',
+      message: `Deseja remover o cliente ${name}?`,
+      confirmLabel: 'Sim, Remover',
+      cancelLabel: 'Cancelar',
+      isDanger: true,
+      onConfirm: () => {
+        setClients(prev => prev.filter(c => c.id !== id));
+        showToast(`Cliente ${name} removido.`);
+      }
+    });
   };
 
   // COMPENSATION POLICY HANDLER

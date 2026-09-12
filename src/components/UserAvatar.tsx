@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { UserProfile, CrewPilot, CrewAssistant, UserRole } from '../types';
 import { Camera, Upload, X, Check, Trash2, ShieldCheck, User, Plane, Wrench, Sparkles } from 'lucide-react';
 import { saveUserPhotoToSupabase } from '../services/supabase';
+import { showToast } from '../services/notificationService';
 
 export const USER_PHOTO_STORAGE_KEY = 'agrodrone_user_custom_photos';
 
@@ -376,7 +377,7 @@ export const UserPhotoUploadModal: React.FC<UserPhotoUploadModalProps> = ({
         };
         img.onerror = () => {
           setIsProcessing(false);
-          alert('Não foi possível ler a imagem selecionada.');
+          showToast('Não foi possível ler a imagem selecionada. Verifique o formato do arquivo.', 'error');
         };
         img.src = event.target?.result as string;
       };
