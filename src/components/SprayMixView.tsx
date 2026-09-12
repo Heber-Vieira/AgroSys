@@ -413,7 +413,7 @@ export const SprayMixView: React.FC<SprayMixViewProps> = ({
   const [totalHectares, setTotalHectares] = useState<number>(48.5);
   const [sprayRateLHa, setSprayRateLHa] = useState<number>(10.0);
   const [tankCapacityL, setTankCapacityL] = useState<number>(40.0);
-  const [mixerCapacityL, setMixerCapacityL] = useState<number>(1000.0);
+  const [mixerCapacityL, setMixerCapacityL] = useState<number>(150.0);
   const [checkedJarProducts, setCheckedJarProducts] = useState<Record<string, boolean>>({});
   const [selectedDroneName, setSelectedDroneName] = useState<string>('DJI Agras T40');
   const [selectedPlotId, setSelectedPlotId] = useState<string>('');
@@ -1552,7 +1552,7 @@ export const SprayMixView: React.FC<SprayMixViewProps> = ({
 
                   {/* Standard mixer capacities */}
                   <div className="grid grid-cols-4 gap-1.5 text-[11px]">
-                    {[500, 1000, 2000, 3000].map((size) => (
+                    {[150, 500, 1000, 2000].map((size) => (
                       <button
                         key={size}
                         type="button"
@@ -1570,15 +1570,15 @@ export const SprayMixView: React.FC<SprayMixViewProps> = ({
 
                   <input
                     type="range"
-                    min="100"
+                    min="50"
                     max="5000"
-                    step="100"
+                    step="50"
                     value={mixerCapacityL}
                     onChange={(e) => setMixerCapacityL(parseFloat(e.target.value))}
                     className="w-full accent-emerald-600 cursor-pointer"
                   />
                   <div className="flex justify-between text-[10px] text-emerald-800/80 dark:text-emerald-300/80">
-                    <span>100 L</span>
+                    <span>50 L</span>
                     <span className="font-bold text-emerald-900 dark:text-emerald-200">Ajuste Livre do Misturador</span>
                     <span>5.000 L</span>
                   </div>
