@@ -648,7 +648,8 @@ export default function App() {
           setCurrentUser(user);
           setIsAuthenticated(true);
         }}
-        availableUsers={users}
+        availableUsers={allUsers}
+        setUsers={setAllUsers}
       />
     );
   }

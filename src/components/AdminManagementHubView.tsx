@@ -44,7 +44,9 @@ import {
   TrendingUp,
   Clock,
   Camera,
-  Upload
+  Upload,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { DronePhoto, DroneBadge, DronePhotoUploadModal, PRESET_DRONE_PHOTOS, getDronePhotoUrl } from './DronePhotoBadge';
 import { UserAvatar, UserPhotoUploadModal, saveStoredUserPhoto, PRESET_AVATARS, getUserPhotoUrl } from './UserAvatar';
@@ -128,6 +130,11 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
     salaryBase: 0,
     photoUrl: '',
   });
+
+  // User Password Form State
+  const [userPasswordInput, setUserPasswordInput] = useState<string>('');
+  const [userConfirmPasswordInput, setUserConfirmPasswordInput] = useState<string>('');
+  const [showUserPassword, setShowUserPassword] = useState<boolean>(false);
 
   // Drone Modal State
   const [isDroneModalOpen, setIsDroneModalOpen] = useState(false);
@@ -243,6 +250,9 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
       photoUrl: '',
     });
     setUserSalaryInput('4.800,00');
+    setUserPasswordInput('');
+    setUserConfirmPasswordInput('');
+    setShowUserPassword(false);
     setIsUserModalOpen(true);
   };
 
@@ -250,6 +260,9 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
     setEditingUser(u);
     setUserFormData({ ...u, photoUrl: getUserPhotoUrl(u) });
     setUserSalaryInput(u.salaryBase ? formatDecimal(u.salaryBase, 2) : '0,00');
+    setUserPasswordInput(u.password || '');
+    setUserConfirmPasswordInput(u.password || '');
+    setShowUserPassword(false);
     setIsUserModalOpen(true);
   };
 
@@ -257,6 +270,24 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
     e.preventDefault();
     if (!userFormData.name || !userFormData.email) {
       showToast('Por favor, preencha ao menos o nome e o e-mail.');
+      return;
+    }
+
+    if (!editingUser) {
+      if (!userPasswordInput) {
+        showToast('Por favor, cadastre uma senha de acesso para o novo usuário.');
+        return;
+      }
+      if (userPasswordInput.length < 6) {
+        showToast('A senha de acesso deve possuir no mínimo 6 caracteres.');
+        return;
+      }
+      if (userPasswordInput !== userConfirmPasswordInput) {
+        showToast('A confirmação de senha não confere com a senha digitada.');
+        return;
+      }
+    } else if (userPasswordInput && userPasswordInput !== userConfirmPasswordInput) {
+      showToast('A confirmação de senha não confere com a senha digitada.');
       return;
     }
 
@@ -276,6 +307,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
       setUsers(prev => prev.map(u => u.id === editingUser.id ? {
         ...u,
         ...userFormData,
+        password: userPasswordInput || u.password || '123456',
         photoUrl,
         avatarUrl: photoUrl,
         role,
@@ -323,6 +355,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
         licenseCode: userFormData.licenseCode,
         status: userFormData.status || 'ACTIVE',
         salaryBase: userFormData.salaryBase || 0,
+        password: userPasswordInput,
         hiredDate: new Date().toISOString().split('T')[0],
         photoUrl,
         avatarUrl: photoUrl,
@@ -1685,6 +1718,60 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                     placeholder="marcos@agrosys.agr.br"
                   />
+                </div>
+
+                {/* Password Fields */}
+                <div className="sm:col-span-2 bg-purple-50/70 dark:bg-purple-950/40 p-4 rounded-2xl border border-purple-200/80 dark:border-purple-800/80 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-black uppercase text-purple-950 dark:text-purple-200 flex items-center gap-1.5">
+                      <Lock className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                      {editingUser ? 'Senha de Acesso (Deixe em branco para manter)' : 'Cadastro de Senha de Acesso *'}
+                    </label>
+                    <span className="text-[10px] font-bold text-purple-700 dark:text-purple-300">
+                      Mínimo 6 caracteres
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                        Senha do Usuário {!editingUser && '*'}
+                      </label>
+                      <div className="relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 flex items-center gap-2 focus-within:ring-2 focus-within:ring-purple-500">
+                        <input
+                          type={showUserPassword ? 'text' : 'password'}
+                          required={!editingUser}
+                          value={userPasswordInput}
+                          onChange={(e) => setUserPasswordInput(e.target.value)}
+                          className="bg-transparent font-mono text-xs text-slate-900 dark:text-white outline-none w-full placeholder-slate-400"
+                          placeholder="••••••••"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowUserPassword(!showUserPassword)}
+                          className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 cursor-pointer transition-colors"
+                        >
+                          {showUserPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                        Confirmar Senha {!editingUser && '*'}
+                      </label>
+                      <div className="relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 flex items-center gap-2 focus-within:ring-2 focus-within:ring-purple-500">
+                        <input
+                          type={showUserPassword ? 'text' : 'password'}
+                          required={!editingUser}
+                          value={userConfirmPasswordInput}
+                          onChange={(e) => setUserConfirmPasswordInput(e.target.value)}
+                          className="bg-transparent font-mono text-xs text-slate-900 dark:text-white outline-none w-full placeholder-slate-400"
+                          placeholder="••••••••"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div>

@@ -14,7 +14,8 @@ import {
   Shield, 
   Sparkles,
   Building2,
-  Sprout
+  Sprout,
+  UserPlus
 } from 'lucide-react';
 import { signInWithSupabase } from '../services/supabase';
 import { UserAvatar } from './UserAvatar';
@@ -32,6 +33,7 @@ interface LoginViewProps {
 export const LoginView: React.FC<LoginViewProps> = ({
   users,
   availableUsers,
+  setUsers,
   onLogin,
   onLoginSuccess,
   theme,
@@ -39,7 +41,10 @@ export const LoginView: React.FC<LoginViewProps> = ({
   // Merge users prop sources
   const userList = availableUsers || users || [];
 
-  // Form State
+  // Form Mode: 'LOGIN' or 'REGISTER'
+  const [authMode, setAuthMode] = useState<'LOGIN' | 'REGISTER'>('LOGIN');
+
+  // Login State
   const [emailInput, setEmailInput] = useState<string>('rafael.silveira@agrosys.agr.br');
   const [passwordInput, setPasswordInput] = useState<string>('••••••••');
   const [showPassword, setShowPassword] = useState<boolean>(false);
@@ -47,6 +52,13 @@ export const LoginView: React.FC<LoginViewProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [selectedQuickUserId, setSelectedQuickUserId] = useState<string | null>(null);
+
+  // Registration State
+  const [regName, setRegName] = useState<string>('');
+  const [regEmail, setRegEmail] = useState<string>('');
+  const [regRole, setRegRole] = useState<UserRole>('USER');
+  const [regPassword, setRegPassword] = useState<string>('');
+  const [regConfirmPassword, setRegConfirmPassword] = useState<string>('');
 
   // Trigger login completion
   const handleAuthComplete = (user: UserProfile) => {
@@ -92,12 +104,17 @@ export const LoginView: React.FC<LoginViewProps> = ({
         return;
       }
 
-      // 2. Local Fallback for Demo Profiles in System
+      // 2. Local Fallback for Demo & Registered Profiles in System
       const localMatched = userList.find(
         u => u.email.toLowerCase() === emailInput.trim().toLowerCase()
       );
 
       if (localMatched) {
+        if (localMatched.password && passwordInput !== '••••••••' && passwordInput !== localMatched.password) {
+          setErrorMsg('Senha de acesso incorreta. Por favor, verifique suas credenciais.');
+          setIsLoading(false);
+          return;
+        }
         setSuccessMsg(`Bem-vindo(a), ${localMatched.name}! Entrando...`);
         setTimeout(() => {
           handleAuthComplete(localMatched);
@@ -110,13 +127,72 @@ export const LoginView: React.FC<LoginViewProps> = ({
           handleAuthComplete(defaultUser);
         }, 600);
       } else {
-        setErrorMsg('Usuário não encontrado. Verifique seu e-mail ou utilize o acesso rápido.');
+        setErrorMsg('Usuário não encontrado. Verifique seu e-mail ou crie um cadastro.');
       }
     } catch (err: any) {
       setErrorMsg('Falha na autenticação: ' + (err.message || 'Erro inesperado'));
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Submit New User Registration
+  const handleRegisterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    if (!regName.trim() || !regEmail.trim()) {
+      setErrorMsg('Por favor, preencha o nome completo e o e-mail.');
+      return;
+    }
+    if (!regPassword) {
+      setErrorMsg('Por favor, cadastre uma senha de acesso.');
+      return;
+    }
+    if (regPassword.length < 6) {
+      setErrorMsg('A senha de acesso deve possuir pelo menos 6 caracteres.');
+      return;
+    }
+    if (regPassword !== regConfirmPassword) {
+      setErrorMsg('A confirmação de senha não confere com a senha digitada.');
+      return;
+    }
+
+    const roleLabels: Record<UserRole, string> = {
+      ADMIN: 'Administrador Geral',
+      USER: 'Usuário / Produtor Rural',
+      PILOT: 'Piloto de Drone Remoto',
+      ASSISTANT: 'Auxiliar de Pulverização',
+    };
+
+    const newUser: UserProfile = {
+      id: `user-${Date.now()}`,
+      name: regName.trim(),
+      email: regEmail.trim(),
+      role: regRole,
+      roleLabel: roleLabels[regRole],
+      badge: roleLabels[regRole],
+      password: regPassword,
+      status: 'ACTIVE',
+      hiredDate: new Date().toISOString().split('T')[0],
+    };
+
+    if (setUsers) {
+      setUsers(prev => [newUser, ...prev]);
+    }
+
+    try {
+      const updatedList = [newUser, ...userList];
+      localStorage.setItem('agrodrone_users_fleet', JSON.stringify(updatedList));
+    } catch (e) {
+      console.warn('Erro ao persistir novo usuário:', e);
+    }
+
+    setSuccessMsg(`Conta criada com sucesso! Entrando no sistema como ${newUser.name}...`);
+    setTimeout(() => {
+      handleAuthComplete(newUser);
+    }, 700);
   };
 
   // Quick Access Login Selection
@@ -214,13 +290,43 @@ export const LoginView: React.FC<LoginViewProps> = ({
           
           <div className="space-y-6">
             
+            {/* Mode Switcher Tabs */}
+            <div className="flex items-center gap-2 p-1.5 bg-slate-100 rounded-2xl">
+              <button
+                type="button"
+                onClick={() => { setAuthMode('LOGIN'); setErrorMsg(null); setSuccessMsg(null); }}
+                className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                  authMode === 'LOGIN'
+                    ? 'bg-white text-slate-900 shadow-md'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <Lock className="w-3.5 h-3.5" />
+                <span>Entrar no Sistema</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setAuthMode('REGISTER'); setErrorMsg(null); setSuccessMsg(null); }}
+                className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                  authMode === 'REGISTER'
+                    ? 'bg-[#064e3b] text-white shadow-md'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Criar Nova Conta</span>
+              </button>
+            </div>
+
             {/* Header Titles */}
             <div>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                Bem-vindo de volta!
+                {authMode === 'LOGIN' ? 'Bem-vindo de volta!' : 'Cadastro de Novo Usuário'}
               </h2>
               <p className="text-slate-500 text-xs sm:text-sm font-medium mt-1.5">
-                Insira suas credenciais corporativas para acessar o painel de controle.
+                {authMode === 'LOGIN' 
+                  ? 'Insira suas credenciais corporativas para acessar o painel de controle.'
+                  : 'Preencha os dados abaixo e cadastre sua senha para acessar o AgroSys.'}
               </p>
             </div>
 
@@ -239,76 +345,192 @@ export const LoginView: React.FC<LoginViewProps> = ({
               </div>
             )}
 
-            {/* Login Credentials Form */}
-            <form onSubmit={handleSubmitLogin} className="space-y-5">
-              
-              {/* Email Input */}
-              <div>
-                <label className="text-[11px] font-extrabold tracking-wider text-slate-400 uppercase block mb-1.5">
-                  E-MAIL CORPORATIVO
-                </label>
-                <div className="relative bg-[#f0f4fd] border border-slate-200/80 rounded-2xl px-4 py-3.5 flex items-center gap-3 focus-within:ring-2 focus-within:ring-emerald-600 focus-within:bg-white transition-all">
-                  <Mail className="w-5 h-5 text-slate-400 shrink-0" />
-                  <input
-                    type="email"
-                    required
-                    value={emailInput}
-                    onChange={(e) => setEmailInput(e.target.value)}
-                    placeholder="heber.vieira.hv@gmail.com"
-                    className="bg-transparent text-slate-900 font-semibold text-sm outline-none w-full placeholder-slate-400"
-                  />
-                </div>
-              </div>
-
-              {/* Password Input */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-[11px] font-extrabold tracking-wider text-slate-400 uppercase">
-                    SENHA DE ACESSO
+            {/* FORM 1: Login Credentials Form */}
+            {authMode === 'LOGIN' && (
+              <form onSubmit={handleSubmitLogin} className="space-y-5">
+                
+                {/* Email Input */}
+                <div>
+                  <label className="text-[11px] font-extrabold tracking-wider text-slate-400 uppercase block mb-1.5">
+                    E-MAIL CORPORATIVO
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => alert('Para redefinir sua senha, entre em contato com o Administrador do sistema AgroSys.')}
-                    className="text-xs font-bold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
-                  >
-                    Esqueci minha senha
-                  </button>
+                  <div className="relative bg-[#f0f4fd] border border-slate-200/80 rounded-2xl px-4 py-3.5 flex items-center gap-3 focus-within:ring-2 focus-within:ring-emerald-600 focus-within:bg-white transition-all">
+                    <Mail className="w-5 h-5 text-slate-400 shrink-0" />
+                    <input
+                      type="email"
+                      required
+                      value={emailInput}
+                      onChange={(e) => setEmailInput(e.target.value)}
+                      placeholder="heber.vieira.hv@gmail.com"
+                      className="bg-transparent text-slate-900 font-semibold text-sm outline-none w-full placeholder-slate-400"
+                    />
+                  </div>
                 </div>
-                <div className="relative bg-[#f0f4fd] border border-slate-200/80 rounded-2xl px-4 py-3.5 flex items-center gap-3 focus-within:ring-2 focus-within:ring-emerald-600 focus-within:bg-white transition-all">
-                  <Lock className="w-5 h-5 text-slate-400 shrink-0" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={passwordInput}
-                    onChange={(e) => setPasswordInput(e.target.value)}
-                    placeholder="••••••••"
-                    className="bg-transparent text-slate-900 font-semibold text-sm outline-none w-full placeholder-slate-400"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer transition-colors"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
 
-              {/* Primary Login Button */}
-              <div className="pt-2">
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full py-4 px-6 rounded-2xl font-extrabold text-sm tracking-wider uppercase bg-[#064e3b] hover:bg-[#022c22] text-white shadow-lg shadow-emerald-950/20 hover:shadow-xl transition-all flex items-center justify-center gap-2.5 cursor-pointer active:scale-[0.99] disabled:opacity-50"
-                >
-                  <span>{isLoading ? 'Autenticando...' : 'ENTRAR NO SISTEMA'}</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-            </form>
+                {/* Password Input */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-[11px] font-extrabold tracking-wider text-slate-400 uppercase">
+                      SENHA DE ACESSO
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => alert('Para redefinir sua senha, entre em contato com o Administrador do sistema AgroSys.')}
+                      className="text-xs font-bold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
+                    >
+                      Esqueci minha senha
+                    </button>
+                  </div>
+                  <div className="relative bg-[#f0f4fd] border border-slate-200/80 rounded-2xl px-4 py-3.5 flex items-center gap-3 focus-within:ring-2 focus-within:ring-emerald-600 focus-within:bg-white transition-all">
+                    <Lock className="w-5 h-5 text-slate-400 shrink-0" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={passwordInput}
+                      onChange={(e) => setPasswordInput(e.target.value)}
+                      placeholder="••••••••"
+                      className="bg-transparent text-slate-900 font-semibold text-sm outline-none w-full placeholder-slate-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Primary Login Button */}
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full py-4 px-6 rounded-2xl font-extrabold text-sm tracking-wider uppercase bg-[#064e3b] hover:bg-[#022c22] text-white shadow-lg shadow-emerald-950/20 hover:shadow-xl transition-all flex items-center justify-center gap-2.5 cursor-pointer active:scale-[0.99] disabled:opacity-50"
+                  >
+                    <span>{isLoading ? 'Autenticando...' : 'ENTRAR NO SISTEMA'}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* FORM 2: New User Registration Form */}
+            {authMode === 'REGISTER' && (
+              <form onSubmit={handleRegisterSubmit} className="space-y-4">
+                
+                {/* Full Name Input */}
+                <div>
+                  <label className="text-[11px] font-extrabold tracking-wider text-slate-400 uppercase block mb-1">
+                    NOME COMPLETO *
+                  </label>
+                  <div className="relative bg-[#f0f4fd] border border-slate-200/80 rounded-2xl px-4 py-3 flex items-center gap-3 focus-within:ring-2 focus-within:ring-emerald-600 focus-within:bg-white transition-all">
+                    <User className="w-5 h-5 text-slate-400 shrink-0" />
+                    <input
+                      type="text"
+                      required
+                      value={regName}
+                      onChange={(e) => setRegName(e.target.value)}
+                      placeholder="Ex: João da Silva"
+                      className="bg-transparent text-slate-900 font-semibold text-sm outline-none w-full placeholder-slate-400"
+                    />
+                  </div>
+                </div>
+
+                {/* Email Input */}
+                <div>
+                  <label className="text-[11px] font-extrabold tracking-wider text-slate-400 uppercase block mb-1">
+                    E-MAIL CORPORATIVO *
+                  </label>
+                  <div className="relative bg-[#f0f4fd] border border-slate-200/80 rounded-2xl px-4 py-3 flex items-center gap-3 focus-within:ring-2 focus-within:ring-emerald-600 focus-within:bg-white transition-all">
+                    <Mail className="w-5 h-5 text-slate-400 shrink-0" />
+                    <input
+                      type="email"
+                      required
+                      value={regEmail}
+                      onChange={(e) => setRegEmail(e.target.value)}
+                      placeholder="joao@fazenda.com.br"
+                      className="bg-transparent text-slate-900 font-semibold text-sm outline-none w-full placeholder-slate-400"
+                    />
+                  </div>
+                </div>
+
+                {/* Role Select */}
+                <div>
+                  <label className="text-[11px] font-extrabold tracking-wider text-slate-400 uppercase block mb-1">
+                    PERFIL / FUNÇÃO *
+                  </label>
+                  <select
+                    value={regRole}
+                    onChange={(e) => setRegRole(e.target.value as UserRole)}
+                    className="w-full bg-[#f0f4fd] border border-slate-200/80 rounded-2xl px-4 py-3 font-bold text-sm text-slate-900 focus:ring-2 focus:ring-emerald-600 outline-none cursor-pointer"
+                  >
+                    <option value="USER">🌾 Produtor Rural / Cliente (Acompanhamento & OS)</option>
+                    <option value="PILOT">✈️ Piloto de Drone (Operações de Voo DECEA)</option>
+                    <option value="ASSISTANT">🧪 Auxiliar de Pulverização (Técnico de Calda)</option>
+                    <option value="ADMIN">🛡️ Administrador Geral (Gestão & Governança)</option>
+                  </select>
+                </div>
+
+                {/* Password & Confirm Password Row */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label className="text-[11px] font-extrabold tracking-wider text-slate-400 uppercase block mb-1">
+                      CADASTRAR SENHA *
+                    </label>
+                    <div className="relative bg-[#f0f4fd] border border-slate-200/80 rounded-2xl px-4 py-3 flex items-center gap-2 focus-within:ring-2 focus-within:ring-emerald-600 focus-within:bg-white transition-all">
+                      <Lock className="w-4 h-4 text-slate-400 shrink-0" />
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        value={regPassword}
+                        onChange={(e) => setRegPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="bg-transparent text-slate-900 font-mono text-xs outline-none w-full placeholder-slate-400"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-extrabold tracking-wider text-slate-400 uppercase block mb-1">
+                      CONFIRMAR SENHA *
+                    </label>
+                    <div className="relative bg-[#f0f4fd] border border-slate-200/80 rounded-2xl px-4 py-3 flex items-center gap-2 focus-within:ring-2 focus-within:ring-emerald-600 focus-within:bg-white transition-all">
+                      <Lock className="w-4 h-4 text-slate-400 shrink-0" />
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        value={regConfirmPassword}
+                        onChange={(e) => setRegConfirmPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="bg-transparent text-slate-900 font-mono text-xs outline-none w-full placeholder-slate-400"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Submit Register Button */}
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    className="w-full py-4 px-6 rounded-2xl font-extrabold text-sm tracking-wider uppercase bg-[#064e3b] hover:bg-[#022c22] text-white shadow-lg shadow-emerald-950/20 hover:shadow-xl transition-all flex items-center justify-center gap-2.5 cursor-pointer active:scale-[0.99]"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    <span>CONCLUIR CADASTRO E ENTRAR</span>
+                  </button>
+                </div>
+              </form>
+            )}
 
             {/* Quick Access Switcher (Existing User Types in System) */}
-            {userList.length > 0 && (
+            {authMode === 'LOGIN' && userList.length > 0 && (
               <div className="pt-4 border-t border-slate-100 space-y-3">
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-extrabold text-slate-400 uppercase tracking-wider text-[10px]">

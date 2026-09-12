@@ -41,6 +41,7 @@ export interface UserProfile {
   status?: 'ACTIVE' | 'INACTIVE';
   salaryBase?: number;
   hiredDate?: string;
+  password?: string;
 }
 
 export interface ClientProducer {
