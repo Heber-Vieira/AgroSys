@@ -847,110 +847,238 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
             </div>
 
             {/* Visual Signal Tower and Gauge Grid Side-by-Side Container */}
-            <div className="flex flex-col sm:flex-row items-stretch gap-4">
+            <div className="flex flex-col sm:flex-row items-center sm:items-stretch gap-3">
               
               {/* Virtual LED Signal Tower (Torre de Luz de Automação Agroindustrial) */}
-              <div className="flex sm:flex-col items-center justify-around sm:justify-center gap-3 bg-slate-100 dark:bg-slate-950 p-3 sm:px-3 sm:py-4 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 w-full sm:w-20 shrink-0 shadow-inner">
-                <span className="text-[8px] font-black tracking-widest text-slate-500 uppercase text-center hidden sm:block leading-tight">TORRE LED</span>
-                
-                {/* RED LED (CRITICAL ALARM) */}
-                <div className="flex flex-col items-center gap-0.5">
-                  <div className={`w-8 h-8 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
-                    isAlarmActive
-                      ? 'bg-rose-600 border-rose-400 shadow-[0_0_20px_rgba(244,63,94,1)] animate-pulse'
-                      : 'bg-rose-100/60 dark:bg-rose-950/20 border-rose-300 dark:border-rose-950/60 text-rose-300 dark:text-rose-950/30'
-                  }`}>
-                    <div className={`w-3.5 h-3.5 rounded-full transition-all duration-300 ${isAlarmActive ? 'bg-white shadow-[0_0_8px_white] animate-ping' : 'bg-rose-300/60 dark:bg-rose-950/50'}`} />
-                  </div>
-                  <span className="text-[6px] font-black text-slate-500 uppercase tracking-tighter">CRÍTICO</span>
-                </div>
+              {(() => {
+                const hasCritical = currentWarnings.some(w => w.toLowerCase().includes('crítica') || w.toLowerCase().includes('crítico') || w.toLowerCase().includes('severo') || w.toLowerCase().includes('extremo'));
+                const hasAlert = currentWarnings.length > 0 && !hasCritical;
+                const isGreen = currentWarnings.length === 0;
 
-                {/* YELLOW LED (CAUTION / MARGINAL CONDITIONS) */}
-                <div className="flex flex-col items-center gap-0.5">
-                  <div className={`w-8 h-8 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
-                    !isSafe && !isAlarmActive
-                      ? 'bg-amber-500 border-amber-300 shadow-[0_0_20px_rgba(245,158,11,1)] animate-bounce'
-                      : 'bg-amber-100/60 dark:bg-amber-950/20 border-amber-300 dark:border-amber-950/60 text-amber-300 dark:text-amber-950/30'
-                  }`}>
-                    <div className={`w-3.5 h-3.5 rounded-full transition-all duration-300 ${(!isSafe && !isAlarmActive) ? 'bg-white shadow-[0_0_8px_white]' : 'bg-amber-300/60 dark:bg-amber-950/50'}`} />
-                  </div>
-                  <span className="text-[6px] font-black text-slate-500 uppercase tracking-tighter">ALERTA</span>
-                </div>
+                return (
+                  <div className="flex sm:flex-col items-center justify-around gap-1 bg-slate-100 dark:bg-slate-950 p-1.5 sm:px-1.5 sm:py-2 rounded-xl border border-slate-200/80 dark:border-slate-800/80 w-full sm:w-14 shrink-0 shadow-inner max-h-[110px]">
+                    <span className="text-[6px] font-black tracking-widest text-slate-500 uppercase text-center hidden sm:block leading-tight">TORRE LED</span>
+                    
+                    {/* RED LED (CRITICAL ALARM) */}
+                    <div className="flex flex-col items-center gap-0" title="Status Crítico">
+                      <div className={`w-5 h-5 rounded-full border transition-all duration-300 flex items-center justify-center ${
+                        hasCritical
+                          ? 'bg-rose-600 border-rose-400 shadow-[0_0_12px_rgba(244,63,94,1)] animate-pulse'
+                          : 'bg-rose-100/60 dark:bg-rose-950/20 border-rose-300/60 dark:border-rose-950/60 text-rose-300 dark:text-rose-950/30'
+                      }`}>
+                        <div className={`w-2 h-2 rounded-full transition-all duration-300 ${hasCritical ? 'bg-white shadow-[0_0_6px_white] animate-ping' : 'bg-rose-300/40 dark:bg-rose-950/50'}`} />
+                      </div>
+                      <span className={`text-[5px] font-black uppercase tracking-tighter ${hasCritical ? 'text-rose-600 font-bold' : 'text-slate-400'}`}>CRÍTICO</span>
+                    </div>
 
-                {/* GREEN LED (SAFE / OPERATIONAL) */}
-                <div className="flex flex-col items-center gap-0.5">
-                  <div className={`w-8 h-8 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
-                    isSafe
-                      ? 'bg-emerald-500 border-emerald-300 shadow-[0_0_20px_rgba(16,185,129,1)]'
-                      : 'bg-emerald-100/60 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-950/60 text-emerald-300 dark:text-emerald-950/30'
-                  }`}>
-                    <div className={`w-3.5 h-3.5 rounded-full transition-all duration-300 ${isSafe ? 'bg-white shadow-[0_0_8px_white]' : 'bg-emerald-300/60 dark:bg-emerald-950/50'}`} />
+                    {/* YELLOW LED (CAUTION / MARGINAL CONDITIONS) */}
+                    <div className="flex flex-col items-center gap-0" title="Status Alerta">
+                      <div className={`w-5 h-5 rounded-full border transition-all duration-300 flex items-center justify-center ${
+                        hasAlert
+                          ? 'bg-amber-500 border-amber-300 shadow-[0_0_12px_rgba(245,158,11,1)] animate-bounce'
+                          : 'bg-amber-100/60 dark:bg-amber-950/20 border-amber-300/60 dark:border-amber-950/60 text-amber-300 dark:text-amber-950/30'
+                      }`}>
+                        <div className={`w-2 h-2 rounded-full transition-all duration-300 ${hasAlert ? 'bg-white shadow-[0_0_6px_white]' : 'bg-amber-300/40 dark:bg-amber-950/50'}`} />
+                      </div>
+                      <span className={`text-[5px] font-black uppercase tracking-tighter ${hasAlert ? 'text-amber-600 font-bold' : 'text-slate-400'}`}>ALERTA</span>
+                    </div>
+
+                    {/* GREEN LED (SAFE / OPERATIONAL) */}
+                    <div className="flex flex-col items-center gap-0" title="Status Seguro">
+                      <div className={`w-5 h-5 rounded-full border transition-all duration-300 flex items-center justify-center ${
+                        isGreen
+                          ? 'bg-emerald-500 border-emerald-300 shadow-[0_0_12px_rgba(16,185,129,1)]'
+                          : 'bg-emerald-100/60 dark:bg-emerald-950/20 border-emerald-300/60 dark:border-emerald-950/60 text-emerald-300 dark:text-emerald-950/30'
+                      }`}>
+                        <div className={`w-2 h-2 rounded-full transition-all duration-300 ${isGreen ? 'bg-white shadow-[0_0_6px_white]' : 'bg-emerald-300/40 dark:bg-emerald-950/50'}`} />
+                      </div>
+                      <span className={`text-[5px] font-black uppercase tracking-tighter ${isGreen ? 'text-emerald-600 font-bold' : 'text-slate-400'}`}>SEGURO</span>
+                    </div>
                   </div>
-                  <span className="text-[6px] font-black text-slate-500 uppercase tracking-tighter">SEGURO</span>
-                </div>
-              </div>
+                );
+              })()}
 
               {/* Grid of Gauges */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 flex-1">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 flex-1">
                 {/* Temp Gauge */}
-                <div className={`p-3.5 rounded-2xl border transition-all text-center shadow-2xs ${
-                  temperature > 30.0 || temperature < 15.0 
-                    ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800/60 text-rose-800 dark:text-rose-300' 
-                    : 'bg-slate-50 dark:bg-slate-950 border-slate-200/80 dark:border-slate-800'
-                }`}>
-                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 block uppercase">TEMPERATURA</span>
-                  <span className={`text-xl sm:text-2xl font-black block mt-1 ${
-                    temperature > 30.0 || temperature < 15.0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
-                  }`}>
-                    {temperature.toFixed(1).replace('.', ',')} °C
-                  </span>
-                  <span className="text-[9px] text-slate-500 dark:text-slate-400 block mt-1">Limite: 15°C a 30°C</span>
-                </div>
+                {(() => {
+                  const min = 10, max = 35, idealMin = 15, idealMax = 30;
+                  const percent = Math.min(Math.max(((temperature - min) / (max - min)) * 100, 0), 100);
+                  const isViolation = temperature > idealMax || temperature < idealMin;
+                  return (
+                    <div className={`p-2.5 rounded-xl border transition-all flex flex-col justify-between shadow-2xs ${
+                      isViolation
+                        ? 'bg-rose-50/80 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800/60 text-rose-800 dark:text-rose-300' 
+                        : 'bg-slate-50/80 dark:bg-slate-950 border-slate-200/80 dark:border-slate-800'
+                    }`}>
+                      <div className="text-center">
+                        <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 block uppercase tracking-tight">TEMPERATURA</span>
+                        <span className={`text-lg sm:text-xl font-black block mt-0.5 ${
+                          isViolation ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
+                        }`}>
+                          {temperature.toFixed(1).replace('.', ',')} °C
+                        </span>
+                        <span className="text-[8px] text-slate-500 dark:text-slate-400 block mt-0.5 font-medium">
+                          Limite: {idealMin}°C a {idealMax}°C
+                        </span>
+                      </div>
+
+                      {/* Visual Progress / Range Indicator */}
+                      <div className="mt-1.5 pt-1.5 border-t border-slate-200/60 dark:border-slate-800">
+                        <div className="flex justify-between items-center text-[7.5px] text-slate-400 font-semibold mb-0.5">
+                          <span>{min}°C</span>
+                          <span className={isViolation ? 'text-rose-500 font-bold' : 'text-emerald-600 font-bold'}>
+                            {isViolation ? 'FORA' : 'IDEAL'}
+                          </span>
+                          <span>{max}°C</span>
+                        </div>
+                        <div className="h-1 w-full bg-slate-200 dark:bg-slate-800 rounded-full relative overflow-hidden">
+                          <div 
+                            className={`h-full transition-all duration-500 rounded-full ${
+                              isViolation ? 'bg-rose-500' : 'bg-emerald-500'
+                            }`}
+                            style={{ width: `${percent}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Humidity Gauge */}
-                <div className={`p-3.5 rounded-2xl border transition-all text-center shadow-2xs ${
-                  humidity < 50.0 
-                    ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800/60 text-rose-800 dark:text-rose-300' 
-                    : 'bg-slate-50 dark:bg-slate-950 border-slate-200/80 dark:border-slate-800'
-                }`}>
-                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 block uppercase">UMIDADE</span>
-                  <span className={`text-xl sm:text-2xl font-black block mt-1 ${
-                    humidity < 50.0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
-                  }`}>
-                    {humidity}%
-                  </span>
-                  <span className="text-[9px] text-slate-500 dark:text-slate-400 block mt-1">Limite: &gt; 50%</span>
-                </div>
+                {(() => {
+                  const min = 30, max = 100, idealMin = 50;
+                  const percent = Math.min(Math.max(((humidity - min) / (max - min)) * 100, 0), 100);
+                  const isViolation = humidity < idealMin;
+                  return (
+                    <div className={`p-2.5 rounded-xl border transition-all flex flex-col justify-between shadow-2xs ${
+                      isViolation 
+                        ? 'bg-rose-50/80 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800/60 text-rose-800 dark:text-rose-300' 
+                        : 'bg-slate-50/80 dark:bg-slate-950 border-slate-200/80 dark:border-slate-800'
+                    }`}>
+                      <div className="text-center">
+                        <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 block uppercase tracking-tight">UMIDADE</span>
+                        <span className={`text-lg sm:text-xl font-black block mt-0.5 ${
+                          isViolation ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
+                        }`}>
+                          {humidity}%
+                        </span>
+                        <span className="text-[8px] text-slate-500 dark:text-slate-400 block mt-0.5 font-medium">
+                          Limite: &gt; {idealMin}%
+                        </span>
+                      </div>
+
+                      {/* Visual Progress / Range Indicator */}
+                      <div className="mt-1.5 pt-1.5 border-t border-slate-200/60 dark:border-slate-800">
+                        <div className="flex justify-between items-center text-[7.5px] text-slate-400 font-semibold mb-0.5">
+                          <span>{min}%</span>
+                          <span className={isViolation ? 'text-rose-500 font-bold' : 'text-emerald-600 font-bold'}>
+                            {isViolation ? 'BAIXA' : 'OK'}
+                          </span>
+                          <span>{max}%</span>
+                        </div>
+                        <div className="h-1 w-full bg-slate-200 dark:bg-slate-800 rounded-full relative overflow-hidden">
+                          <div 
+                            className={`h-full transition-all duration-500 rounded-full ${
+                              isViolation ? 'bg-rose-500' : 'bg-emerald-500'
+                            }`}
+                            style={{ width: `${percent}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Wind Speed Gauge */}
-                <div className={`p-3.5 rounded-2xl border transition-all text-center shadow-2xs ${
-                  windSpeed > 12.0 || windSpeed < 3.0
-                    ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800/60 text-rose-800 dark:text-rose-300' 
-                    : 'bg-slate-50 dark:bg-slate-950 border-slate-200/80 dark:border-slate-800'
-                }`}>
-                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 block uppercase">VELOCIDADE VENTO</span>
-                  <span className={`text-xl sm:text-2xl font-black block mt-1 ${
-                    windSpeed > 12.0 || windSpeed < 3.0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
-                  }`}>
-                    {windSpeed.toFixed(1).replace('.', ',')} km/h
-                  </span>
-                  <span className="text-[9px] text-slate-500 dark:text-slate-400 block mt-1">Limite: 3 a 12 km/h</span>
-                </div>
+                {(() => {
+                  const min = 0, max = 20, idealMin = 3, idealMax = 12;
+                  const percent = Math.min(Math.max(((windSpeed - min) / (max - min)) * 100, 0), 100);
+                  const isViolation = windSpeed > idealMax || windSpeed < idealMin;
+                  return (
+                    <div className={`p-2.5 rounded-xl border transition-all flex flex-col justify-between shadow-2xs ${
+                      isViolation
+                        ? 'bg-rose-50/80 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800/60 text-rose-800 dark:text-rose-300' 
+                        : 'bg-slate-50/80 dark:bg-slate-950 border-slate-200/80 dark:border-slate-800'
+                    }`}>
+                      <div className="text-center">
+                        <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 block uppercase tracking-tight">VELOCIDADE VENTO</span>
+                        <span className={`text-lg sm:text-xl font-black block mt-0.5 ${
+                          isViolation ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
+                        }`}>
+                          {windSpeed.toFixed(1).replace('.', ',')} <span className="text-[10px] font-bold">km/h</span>
+                        </span>
+                        <span className="text-[8px] text-slate-500 dark:text-slate-400 block mt-0.5 font-medium">
+                          Limite: {idealMin} a {idealMax} km/h
+                        </span>
+                      </div>
+
+                      {/* Visual Progress / Range Indicator */}
+                      <div className="mt-1.5 pt-1.5 border-t border-slate-200/60 dark:border-slate-800">
+                        <div className="flex justify-between items-center text-[7.5px] text-slate-400 font-semibold mb-0.5">
+                          <span>{min}</span>
+                          <span className={isViolation ? 'text-rose-500 font-bold' : 'text-emerald-600 font-bold'}>
+                            {windSpeed > idealMax ? 'FORTE' : windSpeed < idealMin ? 'CALMO' : 'IDEAL'}
+                          </span>
+                          <span>{max}</span>
+                        </div>
+                        <div className="h-1 w-full bg-slate-200 dark:bg-slate-800 rounded-full relative overflow-hidden">
+                          <div 
+                            className={`h-full transition-all duration-500 rounded-full ${
+                              isViolation ? 'bg-rose-500' : 'bg-emerald-500'
+                            }`}
+                            style={{ width: `${percent}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Delta T Gauge */}
-                <div className={`p-3.5 rounded-2xl border transition-all text-center shadow-2xs ${
-                  deltaT < 2.0 || deltaT > 8.0 
-                    ? 'bg-amber-50 dark:bg-rose-950/40 border-amber-300 dark:border-rose-800/60 text-amber-800 dark:text-rose-300' 
-                    : 'bg-slate-50 dark:bg-slate-950 border-slate-200/80 dark:border-slate-800'
-                }`}>
-                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 block uppercase">DELTA T</span>
-                  <span className={`text-xl sm:text-2xl font-black block mt-1 ${
-                    deltaT < 2.0 || deltaT > 8.0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'
-                  }`}>
-                    {deltaT.toFixed(1).replace('.', ',')} °C
-                  </span>
-                  <span className="text-[9px] text-slate-500 dark:text-slate-400 block mt-1">Ideal: 2°C a 8°C</span>
-                </div>
+                {(() => {
+                  const min = 0, max = 12, idealMin = 2, idealMax = 8;
+                  const percent = Math.min(Math.max(((deltaT - min) / (max - min)) * 100, 0), 100);
+                  const isViolation = deltaT < idealMin || deltaT > idealMax;
+                  return (
+                    <div className={`p-2.5 rounded-xl border transition-all flex flex-col justify-between shadow-2xs ${
+                      isViolation 
+                        ? 'bg-amber-50/80 dark:bg-rose-950/40 border-amber-300 dark:border-rose-800/60 text-amber-800 dark:text-rose-300' 
+                        : 'bg-slate-50/80 dark:bg-slate-950 border-slate-200/80 dark:border-slate-800'
+                    }`}>
+                      <div className="text-center">
+                        <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 block uppercase tracking-tight">DELTA T</span>
+                        <span className={`text-lg sm:text-xl font-black block mt-0.5 ${
+                          isViolation ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'
+                        }`}>
+                          {deltaT.toFixed(1).replace('.', ',')} °C
+                        </span>
+                        <span className="text-[8px] text-slate-500 dark:text-slate-400 block mt-0.5 font-medium">
+                          Ideal: {idealMin}°C a {idealMax}°C
+                        </span>
+                      </div>
+
+                      {/* Visual Progress / Range Indicator */}
+                      <div className="mt-1.5 pt-1.5 border-t border-slate-200/60 dark:border-slate-800">
+                        <div className="flex justify-between items-center text-[7.5px] text-slate-400 font-semibold mb-0.5">
+                          <span>{min}°C</span>
+                          <span className={isViolation ? 'text-amber-600 font-bold' : 'text-emerald-600 font-bold'}>
+                            {isViolation ? 'ATENÇÃO' : 'IDEAL'}
+                          </span>
+                          <span>{max}°C</span>
+                        </div>
+                        <div className="h-1 w-full bg-slate-200 dark:bg-slate-800 rounded-full relative overflow-hidden">
+                          <div 
+                            className={`h-full transition-all duration-500 rounded-full ${
+                              isViolation ? 'bg-amber-500' : 'bg-emerald-500'
+                            }`}
+                            style={{ width: `${percent}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
             </div>
@@ -995,6 +1123,78 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                 <Plus className="w-4 h-4" />
                 {recordingMode === 'auto' ? 'Forçar Registro Manual' : 'Registrar Medição Climática'}
               </button>
+            </div>
+
+            {/* Weather Simulator adjusters (For testing alerts easily) moved here to fill the gap */}
+            <div className="mt-4 space-y-3 bg-slate-50/50 dark:bg-slate-900/60 p-5 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-inner">
+              <div>
+                <span className="font-black text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5 text-xs uppercase tracking-wider">
+                  <Settings className="w-4 h-4" />
+                  Simular Alterações de Clima (Modo Treinamento)
+                </span>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight mt-1">
+                  Altere os controles para forçar violações meteorológicas e conferir o disparo imediato dos alertas visuais e sonoros na torre acima:
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-[11px]">
+                {/* Temperature slider */}
+                <div className="space-y-1.5 bg-white dark:bg-slate-950/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800/50 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-600 dark:text-slate-400 uppercase tracking-tighter text-[9px]">Temperatura</span>
+                    <strong className={`font-mono ${temperature > 30.0 ? 'text-rose-600 dark:text-rose-400 font-black' : 'text-slate-800 dark:text-slate-200'}`}>
+                      {temperature.toFixed(1).replace('.', ',')} °C
+                    </strong>
+                  </div>
+                  <input
+                    type="range"
+                    min="10"
+                    max="40"
+                    step="0.5"
+                    value={temperature}
+                    onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                    className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+                  />
+                </div>
+
+                {/* Humidity slider */}
+                <div className="space-y-1.5 bg-white dark:bg-slate-950/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800/50 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-600 dark:text-slate-400 uppercase tracking-tighter text-[9px]">Umidade</span>
+                    <strong className={`font-mono ${humidity < 50 ? 'text-rose-600 dark:text-rose-400 font-black' : 'text-slate-800 dark:text-slate-200'}`}>
+                      {humidity}%
+                    </strong>
+                  </div>
+                  <input
+                    type="range"
+                    min="30"
+                    max="90"
+                    step="1"
+                    value={humidity}
+                    onChange={(e) => setHumidity(parseInt(e.target.value))}
+                    className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+                  />
+                </div>
+
+                {/* Wind speed slider */}
+                <div className="space-y-1.5 bg-white dark:bg-slate-950/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800/50 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-600 dark:text-slate-400 uppercase tracking-tighter text-[9px]">Vento</span>
+                    <strong className={`font-mono ${windSpeed > 12.0 || windSpeed < 3.0 ? 'text-rose-600 dark:text-rose-400 font-black' : 'text-slate-800 dark:text-slate-200'}`}>
+                      {windSpeed.toFixed(1).replace('.', ',')} km/h
+                    </strong>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="20"
+                    step="0.5"
+                    value={windSpeed}
+                    onChange={(e) => setWindSpeed(parseFloat(e.target.value))}
+                    className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1263,75 +1463,7 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                 </div>
               </div>
 
-              {/* Weather Simulator adjusters (For testing alerts easily) */}
-              <div className="space-y-2 border-t border-slate-200 dark:border-slate-900 pt-3">
-                <span className="font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1 text-[11px] uppercase tracking-wider">
-                  <Settings className="w-3.5 h-3.5" />
-                  Simular Alterações de Clima:
-                </span>
-                <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
-                  Altere os controles para forçar violações meteorológicas e conferir o disparo imediato dos alertas visuais e sonoros:
-                </p>
-
-                <div className="space-y-2.5 bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] shadow-2xs">
-                  {/* Temperature slider */}
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 dark:text-slate-400">Temperatura Externa:</span>
-                      <strong className={`font-mono ${temperature > 30.0 ? 'text-rose-600 dark:text-rose-400 font-black' : 'text-slate-800 dark:text-slate-200'}`}>
-                        {temperature.toFixed(1).replace('.', ',')} °C
-                      </strong>
-                    </div>
-                    <input
-                      type="range"
-                      min="10"
-                      max="40"
-                      step="0.5"
-                      value={temperature}
-                      onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                      className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-600"
-                    />
-                  </div>
-
-                  {/* Humidity slider */}
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 dark:text-slate-400">Umidade Relativa:</span>
-                      <strong className={`font-mono ${humidity < 50 ? 'text-rose-600 dark:text-rose-400 font-black' : 'text-slate-800 dark:text-slate-200'}`}>
-                        {humidity}%
-                      </strong>
-                    </div>
-                    <input
-                      type="range"
-                      min="30"
-                      max="90"
-                      step="1"
-                      value={humidity}
-                      onChange={(e) => setHumidity(parseInt(e.target.value))}
-                      className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-600"
-                    />
-                  </div>
-
-                  {/* Wind speed slider */}
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 dark:text-slate-400">Velocidade do Vento:</span>
-                      <strong className={`font-mono ${windSpeed > 12.0 || windSpeed < 3.0 ? 'text-rose-600 dark:text-rose-400 font-black' : 'text-slate-800 dark:text-slate-200'}`}>
-                        {windSpeed.toFixed(1).replace('.', ',')} km/h
-                      </strong>
-                    </div>
-                    <input
-                      type="range"
-                      min="0"
-                      max="20"
-                      step="0.5"
-                      value={windSpeed}
-                      onChange={(e) => setWindSpeed(parseFloat(e.target.value))}
-                      className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-600"
-                    />
-                  </div>
-                </div>
-              </div>
+              {/* Simulator moved to left column */}
 
             </div>
           </div>
