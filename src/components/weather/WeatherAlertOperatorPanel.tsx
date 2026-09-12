@@ -62,7 +62,7 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
 
   // Configuration State
   const [isInhibited, setIsInhibited] = useState<boolean>(false);
-  const [periodicitySeconds, setPeriodicitySeconds] = useState<number>(15); // Default 15s for interactive demo, normally minutes
+  const [periodicitySeconds, setPeriodicitySeconds] = useState<number>(900); // Padrão: 15 minutos (Maior que 10 min)
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [soundType, setSoundType] = useState<'CHIME' | 'BEEP' | 'SIREN' | 'PULSE'>('CHIME');
   const [soundVolume, setSoundVolume] = useState<number>(0.5);
@@ -1063,12 +1063,12 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                   }}
                   className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 text-[11px] font-bold p-1.5 rounded-lg focus:outline-none focus:border-emerald-500 disabled:opacity-50 cursor-pointer shadow-2xs"
                 >
-                  <option value={5}>A cada 5 segundos (Demo)</option>
-                  <option value={15}>A cada 15 segundos (Demo)</option>
-                  <option value={30}>A cada 30 segundos (Demo)</option>
-                  <option value={60}>A cada 1 minuto (MIP)</option>
-                  <option value={300}>A cada 5 minutos</option>
                   <option value={900}>A cada 15 minutos</option>
+                  <option value={1200}>A cada 20 minutos</option>
+                  <option value={1800}>A cada 30 minutos</option>
+                  <option value={2700}>A cada 45 minutos</option>
+                  <option value={3600}>A cada 1 hora</option>
+                  <option value={7200}>A cada 2 horas</option>
                 </select>
               </div>
 
