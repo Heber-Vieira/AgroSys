@@ -27,9 +27,13 @@ export function setStoredConfiguredLogoUrl(companyId: string, url?: string | nul
   try {
     if (!companyId || companyId === 'ALL') return;
     const key = `agrosys_company_logo_url_${companyId}`;
-    if (url && url.trim().length > 0) {
-      localStorage.setItem(key, url);
-    } else {
+    if (typeof url === 'string') {
+      if (url.trim().length > 0) {
+        localStorage.setItem(key, url);
+      } else {
+        localStorage.removeItem(key);
+      }
+    } else if (url === null) {
       localStorage.removeItem(key);
     }
   } catch (e) {
@@ -55,9 +59,13 @@ export function setStoredConfiguredLogoIconId(companyId: string, iconId?: string
   try {
     if (!companyId || companyId === 'ALL') return;
     const key = `agrosys_company_logo_icon_${companyId}`;
-    if (iconId && iconId.trim().length > 0) {
-      localStorage.setItem(key, iconId);
-    } else {
+    if (typeof iconId === 'string') {
+      if (iconId.trim().length > 0) {
+        localStorage.setItem(key, iconId);
+      } else {
+        localStorage.removeItem(key);
+      }
+    } else if (iconId === null) {
       localStorage.removeItem(key);
     }
   } catch (e) {
@@ -84,9 +92,9 @@ export function getCompanyTheme(companyId: string = 'ciclodrone'): WhiteLabelThe
   const contactEmail = registered?.email || preset?.contactEmail || 'contato@agrosys.agr.br';
   const registryCreaMapa = registered?.registryCreaMapa || preset?.registryCreaMapa || '';
   
-  // Isolated logo retrieval strictly for this specific company
-  const companyLogoUrl = getStoredConfiguredLogoUrl(companyId);
-  const companyLogoIconId = getStoredConfiguredLogoIconId(companyId);
+  // Isolated logo retrieval strictly for this specific company across all storage layers
+  const companyLogoUrl = getStoredConfiguredLogoUrl(companyId) || registered?.logoUrl;
+  const companyLogoIconId = getStoredConfiguredLogoIconId(companyId) || registered?.logoIconId;
 
   // Optional custom palette or customizations saved specifically for this company
   let customOverrides: Partial<WhiteLabelTheme> = {};
@@ -96,6 +104,9 @@ export function getCompanyTheme(companyId: string = 'ciclodrone'): WhiteLabelThe
       customOverrides = JSON.parse(raw);
     }
   } catch (e) {}
+
+  const finalLogoUrl = companyLogoUrl || customOverrides.logoUrl;
+  const finalLogoIconId = companyLogoIconId || customOverrides.logoIconId;
 
   return {
     tenantId: companyId,
@@ -114,8 +125,8 @@ export function getCompanyTheme(companyId: string = 'ciclodrone'): WhiteLabelThe
     brandStyle: 'modern',
     density: 'comfortable',
     // Strictly individualized logo: undefined if not configured by the company admin
-    logoUrl: companyLogoUrl,
-    logoIconId: companyLogoIconId,
+    logoUrl: finalLogoUrl,
+    logoIconId: finalLogoIconId,
   };
 }
 

@@ -8,6 +8,7 @@ import { RegisteredCompany, WhiteLabelTheme } from '../types';
 import { INITIAL_REGISTERED_COMPANIES } from '../data/mockAppState';
 import { PRESET_COMPANIES } from '../data/themeTokensData';
 import { saveCompanyToSupabase, deleteCompanyFromSupabase } from './supabase';
+import { setStoredConfiguredLogoUrl, setStoredConfiguredLogoIconId } from './brandingLogoStorage';
 
 export const REGISTERED_COMPANIES_STORAGE_KEY = 'agrosys_registered_companies';
 export const COMPANIES_UPDATED_EVENT = 'agrosys_companies_updated';
@@ -130,7 +131,16 @@ export function addRegisteredCompany(newCompany: Omit<RegisteredCompany, 'id'> &
     accentColor: newCompany.accentColor || '#f59e0b',
     status: newCompany.status || 'ACTIVE',
     createdAt: newCompany.createdAt || new Date().toISOString().split('T')[0],
+    logoUrl: newCompany.logoUrl,
+    logoIconId: newCompany.logoIconId,
   };
+
+  if (fullCompany.logoUrl) {
+    setStoredConfiguredLogoUrl(id, fullCompany.logoUrl);
+  }
+  if (fullCompany.logoIconId) {
+    setStoredConfiguredLogoIconId(id, fullCompany.logoIconId);
+  }
 
   // Add to top of list
   const updated = [fullCompany, ...companies.filter(c => c.id !== id)];
@@ -146,6 +156,14 @@ export function updateRegisteredCompany(company: RegisteredCompany): RegisteredC
   const companies = getStoredRegisteredCompanies();
   const updated = companies.map(c => (c.id === company.id ? { ...c, ...company } : c));
   saveStoredRegisteredCompanies(updated);
+
+  if (company.logoUrl !== undefined) {
+    setStoredConfiguredLogoUrl(company.id, company.logoUrl);
+  }
+  if (company.logoIconId !== undefined) {
+    setStoredConfiguredLogoIconId(company.id, company.logoIconId);
+  }
+
   saveCompanyToSupabase(company).catch(() => {});
   return updated;
 }

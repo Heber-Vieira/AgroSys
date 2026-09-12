@@ -22,6 +22,8 @@ export interface RegisteredCompany {
   description?: string;
   createdAt?: string;
   status?: 'ACTIVE' | 'INACTIVE';
+  logoUrl?: string;
+  logoIconId?: string;
 }
 
 export interface UserProfile {

@@ -701,13 +701,9 @@ export default function App() {
       if (tId && tId !== 'ALL') {
         if (theme.logoUrl) {
           setStoredConfiguredLogoUrl(tId, theme.logoUrl);
-        } else {
-          setStoredConfiguredLogoUrl(tId, null);
         }
         if (theme.logoIconId) {
           setStoredConfiguredLogoIconId(tId, theme.logoIconId);
-        } else {
-          setStoredConfiguredLogoIconId(tId, null);
         }
         localStorage.setItem(`agrosys_company_theme_${tId}`, JSON.stringify(theme));
       }
