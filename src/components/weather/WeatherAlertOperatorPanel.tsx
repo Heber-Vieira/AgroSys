@@ -32,7 +32,7 @@ import {
   Sliders,
   Gauge
 } from 'lucide-react';
-import { ClimateTelemetry } from '../../types';
+import { ClimateTelemetry, WeatherAlertSettings } from '../../types';
 import { 
   playSingleBeep, 
   startSirenAlert, 
@@ -40,11 +40,17 @@ import {
   startChimeAlert, 
   stopAllAlerts 
 } from '../../utils/audioAlert';
+import { 
+  saveWeatherAlertSettingsToCloud, 
+  loadWeatherAlertSettingsFromCloud, 
+  WEATHER_ALERT_STORAGE_KEY,
+  DEFAULT_WEATHER_ALERT_SETTINGS 
+} from '../../services/cloudSyncService';
 import { formatDecimal } from '../../utils/formatters';
 
 interface WeatherAlertOperatorPanelProps {
-  orderId: string;
-  orderCode: string;
+  orderId?: string;
+  orderCode?: string;
   weatherReadings?: ClimateTelemetry[];
   onAddWeatherReading: (reading: ClimateTelemetry) => void;
   onRemoveWeatherReading: (index: number) => void;
@@ -64,19 +70,67 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
   const [windSpeed, setWindSpeed] = useState<number>(8.5);
   const [windDirection, setWindDirection] = useState<number>(120);
 
+  // Initial loaded settings from localStorage
+  const initialSettings = (() => {
+    try {
+      const raw = localStorage.getItem(WEATHER_ALERT_STORAGE_KEY);
+      if (raw) return { ...DEFAULT_WEATHER_ALERT_SETTINGS, ...JSON.parse(raw) };
+    } catch (e) {}
+    return DEFAULT_WEATHER_ALERT_SETTINGS;
+  })();
+
   // Configuration State
-  const [isInhibited, setIsInhibited] = useState<boolean>(false);
-  const [periodicitySeconds, setPeriodicitySeconds] = useState<number>(900); // Padrão: 15 minutos (Maior que 10 min)
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
-  const [soundType, setSoundType] = useState<'CHIME' | 'BEEP' | 'SIREN' | 'PULSE'>('CHIME');
-  const [soundVolume, setSoundVolume] = useState<number>(0.5);
-  const [visualStrobeEnabled, setVisualStrobeEnabled] = useState<boolean>(true);
-  const [screenEdgeAlertEnabled, setScreenEdgeAlertEnabled] = useState<boolean>(true);
-  const [readingAlertEnabled, setReadingAlertEnabled] = useState<boolean>(true);
+  const [isInhibited, setIsInhibited] = useState<boolean>(initialSettings.isInhibited || false);
+  const [periodicitySeconds, setPeriodicitySeconds] = useState<number>(initialSettings.periodicitySeconds || 900); // Padrão: 15 minutos (Maior que 10 min)
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(initialSettings.soundEnabled !== false);
+  const [soundType, setSoundType] = useState<'CHIME' | 'BEEP' | 'SIREN' | 'PULSE'>(initialSettings.soundType || 'CHIME');
+  const [soundVolume, setSoundVolume] = useState<number>(initialSettings.soundVolume ?? 0.5);
+  const [visualStrobeEnabled, setVisualStrobeEnabled] = useState<boolean>(initialSettings.visualStrobeEnabled !== false);
+  const [screenEdgeAlertEnabled, setScreenEdgeAlertEnabled] = useState<boolean>(initialSettings.screenEdgeAlertEnabled !== false);
+  const [readingAlertEnabled, setReadingAlertEnabled] = useState<boolean>(initialSettings.readingAlertEnabled !== false);
   const [showReadingNotification, setShowReadingNotification] = useState<boolean>(false);
-  const [recordingMode, setRecordingMode] = useState<'manual' | 'auto'>('manual');
+  const [recordingMode, setRecordingMode] = useState<'manual' | 'auto'>(initialSettings.recordingMode || 'manual');
   const [isAudioSilenced, setIsAudioSilenced] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+
+  // Hydrate from cloud on initial component mount
+  useEffect(() => {
+    async function hydrateWeatherSettings() {
+      try {
+        const cloudSettings = await loadWeatherAlertSettingsFromCloud();
+        if (cloudSettings && typeof cloudSettings.periodicitySeconds === 'number') {
+          setPeriodicitySeconds(cloudSettings.periodicitySeconds);
+          setIsInhibited(!!cloudSettings.isInhibited);
+          setSoundEnabled(cloudSettings.soundEnabled !== false);
+          setSoundType(cloudSettings.soundType || 'CHIME');
+          setSoundVolume(cloudSettings.soundVolume ?? 0.5);
+          setVisualStrobeEnabled(cloudSettings.visualStrobeEnabled !== false);
+          setScreenEdgeAlertEnabled(cloudSettings.screenEdgeAlertEnabled !== false);
+          setReadingAlertEnabled(cloudSettings.readingAlertEnabled !== false);
+          setRecordingMode(cloudSettings.recordingMode || 'manual');
+        }
+      } catch (err) {
+        console.warn('Erro ao restaurar configurações de clima da nuvem:', err);
+      }
+    }
+    hydrateWeatherSettings();
+  }, []);
+
+  // Persist settings whenever changed by the user
+  const persistSettings = (overrides?: Partial<WeatherAlertSettings>) => {
+    const updated: WeatherAlertSettings = {
+      periodicitySeconds: overrides?.periodicitySeconds ?? periodicitySeconds,
+      isInhibited: overrides?.isInhibited ?? isInhibited,
+      soundEnabled: overrides?.soundEnabled ?? soundEnabled,
+      soundType: overrides?.soundType ?? soundType,
+      soundVolume: overrides?.soundVolume ?? soundVolume,
+      visualStrobeEnabled: overrides?.visualStrobeEnabled ?? visualStrobeEnabled,
+      screenEdgeAlertEnabled: overrides?.screenEdgeAlertEnabled ?? screenEdgeAlertEnabled,
+      readingAlertEnabled: overrides?.readingAlertEnabled ?? readingAlertEnabled,
+      recordingMode: overrides?.recordingMode ?? recordingMode,
+    };
+    saveWeatherAlertSettingsToCloud(updated).catch(() => {});
+  };
 
   // Active alarms & Alert timing states
   const [isAlarmActive, setIsAlarmActive] = useState<boolean>(false);
@@ -1383,39 +1437,41 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                 {/* Enable / Inhibit Radio Toggle */}
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-slate-700 dark:text-slate-300">Estado de Monitoramento</span>
-                  <div className="flex items-center gap-1 bg-slate-200/80 dark:bg-slate-900 p-1 rounded-lg border border-slate-300/80 dark:border-slate-800">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsInhibited(false);
-                        playSingleBeep(1000, 0.08, 0.2);
-                      }}
-                      className={`px-3 py-1 text-[10px] font-black uppercase rounded-md cursor-pointer transition-colors ${
-                        !isInhibited 
-                          ? 'bg-emerald-600 text-white shadow-2xs' 
-                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                      }`}
-                    >
-                      ATIVO
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsInhibited(true);
-                        stopAllAlerts();
-                        setIsAlarmActive(false);
-                        playSingleBeep(600, 0.15, 0.2);
-                      }}
-                      className={`px-3 py-1 text-[10px] font-black uppercase rounded-md cursor-pointer transition-colors ${
-                        isInhibited 
-                          ? 'bg-rose-600 text-white shadow-2xs' 
-                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                      }`}
-                    >
-                      INIBIDO (MUTED)
-                    </button>
+                  <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-lg border border-slate-200 dark:border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsInhibited(false);
+                          persistSettings({ isInhibited: false });
+                          playSingleBeep(1200, 0.08, 0.2);
+                        }}
+                        className={`px-3 py-1 text-[10px] font-black uppercase rounded-md cursor-pointer transition-colors ${
+                          !isInhibited 
+                            ? 'bg-emerald-600 text-white shadow-2xs' 
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                        }`}
+                      >
+                        ATIVO
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsInhibited(true);
+                          persistSettings({ isInhibited: true });
+                          stopAllAlerts();
+                          setIsAlarmActive(false);
+                          playSingleBeep(600, 0.15, 0.2);
+                        }}
+                        className={`px-3 py-1 text-[10px] font-black uppercase rounded-md cursor-pointer transition-colors ${
+                          isInhibited 
+                            ? 'bg-rose-600 text-white shadow-2xs' 
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                        }`}
+                      >
+                        INIBIDO (MUTED)
+                      </button>
+                    </div>
                   </div>
-                </div>
 
                 {/* Periodicity Selector */}
                 <div className="flex items-center justify-between gap-2 border-t border-slate-200 dark:border-slate-900 pt-2.5">
@@ -1429,11 +1485,12 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                     onChange={(e) => {
                       const secs = parseInt(e.target.value);
                       setPeriodicitySeconds(secs);
+                      persistSettings({ periodicitySeconds: secs });
                       playSingleBeep(900, 0.08, 0.2);
                     }}
                     className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 text-[11px] font-bold p-1.5 rounded-lg focus:outline-none focus:border-emerald-500 disabled:opacity-50 cursor-pointer shadow-2xs"
                   >
-                    <option value={900}>A cada 15 minutos</option>
+                    <option value={900}>A cada 15 minutos (Padrão)</option>
                     <option value={1200}>A cada 20 minutos</option>
                     <option value={1800}>A cada 30 minutos</option>
                     <option value={2700}>A cada 45 minutos</option>
@@ -1455,8 +1512,10 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                         checked={soundEnabled}
                         disabled={isInhibited}
                         onChange={(e) => {
-                          setSoundEnabled(e.target.checked);
-                          if (!e.target.checked) stopAllAlerts();
+                          const val = e.target.checked;
+                          setSoundEnabled(val);
+                          persistSettings({ soundEnabled: val });
+                          if (!val) stopAllAlerts();
                         }}
                         className="sr-only peer cursor-pointer"
                       />
@@ -1476,6 +1535,7 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                               type="button"
                               onClick={() => {
                                 setSoundType(type);
+                                persistSettings({ soundType: type });
                                 playSingleBeep(type === 'BEEP' ? 880 : 520, 0.1, soundVolume);
                               }}
                               className={`px-2 py-0.5 rounded text-[10px] font-bold cursor-pointer uppercase transition-colors ${
@@ -1502,7 +1562,11 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                           max="1.0"
                           step="0.1"
                           value={soundVolume}
-                          onChange={(e) => setSoundVolume(parseFloat(e.target.value))}
+                          onChange={(e) => {
+                            const vol = parseFloat(e.target.value);
+                            setSoundVolume(vol);
+                            persistSettings({ soundVolume: vol });
+                          }}
                           className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-600 focus:outline-none"
                         />
                       </div>
@@ -1537,7 +1601,11 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                         type="checkbox"
                         checked={visualStrobeEnabled}
                         disabled={isInhibited}
-                        onChange={(e) => setVisualStrobeEnabled(e.target.checked)}
+                        onChange={(e) => {
+                          const val = e.target.checked;
+                          setVisualStrobeEnabled(val);
+                          persistSettings({ visualStrobeEnabled: val });
+                        }}
                         className="sr-only peer cursor-pointer"
                       />
                       <div className="w-9 h-5 bg-slate-300 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 cursor-pointer" />

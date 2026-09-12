@@ -205,6 +205,18 @@ export interface BatteryAlertSettings {
   snoozeMinutes?: number;
 }
 
+export interface WeatherAlertSettings {
+  periodicitySeconds: number; // Intervalo de checagem meteorológica (ex: 900s = 15min)
+  isInhibited?: boolean;
+  soundEnabled: boolean;
+  soundType: 'CHIME' | 'BEEP' | 'SIREN' | 'PULSE';
+  soundVolume: number;
+  visualStrobeEnabled: boolean;
+  screenEdgeAlertEnabled: boolean;
+  readingAlertEnabled: boolean;
+  recordingMode: 'manual' | 'auto';
+}
+
 export type DroneBatteryStatus = 'READY' | 'CHARGING' | 'STORAGE' | 'ALERT' | 'DISCARDED';
 
 export interface DroneBatteryAsset {

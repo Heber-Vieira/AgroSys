@@ -56,6 +56,10 @@ import { isMasterUser, normalizeUserProfile } from './utils/userPermissions';
 import { 
   getStoredConfiguredLogoUrl, 
   setStoredConfiguredLogoUrl, 
+  getStoredConfiguredLogoDarkUrl,
+  setStoredConfiguredLogoDarkUrl,
+  getStoredLogoAdaptiveMode,
+  setStoredLogoAdaptiveMode,
   getStoredConfiguredLogoIconId, 
   setStoredConfiguredLogoIconId,
   getCompanyTheme 
@@ -88,6 +92,7 @@ import {
 import { showToast } from './services/notificationService';
 import { loadTenantBrandingFromSupabase, loadUserPhotosFromSupabase } from './services/supabase';
 import { USER_PHOTO_STORAGE_KEY } from './components/UserAvatar';
+import { hydrateAllCloudData, saveBatteryAlertSettingsToCloud } from './services/cloudSyncService';
 
 // Helper to merge stored arrays with initial mock data so all companies have default records
 function loadAndMergeWithMock<T extends { id: string; companyId?: string }>(
@@ -529,10 +534,11 @@ export default function App() {
 
   const [showBatteryAlertBanner, setShowBatteryAlertBanner] = useState<boolean>(false);
 
-  // Sync battery alert settings to localStorage
+  // Sync battery alert settings to localStorage and Supabase Cloud
   useEffect(() => {
     try {
       localStorage.setItem('agrodrone_battery_alert_config', JSON.stringify(batteryAlertSettings));
+      saveBatteryAlertSettingsToCloud(batteryAlertSettings).catch(() => {});
     } catch (e) {
       console.warn('Falha ao salvar configurações de alertas de bateria:', e);
     }
@@ -628,54 +634,46 @@ export default function App() {
     setLiveTourStepIndex(0);
   };
 
-  // Hydrate tenant branding, custom logo & user photos from Supabase database on initial mount
+  // Hydrate all tenant brandings, custom logos, alarm periodicities & user photos from Supabase on initial mount
   useEffect(() => {
     async function restoreCloudState() {
       try {
-        const cloudBranding = await loadTenantBrandingFromSupabase();
-        if (cloudBranding && (cloudBranding.companyName || cloudBranding.logoUrl || cloudBranding.logoIconId)) {
-          const tId = cloudBranding.tenantId || 'ciclodrone';
-          if (cloudBranding.logoUrl) {
-            setStoredConfiguredLogoUrl(tId, cloudBranding.logoUrl);
-          }
-          if (cloudBranding.logoIconId) {
-            setStoredConfiguredLogoIconId(tId, cloudBranding.logoIconId);
-          }
-          setTheme(prev => {
-            if (prev.tenantId === tId) {
-              return {
-                ...prev,
-                ...cloudBranding,
-                logoUrl: cloudBranding.logoUrl || getStoredConfiguredLogoUrl(tId),
-                logoIconId: cloudBranding.logoIconId || getStoredConfiguredLogoIconId(tId),
-              };
-            }
-            return prev;
-          });
+        const hydration = await hydrateAllCloudData();
+
+        // 1. Hydrate active theme branding & logos
+        const activeTId = theme.tenantId || 'ciclodrone';
+        const cloudBranding = hydration.brandings[activeTId] || (activeTId === 'ciclodrone' ? Object.values(hydration.brandings)[0] : undefined);
+        if (cloudBranding && (cloudBranding.companyName || cloudBranding.logoUrl || cloudBranding.logoDarkUrl || cloudBranding.logoIconId)) {
+          setTheme(prev => ({
+            ...prev,
+            ...cloudBranding,
+            logoUrl: cloudBranding.logoUrl || getStoredConfiguredLogoUrl(activeTId),
+            logoDarkUrl: cloudBranding.logoDarkUrl || getStoredConfiguredLogoDarkUrl(activeTId),
+            logoIconId: cloudBranding.logoIconId || getStoredConfiguredLogoIconId(activeTId),
+            logoAdaptiveMode: cloudBranding.logoAdaptiveMode || getStoredLogoAdaptiveMode(activeTId),
+          }));
         }
 
-        // Hydrate user profile photos from Supabase DB
-        const cloudPhotos = await loadUserPhotosFromSupabase();
-        if (cloudPhotos && Object.keys(cloudPhotos).length > 0) {
-          try {
-            const rawStored = localStorage.getItem(USER_PHOTO_STORAGE_KEY);
-            const currentStored: Record<string, string> = rawStored ? JSON.parse(rawStored) : {};
-            const merged = { ...currentStored, ...cloudPhotos };
-            localStorage.setItem(USER_PHOTO_STORAGE_KEY, JSON.stringify(merged));
-            
-            // Broadcast photo update event to UI components
-            Object.entries(cloudPhotos).forEach(([id, photoUrl]) => {
-              window.dispatchEvent(new CustomEvent('agrodrone-user-photo-updated', {
-                detail: { id, photoUrl }
-              }));
-            });
+        // 2. Hydrate battery alert settings & periodicities
+        if (hydration.batteryAlertSettings) {
+          setBatteryAlertSettings(prev => ({
+            ...prev,
+            ...hydration.batteryAlertSettings,
+          }));
+        }
 
-            // Sync with allUsers state if matching photo found
-            setAllUsers(prev => prev.map(u => {
-              const photo = cloudPhotos[u.id] || cloudPhotos[u.email];
-              return photo ? { ...u, photoUrl: photo, avatarUrl: photo } : u;
+        // 3. Hydrate user profile photos
+        if (hydration.userPhotos && Object.keys(hydration.userPhotos).length > 0) {
+          Object.entries(hydration.userPhotos).forEach(([id, photoUrl]) => {
+            window.dispatchEvent(new CustomEvent('agrodrone-user-photo-updated', {
+              detail: { id, photoUrl }
             }));
-          } catch (e) {}
+          });
+
+          setAllUsers(prev => prev.map(u => {
+            const photo = hydration.userPhotos[u.id] || hydration.userPhotos[u.email];
+            return photo ? { ...u, photoUrl: photo, avatarUrl: photo } : u;
+          }));
         }
       } catch (err) {
         console.warn('Falha ao restaurar dados do Supabase:', err);
