@@ -515,42 +515,46 @@ export const DroneMaintenanceModal: React.FC<DroneMaintenanceModalProps> = ({
 
               {/* Custos e Status */}
               <div className="bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 space-y-4">
-                <h3 className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <DollarSign className="w-4 h-4" />
-                  <span>Custos Financeiros & Meta de Próxima Revisão</span>
+                <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                  <Wrench className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>{currentUser?.role === 'ADMIN' ? 'Custos Financeiros & Status' : 'Status da Manutenção'}</span>
                 </h3>
 
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">Custo de Peças (R$):</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={costParts}
-                      onChange={(e) => setCostParts(parseFloat(e.target.value) || 0)}
-                      className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white font-mono"
-                    />
-                  </div>
+                <div className={`grid grid-cols-1 ${currentUser?.role === 'ADMIN' ? 'sm:grid-cols-4' : 'sm:grid-cols-1'} gap-3`}>
+                  {currentUser?.role === 'ADMIN' && (
+                    <>
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">Custo de Peças (R$):</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={costParts}
+                          onChange={(e) => setCostParts(parseFloat(e.target.value) || 0)}
+                          className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white font-mono"
+                        />
+                      </div>
 
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">Custo Mão de Obra (R$):</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={costLabor}
-                      onChange={(e) => setCostLabor(parseFloat(e.target.value) || 0)}
-                      className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white font-mono"
-                    />
-                  </div>
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">Custo Mão de Obra (R$):</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={costLabor}
+                          onChange={(e) => setCostLabor(parseFloat(e.target.value) || 0)}
+                          className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white font-mono"
+                        />
+                      </div>
 
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">Custo Total Calculado:</label>
-                    <div className="w-full bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-500/50 rounded-xl px-3 py-2 text-xs text-emerald-900 dark:text-emerald-200 font-mono font-bold flex items-center h-9">
-                      {formatBRL((Number(costParts) || 0) + (Number(costLabor) || 0))}
-                    </div>
-                  </div>
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">Custo Total Calculado:</label>
+                        <div className="w-full bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-500/50 rounded-xl px-3 py-2 text-xs text-emerald-900 dark:text-emerald-200 font-mono font-bold flex items-center h-9">
+                          {formatBRL((Number(costParts) || 0) + (Number(costLabor) || 0))}
+                        </div>
+                      </div>
+                    </>
+                  )}
 
                   <div className="space-y-1">
                     <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">Status da Manutenção:</label>
@@ -738,9 +742,11 @@ export const DroneMaintenanceModal: React.FC<DroneMaintenanceModalProps> = ({
                         </div>
 
                         <div className="flex items-center gap-2 self-start sm:self-auto">
-                          <span className="text-xs font-mono font-bold text-slate-900 dark:text-slate-200">
-                            {formatBRL(log.totalCost || 0)}
-                          </span>
+                          {currentUser?.role === 'ADMIN' && (
+                            <span className="text-xs font-mono font-bold text-slate-900 dark:text-slate-200">
+                              {formatBRL(log.totalCost || 0)}
+                            </span>
+                          )}
                           <button
                             onClick={() => handleDeleteLog(log.id)}
                             className="p-1 rounded-lg hover:bg-rose-100 dark:hover:bg-rose-950 text-slate-400 hover:text-rose-600 dark:hover:text-rose-300 transition-colors cursor-pointer"
@@ -807,11 +813,15 @@ export const DroneMaintenanceModal: React.FC<DroneMaintenanceModalProps> = ({
               {/* KPIs Summary Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-1">
-                  <span className="text-slate-500 dark:text-slate-400 text-xs font-semibold">Custo Total de Manutenção</span>
+                  <span className="text-slate-500 dark:text-slate-400 text-xs font-semibold">
+                    {currentUser?.role === 'ADMIN' ? 'Custo Total de Manutenção' : 'Total de Intervenções'}
+                  </span>
                   <div className="text-xl font-black text-emerald-600 dark:text-emerald-400 font-mono">
-                    {formatBRL(totalCostAll)}
+                    {currentUser?.role === 'ADMIN' ? formatBRL(totalCostAll) : `${logs.length} registros`}
                   </div>
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Peças + Mão de Obra</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
+                    {currentUser?.role === 'ADMIN' ? 'Peças + Mão de Obra' : 'Histórico Consolidado'}
+                  </span>
                 </div>
 
                 <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-1">
@@ -843,14 +853,18 @@ export const DroneMaintenanceModal: React.FC<DroneMaintenanceModalProps> = ({
               <div className="bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 space-y-4">
                 <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
                   <Plane className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  <span>Investimento em Manutenção por Aeronave (Frota)</span>
+                  <span>
+                    {currentUser?.role === 'ADMIN' 
+                      ? 'Investimento em Manutenção por Aeronave (Frota)' 
+                      : 'Volume de Manutenções por Aeronave (Frota)'}
+                  </span>
                 </h3>
 
                 <div className="space-y-3">
                   {drones.map(drone => {
                     const droneLogs = logs.filter(l => l.droneId === drone.id);
                     const droneTotal = droneLogs.reduce((a, b) => a + (b.totalCost || 0), 0);
-                    const percent = totalCostAll > 0 ? (droneTotal / totalCostAll) * 100 : 0;
+                    const percent = totalCostAll > 0 ? (droneTotal / totalCostAll) * 100 : (logs.length > 0 ? (droneLogs.length / logs.length) * 100 : 0);
 
                     return (
                       <div key={drone.id} className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
@@ -860,8 +874,14 @@ export const DroneMaintenanceModal: React.FC<DroneMaintenanceModalProps> = ({
                             <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">({drone.anacPrefix})</span>
                           </div>
                           <div className="font-mono text-emerald-700 dark:text-emerald-300 font-bold">
-                            {formatBRL(droneTotal)}
-                            <span className="text-slate-500 font-normal ml-2">({droneLogs.length} serviços)</span>
+                            {currentUser?.role === 'ADMIN' ? (
+                              <>
+                                {formatBRL(droneTotal)}
+                                <span className="text-slate-500 font-normal ml-2">({droneLogs.length} serviços)</span>
+                              </>
+                            ) : (
+                              <span>{droneLogs.length} manutenções registradas</span>
+                            )}
                           </div>
                         </div>
 

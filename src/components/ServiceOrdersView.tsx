@@ -32,7 +32,13 @@ import {
   Download,
   FileText,
   Calendar,
-  Printer
+  Printer,
+  Eye,
+  Archive,
+  Lock,
+  Unlock,
+  SlidersHorizontal,
+  CheckCircle
 } from 'lucide-react';
 import { BrandLogo } from './BrandLogo';
 import { DronePhoto, DroneBadge, getDronePhotoUrl } from './DronePhotoBadge';
@@ -70,7 +76,8 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
   showNewOSModal,
   setShowNewOSModal,
 }) => {
-  const [filterStatus, setFilterStatus] = useState<string>('ALL');
+  const [filterStatus, setFilterStatus] = useState<string>('OPEN');
+  const [showCompletedArchive, setShowCompletedArchive] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedCertificateOrder, setSelectedCertificateOrder] = useState<ServiceOrder | null>(null);
   
@@ -180,6 +187,9 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
   };
 
   // Filter orders
+  const openOrdersCount = orders.filter(o => o.status !== 'COMPLETED').length;
+  const completedOrdersCount = orders.filter(o => o.status === 'COMPLETED').length;
+
   const filteredOrders = orders.filter(order => {
     const matchesRole = currentUser.role === 'USER'
       ? (order.clientId === currentUser.id || order.clientName.toLowerCase().includes(currentUser.name.toLowerCase()))
@@ -189,7 +199,20 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
       ? (order.assistantId === 'assistant-1' || order.assistantName.includes(currentUser.name.split(' ')[0]))
       : true;
 
-    const matchesStatus = filterStatus === 'ALL' || order.status === filterStatus;
+    let matchesStatus = true;
+    if (filterStatus === 'OPEN') {
+      matchesStatus = order.status !== 'COMPLETED';
+    } else if (filterStatus === 'COMPLETED') {
+      matchesStatus = order.status === 'COMPLETED';
+    } else if (filterStatus !== 'ALL') {
+      matchesStatus = order.status === filterStatus;
+    }
+
+    // Se o arquivo de concluídas estiver desligado E o filtro não for explicitamente COMPLETED ou ALL, ocultar encerradas
+    if (!showCompletedArchive && filterStatus === 'OPEN' && order.status === 'COMPLETED') {
+      matchesStatus = false;
+    }
+
     const matchesSearch = order.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           order.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           order.plotName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -243,10 +266,11 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="bg-emerald-50/70 dark:bg-[#072a1e]/90 border border-emerald-200/80 dark:border-emerald-800/80 p-2.5 sm:px-3 sm:py-2 rounded-xl shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-2">
+      {/* Filter and Search Bar with Active vs Completed Mode */}
+      <div className="bg-emerald-50/70 dark:bg-[#072a1e]/90 border border-emerald-200/80 dark:border-emerald-800/80 p-2.5 sm:px-3 sm:py-2.5 rounded-xl shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-2.5">
+        
         {/* Search */}
-        <div className="relative w-full sm:w-64">
+        <div className="relative w-full md:w-64">
           <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-emerald-700/70 dark:text-emerald-300/70" />
           <input
             type="text"
@@ -257,20 +281,23 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
           />
         </div>
 
-        {/* Status Filters */}
-        <div className="flex items-center gap-1 overflow-x-auto w-full sm:w-auto pb-0.5 sm:pb-0">
+        {/* Status Filter Tabs (Separating Active vs Completed cleanly) */}
+        <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto w-full md:w-auto">
           {[
-            { id: 'ALL', label: 'Todas' },
-            { id: 'SCHEDULED', label: 'Agendadas' },
+            { id: 'OPEN', label: `⚡ OSs Ativas (${openOrdersCount})` },
             { id: 'OPERATING', label: 'Em Operação' },
-            { id: 'COMPLETED', label: 'Concluídas' },
+            { id: 'SCHEDULED', label: 'Agendadas' },
+            { id: 'COMPLETED', label: `📁 Encerradas / Arquivo (${completedOrdersCount})` },
+            { id: 'ALL', label: 'Todas' },
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setFilterStatus(tab.id)}
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors whitespace-nowrap cursor-pointer ${
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
                 filterStatus === tab.id
-                  ? 'bg-emerald-600 text-white shadow-2xs'
+                  ? tab.id === 'COMPLETED'
+                    ? 'bg-slate-700 text-white shadow-2xs border border-slate-600'
+                    : 'bg-emerald-600 text-white shadow-2xs'
                   : 'bg-white hover:bg-emerald-50 dark:bg-emerald-950 dark:hover:bg-emerald-900 text-emerald-950 dark:text-emerald-100 border border-emerald-300 dark:border-emerald-700 shadow-2xs'
               }`}
             >
@@ -281,40 +308,62 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
       </div>
 
       {/* OS Cards List */}
-      <div className="space-y-2.5 sm:space-y-3">
+      <div className="space-y-3">
         {filteredOrders.length === 0 ? (
-          <div className="bg-emerald-50/70 dark:bg-[#072a1e]/90 border border-emerald-200/80 dark:border-emerald-800 rounded-xl p-6 text-center text-xs text-emerald-800/80 dark:text-emerald-300/80">
-            Nenhuma Ordem de Serviço encontrada com os filtros selecionados.
+          <div className="bg-emerald-50/70 dark:bg-[#072a1e]/90 border border-emerald-200/80 dark:border-emerald-800 rounded-xl p-8 text-center text-xs text-emerald-800/80 dark:text-emerald-300/80 space-y-2">
+            <p className="font-bold text-sm text-emerald-900 dark:text-white">Nenhuma Ordem de Serviço encontrada para este filtro.</p>
+            <p className="text-slate-500 dark:text-emerald-400/80">
+              {filterStatus === 'OPEN' 
+                ? 'Você está visualizando apenas as OSs abertas em campo. Todas as atividades estão em dia!' 
+                : 'Tente alterar os termos de busca ou o status selecionado acima.'}
+            </p>
           </div>
         ) : (
           filteredOrders.map((order) => {
             const progressPct = Math.round((order.sprayedHectares / order.targetHectares) * 100);
+            const isCompleted = order.status === 'COMPLETED';
+
             return (
               <div
                 key={order.id}
-                className="bg-emerald-50/70 dark:bg-[#072a1e]/90 border border-emerald-200/80 dark:border-emerald-800/80 rounded-xl p-3 sm:p-4 shadow-2xs space-y-2.5 hover:border-emerald-400 dark:hover:border-emerald-600 transition-all"
+                className={`rounded-xl p-3.5 sm:p-4 shadow-2xs space-y-3 transition-all relative overflow-hidden ${
+                  isCompleted
+                    ? 'bg-slate-100/90 dark:bg-slate-900/90 border border-slate-300 dark:border-slate-800 opacity-90 hover:opacity-100'
+                    : 'bg-emerald-50/70 dark:bg-[#072a1e]/90 border border-emerald-200/80 dark:border-emerald-800/80 hover:border-emerald-400 dark:hover:border-emerald-600'
+                }`}
               >
+                {/* Completed Watermark / Stamp Badge */}
+                {isCompleted && (
+                  <div className="absolute -right-12 -top-12 w-32 h-32 bg-slate-200/40 dark:bg-slate-800/40 rounded-full flex items-end justify-center pointer-events-none transform rotate-12">
+                    <span className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest mb-3">ENCERRADA</span>
+                  </div>
+                )}
+
                 {/* Header of the OS Card */}
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2 pb-2 border-b border-emerald-200/60 dark:border-emerald-800/60">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2 pb-2.5 border-b border-emerald-200/60 dark:border-emerald-800/60">
                   <div>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="font-mono font-black text-xs sm:text-sm text-emerald-950 dark:text-white">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`font-mono font-black text-xs sm:text-sm ${isCompleted ? 'text-slate-700 dark:text-slate-300' : 'text-emerald-950 dark:text-white'}`}>
                         {order.code}
                       </span>
-                      <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded border ${
+
+                      {/* Clear & Distinct Status Pills */}
+                      <span className={`text-[9px] font-black px-2.5 py-0.5 rounded-md border tracking-wider flex items-center gap-1 uppercase ${
                         order.status === 'OPERATING'
-                          ? 'bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border-emerald-500/40 animate-pulse'
+                          ? 'bg-emerald-500 text-white border-emerald-400 shadow-2xs animate-pulse'
                           : order.status === 'SCHEDULED'
-                          ? 'bg-emerald-200/60 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300'
+                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border-amber-300 dark:border-amber-800'
                           : order.status === 'IN_TRANSIT'
-                          ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300'
-                          : 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border-blue-300 dark:border-blue-800'
+                          : order.status === 'COMPLETED'
+                          ? 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-300 dark:border-slate-700 font-bold'
+                          : 'bg-rose-100 text-rose-800 border-rose-200'
                       }`}>
                         {order.status === 'OPERATING' && '● EM OPERAÇÃO'}
-                        {order.status === 'SCHEDULED' && 'AGENDADO'}
-                        {order.status === 'IN_TRANSIT' && 'EM DESLOCAMENTO'}
-                        {order.status === 'COMPLETED' && 'CONCLUÍDO'}
-                        {order.status === 'PAUSED' && 'PAUSADO (CLIMA)'}
+                        {order.status === 'SCHEDULED' && '🗓️ AGENDADO'}
+                        {order.status === 'IN_TRANSIT' && '🚚 EM DESLOCAMENTO'}
+                        {order.status === 'COMPLETED' && '🔒 ENCERRADA / ARQUIVADA'}
+                        {order.status === 'PAUSED' && '⚠️ PAUSADO (CLIMA)'}
                       </span>
                       <span className="text-[11px] text-emerald-800/80 dark:text-emerald-300/80 font-medium">
                         Data: {order.scheduledDate} {order.startTime ? `(${order.startTime} às ${order.endTime || '09:30'})` : ''}
@@ -329,33 +378,31 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
                     </p>
                   </div>
 
-                  {/* Pricing / Gross Info */}
-                  <div className="flex flex-wrap items-center gap-4 text-xs">
-                    <div className="bg-white/80 dark:bg-emerald-950/60 border border-emerald-200/90 dark:border-emerald-800 px-3 py-2 rounded-xl">
-                      <span className="text-[10px] text-emerald-700/70 dark:text-emerald-400/70 block font-semibold">Valor Bruto OS</span>
-                      <span className="font-bold text-emerald-950 dark:text-white">
-                        {formatBRL(order.totalGrossValue)}
-                      </span>
-                    </div>
+                  {/* Pricing / Gross Info - Restricted to ADMIN */}
+                  {currentUser.role === 'ADMIN' && (
+                    <div className="flex flex-wrap items-center gap-4 text-xs">
+                      <div className="bg-white/80 dark:bg-emerald-950/60 border border-emerald-200/90 dark:border-emerald-800 px-3 py-2 rounded-xl">
+                        <span className="text-[10px] text-emerald-700/70 dark:text-emerald-400/70 block font-semibold">Valor Bruto OS</span>
+                        <span className="font-bold text-emerald-950 dark:text-white">
+                          {formatBRL(order.totalGrossValue)}
+                        </span>
+                      </div>
 
-                    {(currentUser.role === 'ADMIN' || currentUser.role === 'PILOT') && (
                       <div className="bg-white/80 dark:bg-emerald-950/60 border border-emerald-200/90 dark:border-emerald-800 px-3 py-2 rounded-xl">
                         <span className="text-[10px] text-emerald-700/70 dark:text-emerald-400/70 block font-semibold">Comissão Piloto</span>
                         <span className="font-bold text-emerald-800 dark:text-emerald-300">
                           {formatBRL(order.pilotCommission)}
                         </span>
                       </div>
-                    )}
 
-                    {(currentUser.role === 'ADMIN' || currentUser.role === 'ASSISTANT') && (
                       <div className="bg-white/80 dark:bg-emerald-950/60 border border-emerald-200/90 dark:border-emerald-800 px-3 py-2 rounded-xl">
                         <span className="text-[10px] text-emerald-700/70 dark:text-emerald-400/70 block font-semibold">Comissão Auxiliar</span>
                         <span className="font-bold text-emerald-800 dark:text-emerald-300">
                           {formatBRL(order.assistantCommission)}
                         </span>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Body: Operational Triad and Progress */}
@@ -745,26 +792,44 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
                 )}
               </div>
 
-              {/* Calculated Summary Box */}
-              <div className="p-4 rounded-2xl bg-emerald-100/60 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 space-y-2">
-                <span className="font-black text-emerald-950 dark:text-emerald-300 block">
-                  Resumo Financeiro da Ordem de Serviço
-                </span>
-                <div className="grid grid-cols-3 gap-2 text-[11px] text-emerald-800/90 dark:text-emerald-300/90">
-                  <div>
-                    <span>Área Total:</span>
-                    <strong className="block text-emerald-950 dark:text-white font-bold">{formatHectares(selectedPlot?.hectares || 0)}</strong>
-                  </div>
-                  <div>
-                    <span>Faturamento Estimado:</span>
-                    <strong className="block text-emerald-950 dark:text-white font-bold">{formatBRL(estimatedGrossValue)}</strong>
-                  </div>
-                  <div>
-                    <span>Comissão Tripulação:</span>
-                    <strong className="block text-emerald-950 dark:text-white font-bold">{formatBRL(estimatedPilotComm + estimatedAssistComm)}</strong>
+              {/* Calculated Summary Box - Financials visible only to ADMIN */}
+              {currentUser.role === 'ADMIN' ? (
+                <div className="p-4 rounded-2xl bg-emerald-100/60 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 space-y-2">
+                  <span className="font-black text-emerald-950 dark:text-emerald-300 block">
+                    Resumo Financeiro da Ordem de Serviço
+                  </span>
+                  <div className="grid grid-cols-3 gap-2 text-[11px] text-emerald-800/90 dark:text-emerald-300/90">
+                    <div>
+                      <span>Área Total:</span>
+                      <strong className="block text-emerald-950 dark:text-white font-bold">{formatHectares(selectedPlot?.hectares || 0)}</strong>
+                    </div>
+                    <div>
+                      <span>Faturamento Estimado:</span>
+                      <strong className="block text-emerald-950 dark:text-white font-bold">{formatBRL(estimatedGrossValue)}</strong>
+                    </div>
+                    <div>
+                      <span>Comissão Tripulação:</span>
+                      <strong className="block text-emerald-950 dark:text-white font-bold">{formatBRL(estimatedPilotComm + estimatedAssistComm)}</strong>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="p-4 rounded-2xl bg-emerald-100/60 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 space-y-2">
+                  <span className="font-black text-emerald-950 dark:text-emerald-300 block">
+                    Resumo Operacional da Ordem de Serviço
+                  </span>
+                  <div className="grid grid-cols-2 gap-2 text-[11px] text-emerald-800/90 dark:text-emerald-300/90">
+                    <div>
+                      <span>Área Total a Aplicar:</span>
+                      <strong className="block text-emerald-950 dark:text-white font-bold">{formatHectares(selectedPlot?.hectares || 0)}</strong>
+                    </div>
+                    <div>
+                      <span>Taxa de Aplicação:</span>
+                      <strong className="block text-emerald-950 dark:text-white font-bold">{String(newOSSprayRate).replace('.', ',')} L/ha</strong>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="pt-3 flex items-center justify-end gap-3">
                 <button

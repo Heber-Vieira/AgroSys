@@ -51,6 +51,7 @@ import {
   playSuccessChime 
 } from '../utils/audioAlerts';
 import { ScheduleOrderModal } from './scheduling/ScheduleOrderModal';
+import { ScheduleConflictsModal } from './scheduling/ScheduleConflictsModal';
 
 interface ScheduleCalendarViewProps {
   currentUser: UserProfile;
@@ -97,9 +98,13 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [isConflictsModalOpen, setIsConflictsModalOpen] = useState<boolean>(false);
   const [modalInitialDate, setModalInitialDate] = useState<string>('');
   const [modalInitialStartTime, setModalInitialStartTime] = useState<string>('07:00');
   const [editingOrder, setEditingOrder] = useState<ServiceOrder | null>(null);
+
+  // Operational hours filter ('OPERATIONAL' 06-18h vs 'FULL' 00-23h)
+  const [hoursMode, setHoursMode] = useState<'OPERATIONAL' | 'FULL'>('OPERATIONAL');
 
   // Global Collision Detector across all orders
   const conflictsMap = useMemo(() => {
@@ -131,7 +136,28 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
   };
 
   // Date Navigation Helpers
-  const handlePrev = () => {
+  const selectedDateStr = useMemo(() => {
+    const y = currentDate.getFullYear();
+    const m = String(currentDate.getMonth() + 1).padStart(2, '0');
+    const d = String(currentDate.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }, [currentDate]);
+
+  const handlePrevDay = () => {
+    playSlotSelectedTone();
+    const next = new Date(currentDate);
+    next.setDate(next.getDate() - 1);
+    setCurrentDate(next);
+  };
+
+  const handleNextDay = () => {
+    playSlotSelectedTone();
+    const next = new Date(currentDate);
+    next.setDate(next.getDate() + 1);
+    setCurrentDate(next);
+  };
+
+  const handlePrevPeriod = () => {
     playSlotSelectedTone();
     const next = new Date(currentDate);
     if (viewMode === 'month') {
@@ -144,7 +170,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
     setCurrentDate(next);
   };
 
-  const handleNext = () => {
+  const handleNextPeriod = () => {
     playSlotSelectedTone();
     const next = new Date(currentDate);
     if (viewMode === 'month') {
@@ -156,6 +182,9 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
     }
     setCurrentDate(next);
   };
+
+  const handlePrev = handlePrevDay;
+  const handleNext = handleNextDay;
 
   const handleToday = () => {
     playSlotSelectedTone();
@@ -244,6 +273,32 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
     setIsModalOpen(true);
   };
 
+  const handleAutoResolveConflict = (orderId: string, newStartTime: string, newEndTime: string) => {
+    setOrders(prev => prev.map(o => {
+      if (o.id === orderId) {
+        return {
+          ...o,
+          startTime: newStartTime,
+          endTime: newEndTime
+        };
+      }
+      return o;
+    }));
+    playSuccessChime();
+    showToast(`Agendamento atualizado para ${newStartTime} - ${newEndTime}.`, 'success', 'Conflito Resolvido');
+  };
+
+  const handleJumpToDateStr = (dateStr: string) => {
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      const y = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10) - 1;
+      const d = parseInt(parts[2], 10);
+      setCurrentDate(new Date(y, m, d));
+      playSlotSelectedTone();
+    }
+  };
+
   // Month Grid Calculations
   const monthData = useMemo(() => {
     const year = currentDate.getFullYear();
@@ -317,674 +372,646 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
     return days;
   }, [currentDate]);
 
-  // Month Title Formatter
-  const formattedMonthYear = useMemo(() => {
-    return currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  // Full Date & Month Formatter
+  const formattedFullDate = useMemo(() => {
+    const weekdayStr = currentDate.toLocaleDateString('pt-BR', { weekday: 'short' });
+    const dayStr = String(currentDate.getDate()).padStart(2, '0');
+    const monthStr = currentDate.toLocaleDateString('pt-BR', { month: 'short' });
+    const year = currentDate.getFullYear();
+    const capWeekday = weekdayStr.charAt(0).toUpperCase() + weekdayStr.slice(1).replace('.', '');
+    const capMonth = monthStr.charAt(0).toUpperCase() + monthStr.slice(1).replace('.', '');
+    return `${capWeekday}, ${dayStr} de ${capMonth} de ${year}`;
   }, [currentDate]);
 
+  // Array of hours to render based on hoursMode
+  const visibleHours = useMemo(() => {
+    if (hoursMode === 'OPERATIONAL') {
+      // 06:00 to 18:00 (13 slots)
+      return Array.from({ length: 13 }).map((_, i) => i + 6);
+    }
+    // 00:00 to 23:00 (24 slots)
+    return Array.from({ length: 24 }).map((_, i) => i);
+  }, [hoursMode]);
+
   return (
-    <div className="space-y-5 animate-in fade-in duration-300">
+    <div className="flex-1 flex flex-col h-full min-h-0 w-full animate-in fade-in duration-200 overflow-hidden space-y-1.5">
       
-      {/* Top Header & Scheduling Controls */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+      {/* MINIMALIST COMPACT CONTROL BAR (Single tight row fitting all controls) */}
+      <div className="flex-none p-2 sm:px-3 rounded-xl bg-white dark:bg-[#072a1e] border border-emerald-200/80 dark:border-emerald-800/80 shadow-2xs flex flex-wrap items-center justify-between gap-2">
         
-        {/* Title Bar with Actions */}
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <div className="p-2.5 rounded-xl bg-emerald-600 text-white shadow-md shadow-emerald-600/25">
-                <CalendarIcon className="w-5 h-5" />
-              </div>
-              <div>
-                <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-                  Agenda & Escala Operacional
-                  {totalConflictsCount > 0 && (
-                    <span className="px-2 py-0.5 rounded-full text-xs font-black bg-rose-600 text-white animate-pulse">
-                      {totalConflictsCount} {totalConflictsCount === 1 ? 'Conflito' : 'Conflitos'}
-                    </span>
-                  )}
-                </h1>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Sincronização de voos, anti-sobreposição de pilotos e drones, e checagem climática em tempo real
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 self-stretch sm:self-auto justify-end">
-            {/* Audio Feedback Switch */}
+        {/* Left Group: Nav + Date */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Daily Stepper (-1d / Hoje / +1d) */}
+          <div className="flex items-center gap-0.5 bg-emerald-50/90 dark:bg-emerald-950/80 p-0.5 rounded-lg border border-emerald-200/70 dark:border-emerald-800/70">
             <button
-              onClick={handleToggleSound}
-              className={`p-2.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                soundActive
-                  ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
-                  : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-500'
-              }`}
-              title={soundActive ? 'Alertas Sonoros Ativos (Clique para Silenciar)' : 'Alertas Sonoros Desativados (Clique para Ativar)'}
+              onClick={handlePrevDay}
+              className="p-1 rounded-md hover:bg-emerald-600 hover:text-white text-emerald-900 dark:text-emerald-200 transition-colors cursor-pointer flex items-center gap-0.5 text-[10px] font-extrabold"
+              title="Voltar 1 Dia (-1d)"
             >
-              {soundActive ? (
-                <>
-                  <Volume2 className="w-4 h-4 text-emerald-600" />
-                  <span className="hidden sm:inline">Som Ativo</span>
-                </>
-              ) : (
-                <>
-                  <VolumeX className="w-4 h-4" />
-                  <span className="hidden sm:inline">Mudo</span>
-                </>
-              )}
-            </button>
-
-            {/* View Mode Switcher */}
-            <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700">
-              <button
-                onClick={() => { playSlotSelectedTone(); setViewMode('month'); }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  viewMode === 'month'
-                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                }`}
-              >
-                Mês
-              </button>
-              <button
-                onClick={() => { playSlotSelectedTone(); setViewMode('week'); }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  viewMode === 'week'
-                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                }`}
-              >
-                Semana
-              </button>
-              <button
-                onClick={() => { playSlotSelectedTone(); setViewMode('timeline'); }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  viewMode === 'timeline'
-                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                }`}
-              >
-                Recursos
-              </button>
-              <button
-                onClick={() => { playSlotSelectedTone(); setViewMode('list'); }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  viewMode === 'list'
-                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                }`}
-              >
-                Lista
-              </button>
-            </div>
-
-            {/* New Schedule Button */}
-            <button
-              onClick={() => handleOpenNewModal()}
-              className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-600/20 hover:scale-[1.02] transition-all flex items-center gap-1.5 cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Novo Agendamento</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Conflict Warning Banner (If Active) */}
-        {totalConflictsCount > 0 && (
-          <div className="p-3.5 rounded-xl border border-rose-300 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 text-xs text-rose-800 dark:text-rose-200">
-              <ShieldAlert className="w-5 h-5 text-rose-600 flex-shrink-0" />
-              <div>
-                <span className="font-black uppercase tracking-wider block">
-                  Atenção: Existem {totalConflictsCount} sobreposições de pilotos ou drones agendadas!
-                </span>
-                <span className="text-[11px] opacity-90">
-                  Dois ou mais agendamentos concorrem pelo mesmo piloto ou drone simultaneamente.
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowConflictsOnly(!showConflictsOnly)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
-                  showConflictsOnly
-                    ? 'bg-rose-600 text-white'
-                    : 'bg-white dark:bg-slate-800 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800'
-                }`}
-              >
-                {showConflictsOnly ? 'Exibindo Apenas Conflitos' : 'Filtrar Conflitos'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Date Navigation & Search Filters Bar */}
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-          
-          {/* Calendar Navigation Buttons */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handlePrev}
-              className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
-              title="Período Anterior"
-            >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">-1d</span>
             </button>
             <button
               onClick={handleToday}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+              className="px-2 py-0.5 rounded-md text-[11px] font-black bg-emerald-600 text-white shadow-2xs hover:bg-emerald-700 transition-all cursor-pointer"
+              title="Ir para a Data de Hoje"
             >
               Hoje
             </button>
             <button
-              onClick={handleNext}
-              className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
-              title="Próximo Período"
+              onClick={handleNextDay}
+              className="p-1 rounded-md hover:bg-emerald-600 hover:text-white text-emerald-900 dark:text-emerald-200 transition-colors cursor-pointer flex items-center gap-0.5 text-[10px] font-extrabold"
+              title="Avançar 1 Dia (+1d)"
             >
-              <ChevronRight className="w-4 h-4" />
+              <span className="hidden sm:inline">+1d</span>
+              <ChevronRight className="w-3.5 h-3.5" />
             </button>
-
-            <span className="text-sm sm:text-base font-black text-slate-900 dark:text-white capitalize ml-2">
-              {formattedMonthYear}
-            </span>
           </div>
 
-          {/* Quick Filters */}
-          <div className="flex flex-wrap items-center gap-2">
-            
-            {/* Search */}
-            <div className="relative flex-1 sm:w-48">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Buscar OS, talhão..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-              />
-            </div>
-
-            {/* Pilot Filter */}
-            <select
-              value={selectedPilotFilter}
-              onChange={(e) => setSelectedPilotFilter(e.target.value)}
-              className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer"
+          {/* Period Jump Stepper (Mês/Semana Jump) */}
+          <div className="flex items-center gap-0.5">
+            <button
+              onClick={handlePrevPeriod}
+              className="px-1.5 py-0.5 rounded-lg border border-slate-200 dark:border-emerald-800/70 hover:bg-emerald-50 dark:hover:bg-emerald-950 text-slate-600 dark:text-emerald-300 transition-colors cursor-pointer text-[10px] font-bold"
+              title={viewMode === 'month' ? 'Mês Anterior' : viewMode === 'week' ? 'Semana Anterior' : 'Dia Anterior'}
             >
-              <option value="ALL">👨‍✈️ Todos os Pilotos</option>
-              {pilots.map(p => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
-
-            {/* Drone Filter */}
-            <select
-              value={selectedDroneFilter}
-              onChange={(e) => setSelectedDroneFilter(e.target.value)}
-              className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer"
+              « {viewMode === 'month' ? 'Mês' : 'Sem'}
+            </button>
+            <button
+              onClick={handleNextPeriod}
+              className="px-1.5 py-0.5 rounded-lg border border-slate-200 dark:border-emerald-800/70 hover:bg-emerald-50 dark:hover:bg-emerald-950 text-slate-600 dark:text-emerald-300 transition-colors cursor-pointer text-[10px] font-bold"
+              title={viewMode === 'month' ? 'Próximo Mês' : viewMode === 'week' ? 'Próxima Semana' : 'Próximo Dia'}
             >
-              <option value="ALL">🛸 Todos os Drones</option>
-              {drones.map(d => (
-                <option key={d.id} value={d.id}>{d.modelName}</option>
-              ))}
-            </select>
+              {viewMode === 'month' ? 'Mês' : 'Sem'} »
+            </button>
           </div>
+
+          {/* Full Date Display */}
+          <span className="text-xs sm:text-sm font-black text-emerald-950 dark:text-white capitalize truncate min-w-[140px]">
+            {formattedFullDate}
+          </span>
+
+          {/* Always Visible Conflict Button */}
+          <button
+            onClick={() => {
+              playSlotSelectedTone();
+              setIsConflictsModalOpen(true);
+              if (totalConflictsCount > 0) {
+                setShowConflictsOnly(true);
+              }
+            }}
+            className={`px-2 py-0.5 rounded-full text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer ${
+              totalConflictsCount > 0
+                ? showConflictsOnly
+                  ? 'bg-rose-600 text-white shadow-xs animate-pulse ring-2 ring-rose-400'
+                  : 'bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800 hover:bg-rose-200'
+                : 'bg-emerald-100/70 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-300/60 dark:border-emerald-800/60 hover:bg-emerald-200/60'
+            }`}
+            title={totalConflictsCount > 0 ? "Clique para abrir a Central de Conflitos e filtrar agenda" : "Nenhum conflito detectado - Clique para checar alocação de frota"}
+          >
+            <ShieldAlert className={`w-3 h-3 ${totalConflictsCount > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`} />
+            <span>{totalConflictsCount} {totalConflictsCount === 1 ? 'conflito' : 'conflitos'}</span>
+          </button>
+        </div>
+
+        {/* Center Group: View Mode Switcher */}
+        <div className="flex items-center gap-1 p-0.5 bg-emerald-50/80 dark:bg-[#041c14] rounded-lg border border-emerald-200/60 dark:border-emerald-800/60">
+          <button
+            onClick={() => { playSlotSelectedTone(); setViewMode('week'); }}
+            className={`px-2.5 py-1 rounded-md text-[11px] font-extrabold transition-all cursor-pointer ${
+              viewMode === 'week'
+                ? 'bg-emerald-600 text-white shadow-2xs'
+                : 'text-slate-600 dark:text-slate-300 hover:text-emerald-700'
+            }`}
+          >
+            Semana
+          </button>
+          <button
+            onClick={() => { playSlotSelectedTone(); setViewMode('month'); }}
+            className={`px-2.5 py-1 rounded-md text-[11px] font-extrabold transition-all cursor-pointer ${
+              viewMode === 'month'
+                ? 'bg-emerald-600 text-white shadow-2xs'
+                : 'text-slate-600 dark:text-slate-300 hover:text-emerald-700'
+            }`}
+          >
+            Mês
+          </button>
+          <button
+            onClick={() => { playSlotSelectedTone(); setViewMode('timeline'); }}
+            className={`px-2.5 py-1 rounded-md text-[11px] font-extrabold transition-all cursor-pointer ${
+              viewMode === 'timeline'
+                ? 'bg-emerald-600 text-white shadow-2xs'
+                : 'text-slate-600 dark:text-slate-300 hover:text-emerald-700'
+            }`}
+          >
+            Recursos
+          </button>
+          <button
+            onClick={() => { playSlotSelectedTone(); setViewMode('list'); }}
+            className={`px-2.5 py-1 rounded-md text-[11px] font-extrabold transition-all cursor-pointer ${
+              viewMode === 'list'
+                ? 'bg-emerald-600 text-white shadow-2xs'
+                : 'text-slate-600 dark:text-slate-300 hover:text-emerald-700'
+            }`}
+          >
+            Lista ({filteredOrders.length})
+          </button>
+        </div>
+
+        {/* Right Group: Filters & Action */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {/* Hours Window Toggle (Week View) */}
+          {viewMode === 'week' && (
+            <button
+              onClick={() => setHoursMode(prev => prev === 'OPERATIONAL' ? 'FULL' : 'OPERATIONAL')}
+              className="px-2 py-1 rounded-lg border border-emerald-200/80 dark:border-emerald-800/80 text-[10px] font-bold bg-white dark:bg-[#072a1e] text-emerald-900 dark:text-emerald-200 hover:bg-emerald-50 cursor-pointer transition-colors"
+              title={hoursMode === 'OPERATIONAL' ? 'Alternar para 24 Horas' : 'Alternar para Horário de Voo (06h - 18h)'}
+            >
+              {hoursMode === 'OPERATIONAL' ? '☀️ 06h - 18h' : '🌙 24 Horas'}
+            </button>
+          )}
+
+          {/* Quick Search */}
+          <div className="relative w-28 sm:w-36">
+            <Search className="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Buscar..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-6 pr-2 py-1 rounded-lg bg-slate-50 dark:bg-emerald-950/60 border border-emerald-200/70 dark:border-emerald-800/70 text-[11px] text-slate-800 dark:text-emerald-100 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            />
+          </div>
+
+          {/* Pilot Dropdown */}
+          <select
+            value={selectedPilotFilter}
+            onChange={(e) => setSelectedPilotFilter(e.target.value)}
+            className="px-2 py-1 bg-slate-50 dark:bg-emerald-950/60 border border-emerald-200/70 dark:border-emerald-800/70 rounded-lg text-[10px] font-bold text-slate-700 dark:text-emerald-200 cursor-pointer"
+          >
+            <option value="ALL">👨‍✈️ Pilotos</option>
+            {pilots.map(p => (
+              <option key={p.id} value={p.id}>{p.name.split(' ')[0]}</option>
+            ))}
+          </select>
+
+          {/* Drone Dropdown */}
+          <select
+            value={selectedDroneFilter}
+            onChange={(e) => setSelectedDroneFilter(e.target.value)}
+            className="px-2 py-1 bg-slate-50 dark:bg-emerald-950/60 border border-emerald-200/70 dark:border-emerald-800/70 rounded-lg text-[10px] font-bold text-slate-700 dark:text-emerald-200 cursor-pointer"
+          >
+            <option value="ALL">🛸 Drones</option>
+            {drones.map(d => (
+              <option key={d.id} value={d.id}>{d.modelName.replace('DJI Agras ', '')}</option>
+            ))}
+          </select>
+
+          {/* Audio toggle */}
+          <button
+            onClick={handleToggleSound}
+            className={`p-1 rounded-lg border text-xs transition-colors cursor-pointer ${
+              soundActive
+                ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-300 dark:border-slate-700'
+            }`}
+            title={soundActive ? 'Som Ativado' : 'Som Mudo'}
+          >
+            {soundActive ? <Volume2 className="w-3.5 h-3.5 text-emerald-600" /> : <VolumeX className="w-3.5 h-3.5" />}
+          </button>
+
+          {/* New Schedule Button */}
+          <button
+            onClick={() => handleOpenNewModal()}
+            className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[11px] shadow-2xs transition-all flex items-center gap-1 cursor-pointer shrink-0"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Agendar</span>
+          </button>
         </div>
       </div>
 
-      {/* VIEW MODE 1: WEEK CALENDAR (Grade Horária Semanal) */}
-      {viewMode === 'week' && (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-          
-          {/* Week Header with Golden Spray Windows */}
-          <div className="grid grid-cols-8 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60">
-            <div className="p-3 text-center border-r border-slate-200 dark:border-slate-800">
-              <span className="text-[10px] font-black uppercase text-slate-400">Horário</span>
-            </div>
-            {weekDays.map((d, i) => {
-              const isToday = d.dateStr === new Date().toISOString().split('T')[0];
-              const dayOrders = filteredOrders.filter(o => o.scheduledDate === d.dateStr);
-
-              return (
-                <div 
-                  key={i} 
-                  className={`p-3 text-center border-r last:border-r-0 border-slate-200 dark:border-slate-800 cursor-pointer hover:bg-emerald-50/40 dark:hover:bg-slate-800 transition-colors ${
-                    isToday ? 'bg-emerald-50 dark:bg-emerald-950/40 font-bold' : ''
-                  }`}
-                  onClick={() => handleOpenNewModal(d.dateStr, '07:00')}
-                >
-                  <div className="text-[10px] uppercase font-black text-slate-500 dark:text-slate-400">
-                    {d.dayName}
-                  </div>
-                  <div className={`text-base font-black ${
-                    isToday ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-800 dark:text-slate-200'
-                  }`}>
-                    {d.dayNumber}
-                  </div>
-                  {dayOrders.length > 0 && (
-                    <span className="inline-block mt-0.5 text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300">
-                      {dayOrders.length} {dayOrders.length === 1 ? 'voo' : 'voos'}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
+      {/* Active Conflict Filter Banner */}
+      {showConflictsOnly && (
+        <div className="flex-none px-3 py-1.5 rounded-xl bg-rose-500/10 dark:bg-rose-950/40 border border-rose-500/30 dark:border-rose-800/50 flex items-center justify-between gap-2 text-xs text-rose-900 dark:text-rose-200">
+          <div className="flex items-center gap-2 font-bold truncate">
+            <ShieldAlert className="w-4 h-4 text-rose-600 dark:text-rose-400 animate-pulse shrink-0" />
+            <span className="truncate">
+              Exibindo apenas agendamentos com conflito de horário ou recurso ({filteredOrders.length} OSs afetadas).
+            </span>
           </div>
-
-          {/* Hourly Slots Grid (00:00 to 23:00) */}
-          <div className="divide-y divide-slate-100 dark:divide-slate-800/80 max-h-[600px] overflow-y-auto">
-            {Array.from({ length: 24 }).map((_, hourIdx) => {
-              const hour = hourIdx; // 00:00 to 23:00
-              const timeSlotStr = `${String(hour).padStart(2, '0')}:00`;
-              const isMorningGolden = hour >= 6 && hour <= 9; // Golden spray hours
-              const isLateAfternoon = hour >= 16 && hour <= 17;
-
-              return (
-                <div key={hour} className="grid grid-cols-8 min-h-[64px] group">
-                  {/* Time label */}
-                  <div className="p-2 border-r border-slate-200 dark:border-slate-800 text-center flex flex-col justify-start bg-slate-50/60 dark:bg-slate-800/30">
-                    <span className="text-xs font-mono font-bold text-slate-500 dark:text-slate-400">
-                      {timeSlotStr}
-                    </span>
-                    {isMorningGolden && (
-                      <span className="text-[8px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-0.5 mt-0.5">
-                        <Sparkles className="w-2.5 h-2.5" /> Ouro
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Day Columns for this hour */}
-                  {weekDays.map((d, dayIdx) => {
-                    // Find orders that are active during this hour
-                    const slotOrders = filteredOrders.filter(o => {
-                      if (o.scheduledDate !== d.dateStr) return false;
-                      const startMin = timeStringToMinutes(o.startTime || '07:00');
-                      const endMin = timeStringToMinutes(o.endTime || '09:30');
-                      const slotMin = hour * 60;
-                      return slotMin >= startMin && slotMin < endMin;
-                    });
-
-                    return (
-                      <div
-                        key={dayIdx}
-                        onClick={() => {
-                          if (slotOrders.length === 0) {
-                            handleOpenNewModal(d.dateStr, timeSlotStr);
-                          }
-                        }}
-                        className={`p-1.5 border-r last:border-r-0 border-slate-100 dark:border-slate-800/80 transition-colors relative cursor-pointer ${
-                          isMorningGolden 
-                            ? 'bg-emerald-50/20 dark:bg-emerald-950/10 hover:bg-emerald-100/40' 
-                            : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
-                        }`}
-                      >
-                        {/* Render Scheduled Order Badges in this slot */}
-                        {slotOrders.map((order) => {
-                          const hasConflict = conflictsMap.has(order.id);
-                          const isSafeWeather = order.weatherSafeApproved;
-
-                          return (
-                            <div
-                              key={order.id}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleOpenEditModal(order);
-                              }}
-                              className={`p-1.5 rounded-lg text-left shadow-2xs transition-all hover:scale-[1.02] cursor-pointer mb-1 border ${
-                                hasConflict
-                                  ? 'bg-rose-50 dark:bg-rose-950/80 border-rose-400 dark:border-rose-700 text-rose-950 dark:text-rose-100 animate-pulse-subtle'
-                                  : order.status === 'OPERATING'
-                                  ? 'bg-emerald-600 text-white border-emerald-700 shadow-md shadow-emerald-600/20'
-                                  : order.status === 'COMPLETED'
-                                  ? 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300'
-                                  : 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-300 dark:border-emerald-800 text-emerald-950 dark:text-emerald-100'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between gap-1">
-                                <span className="font-black text-[10px] truncate">{order.code}</span>
-                                {hasConflict ? (
-                                  <AlertTriangle className="w-3 h-3 text-rose-600 flex-shrink-0" />
-                                ) : (
-                                  <span className="text-[9px] opacity-75 font-mono">{order.startTime}</span>
-                                )}
-                              </div>
-
-                              <div className="text-[10px] font-semibold truncate leading-tight mt-0.5">
-                                {order.plotName}
-                              </div>
-
-                              <div className="text-[9px] opacity-80 truncate flex items-center gap-1 mt-0.5">
-                                <span>🛸 {order.droneModel.replace('DJI Agras ', '')}</span>
-                                <span>•</span>
-                                <span>👨‍✈️ {order.pilotName.split(' ')[0]}</span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setIsConflictsModalOpen(true)}
+              className="px-2.5 py-0.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-[10px] cursor-pointer shadow-2xs transition-colors"
+            >
+              Abrir Painel
+            </button>
+            <button
+              onClick={() => setShowConflictsOnly(false)}
+              className="px-2 py-0.5 rounded-lg bg-slate-200 dark:bg-emerald-950 hover:bg-slate-300 text-slate-700 dark:text-emerald-200 font-bold text-[10px] cursor-pointer transition-colors"
+            >
+              Limpar Filtro
+            </button>
           </div>
         </div>
       )}
 
-      {/* VIEW MODE 2: MONTH VIEW (Visão Mensal em Grade) */}
-      {viewMode === 'month' && (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-          
-          {/* Days of Week Header */}
-          <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-center font-bold text-xs text-slate-500 py-2.5">
-            <div>Domingo</div>
-            <div>Segunda</div>
-            <div>Terça</div>
-            <div>Quarta</div>
-            <div>Quinta</div>
-            <div>Sexta</div>
-            <div>Sábado</div>
-          </div>
-
-          {/* Month Days Grid */}
-          <div className="grid grid-cols-7 divide-x divide-y divide-slate-100 dark:divide-slate-800/80">
-            {monthData.map((cell, idx) => {
-              const dayOrders = filteredOrders.filter(o => o.scheduledDate === cell.dateStr);
-              const hasConflictsToday = dayOrders.some(o => conflictsMap.has(o.id));
-              const isToday = cell.dateStr === new Date().toISOString().split('T')[0];
-
-              return (
-                <div
-                  key={idx}
-                  onClick={() => handleOpenNewModal(cell.dateStr, '07:00')}
-                  className={`min-h-[110px] p-2 transition-colors cursor-pointer relative group flex flex-col justify-between ${
-                    cell.isCurrentMonth
-                      ? 'bg-white dark:bg-slate-900 hover:bg-emerald-50/30 dark:hover:bg-slate-800/60'
-                      : 'bg-slate-50/50 dark:bg-slate-900/40 text-slate-400 dark:text-slate-600'
-                  } ${isToday ? 'ring-2 ring-emerald-500 ring-inset' : ''}`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className={`text-xs font-black ${
-                      isToday ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-300'
-                    }`}>
-                      {cell.dayNumber}
-                    </span>
-
-                    {hasConflictsToday && (
-                      <span className="p-0.5 rounded-full bg-rose-600 text-white" title="Conflito de escala neste dia">
-                        <AlertTriangle className="w-3 h-3" />
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Day Orders Badges */}
-                  <div className="mt-1 space-y-1 flex-1 overflow-y-auto max-h-[75px]">
-                    {dayOrders.slice(0, 3).map(order => {
-                      const hasConflict = conflictsMap.has(order.id);
-
-                      return (
-                        <div
-                          key={order.id}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenEditModal(order);
-                          }}
-                          className={`px-1.5 py-0.5 rounded text-[10px] font-bold truncate flex items-center justify-between border ${
-                            hasConflict
-                              ? 'bg-rose-100 text-rose-900 border-rose-400 dark:bg-rose-950 dark:text-rose-200'
-                              : order.status === 'OPERATING'
-                              ? 'bg-emerald-600 text-white border-emerald-700'
-                              : 'bg-emerald-50 text-emerald-900 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-200 dark:border-emerald-800'
-                          }`}
-                        >
-                          <span className="truncate">{order.startTime || '07:00'} • {order.code}</span>
-                          {hasConflict && <AlertTriangle className="w-2.5 h-2.5 text-rose-600 flex-shrink-0" />}
-                        </div>
-                      );
-                    })}
-                    {dayOrders.length > 3 && (
-                      <div className="text-[9px] font-bold text-slate-400 pl-1">
-                        +{dayOrders.length - 3} mais
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center justify-end gap-0.5">
-                    <Plus className="w-3 h-3" /> Agendar
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* VIEW MODE 3: TIMELINE / RESOURCE ALLOCATION (Linha do Tempo de Recursos) */}
-      {viewMode === 'timeline' && (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 sm:p-5 space-y-4">
-          
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                Alocação de Recurso na Data ({currentDate.toISOString().split('T')[0]}):
-              </span>
-              <div className="flex items-center p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg">
-                <button
-                  onClick={() => setTimelineResource('pilot')}
-                  className={`px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
-                    timelineResource === 'pilot'
-                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
-                      : 'text-slate-500'
-                  }`}
-                >
-                  👨‍✈️ Pilotos
-                </button>
-                <button
-                  onClick={() => setTimelineResource('drone')}
-                  className={`px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
-                    timelineResource === 'drone'
-                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
-                      : 'text-slate-500'
-                  }`}
-                >
-                  🛸 Drones
-                </button>
+      {/* MAIN VIEWPORT-FITTING CALENDAR GRID BODY */}
+      <div className="flex-1 bg-white dark:bg-[#072a1e] rounded-xl border border-emerald-200/80 dark:border-emerald-800/80 shadow-2xs overflow-hidden flex flex-col min-h-0">
+        
+        {/* VIEW MODE 1: WEEK CALENDAR (Ultra-Compact Viewport-Fitting Week Grid) */}
+        {viewMode === 'week' && (
+          <div className="flex flex-col h-full min-h-0 overflow-hidden">
+            {/* Week Header Row */}
+            <div className="grid grid-cols-8 border-b border-emerald-200/80 dark:border-emerald-800/80 bg-emerald-50/70 dark:bg-emerald-950/60 shrink-0">
+              <div className="p-1.5 text-center border-r border-emerald-200/60 dark:border-emerald-800/60 flex items-center justify-center">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Hora</span>
               </div>
-            </div>
-          </div>
+              {weekDays.map((d, i) => {
+                const isToday = d.dateStr === new Date().toISOString().split('T')[0];
+                const dayOrders = filteredOrders.filter(o => o.scheduledDate === d.dateStr);
 
-          {/* Timeline Surface */}
-          <div className="space-y-4 pt-2">
-            {(timelineResource === 'pilot' ? pilots : drones).map((resource) => {
-              const resourceId = resource.id;
-              const resourceName = 'name' in resource ? resource.name : resource.modelName;
-              const resourceSub = 'deceaLicense' in resource ? resource.deceaLicense : resource.anacPrefix;
-
-              // Find orders for this resource on current date
-              const dayStr = currentDate.toISOString().split('T')[0];
-              const resourceOrders = filteredOrders.filter(o => {
-                if (o.scheduledDate !== dayStr) return false;
-                return timelineResource === 'pilot' ? o.pilotId === resourceId : o.droneId === resourceId;
-              });
-
-              return (
-                <div key={resourceId} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 rounded-lg bg-emerald-600/10 text-emerald-700 dark:text-emerald-300 font-bold text-xs">
-                        {timelineResource === 'pilot' ? '👨‍✈️' : '🛸'}
-                      </div>
-                      <div>
-                        <span className="text-sm font-black text-slate-900 dark:text-white">
-                          {resourceName}
-                        </span>
-                        <span className="text-xs text-slate-500 ml-2">({resourceSub})</span>
-                      </div>
-                    </div>
-
-                    <span className="text-xs font-bold text-slate-500">
-                      {resourceOrders.length} {resourceOrders.length === 1 ? 'missão agendada' : 'missões agendadas'}
-                    </span>
-                  </div>
-
-                  {/* Visual Bar representation 00:00 to 23:00 */}
-                  <div className="relative h-12 bg-slate-200/60 dark:bg-slate-700/60 rounded-xl overflow-hidden flex items-center">
-                    {/* Hour grid guidelines */}
-                    {Array.from({ length: 24 }).map((_, h) => (
-                      <div
-                        key={h}
-                        style={{ left: `${(h / 24) * 100}%` }}
-                        className="absolute top-0 bottom-0 border-l border-slate-300/40 dark:border-slate-600/40 text-[9px] text-slate-400 pl-1 pt-0.5 select-none pointer-events-none"
-                      >
-                        {String(h).padStart(2, '0')}h
-                      </div>
-                    ))}
-
-                    {/* Order Blocks */}
-                    {resourceOrders.map(order => {
-                      const startMin = timeStringToMinutes(order.startTime || '07:00');
-                      const endMin = timeStringToMinutes(order.endTime || '09:30');
-                      const dayStart = 0 * 60;
-                      const dayTotal = 24 * 60;
-
-                      const leftPct = Math.max(0, Math.min(100, ((startMin - dayStart) / dayTotal) * 100));
-                      const widthPct = Math.max(4, Math.min(100 - leftPct, ((endMin - startMin) / dayTotal) * 100));
-                      const hasConflict = conflictsMap.has(order.id);
-
-                      return (
-                        <div
-                          key={order.id}
-                          onClick={() => handleOpenEditModal(order)}
-                          style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
-                          className={`absolute top-1.5 bottom-1.5 rounded-lg px-2 flex items-center justify-between text-xs font-bold shadow-xs cursor-pointer transition-all hover:scale-[1.02] ${
-                            hasConflict
-                              ? 'bg-rose-600 text-white animate-pulse'
-                              : 'bg-emerald-600 text-white'
-                          }`}
-                          title={`${order.code} • ${order.startTime} às ${order.endTime} (${order.plotName})`}
-                        >
-                          <span className="truncate">{order.code} - {order.plotName}</span>
-                          {hasConflict && <AlertTriangle className="w-3 h-3 text-white flex-shrink-0" />}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* VIEW MODE 4: LIST VIEW (Lista Operacional Detalhada) */}
-      {viewMode === 'list' && (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
-          <div className="p-4 bg-slate-50 dark:bg-slate-800/60 flex items-center justify-between font-bold text-xs text-slate-500 uppercase">
-            <span>Missão / Código</span>
-            <span>Talhão & Cultura</span>
-            <span>Equipe & Drone</span>
-            <span>Janela / Horário</span>
-            <span>Viabilidade Climática</span>
-            <span>Ações</span>
-          </div>
-
-          {filteredOrders.length === 0 ? (
-            <div className="p-8 text-center text-slate-400">
-              Nenhum agendamento encontrado com os filtros selecionados.
-            </div>
-          ) : (
-            filteredOrders.map(order => {
-              const hasConflict = conflictsMap.has(order.id);
-
-              return (
-                <div 
-                  key={order.id}
-                  onClick={() => handleOpenEditModal(order)}
-                  className={`p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer ${
-                    hasConflict ? 'bg-rose-50/40 dark:bg-rose-950/20' : ''
-                  }`}
-                >
-                  <div className="min-w-[140px]">
-                    <div className="flex items-center gap-2">
-                      <span className="font-black text-slate-900 dark:text-white text-sm">
-                        {order.code}
+                return (
+                  <div 
+                    key={i} 
+                    className={`p-1 text-center border-r last:border-r-0 border-emerald-200/60 dark:border-emerald-800/60 cursor-pointer hover:bg-emerald-100/50 dark:hover:bg-emerald-900/50 transition-colors ${
+                      isToday ? 'bg-emerald-100/60 dark:bg-emerald-950/90 font-bold' : ''
+                    }`}
+                    onClick={() => handleOpenNewModal(d.dateStr, '07:00')}
+                    title="Clique para agendar neste dia"
+                  >
+                    <div className="flex items-center justify-center gap-1">
+                      <span className="text-[10px] uppercase font-extrabold text-slate-500 dark:text-emerald-300/80">
+                        {d.dayName}
                       </span>
-                      {hasConflict && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-600 text-white flex items-center gap-1">
-                          <AlertTriangle className="w-2.5 h-2.5" /> Conflito
+                      <span className={`text-xs font-black px-1 rounded ${
+                        isToday ? 'bg-emerald-600 text-white' : 'text-slate-800 dark:text-emerald-100'
+                      }`}>
+                        {d.dayNumber}
+                      </span>
+                    </div>
+                    {dayOrders.length > 0 && (
+                      <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-300 truncate block">
+                        {dayOrders.length} {dayOrders.length === 1 ? 'voo' : 'voos'}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Scrollable Hourly Grid */}
+            <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-emerald-900/40 text-xs">
+              {visibleHours.map((hour) => {
+                const timeSlotStr = `${String(hour).padStart(2, '0')}:00`;
+                const isMorningGolden = hour >= 6 && hour <= 9; // Golden spray hours
+                const isLateGolden = hour >= 16 && hour <= 17;
+
+                return (
+                  <div key={hour} className="grid grid-cols-8 min-h-[38px] group">
+                    {/* Time Column */}
+                    <div className={`p-1 border-r border-emerald-200/60 dark:border-emerald-800/60 text-center flex flex-col justify-center shrink-0 ${
+                      isMorningGolden || isLateGolden ? 'bg-amber-50/60 dark:bg-amber-950/20' : 'bg-slate-50/50 dark:bg-emerald-950/30'
+                    }`}>
+                      <span className="text-[10px] font-mono font-bold text-slate-600 dark:text-slate-300">
+                        {timeSlotStr}
+                      </span>
+                      {(isMorningGolden || isLateGolden) && (
+                        <span className="text-[8px] font-extrabold text-amber-700 dark:text-amber-400 flex items-center justify-center gap-0.5">
+                          ✨ Ouro
                         </span>
                       )}
                     </div>
-                    <span className="text-xs text-slate-500 block">
-                      {order.farmName}
-                    </span>
-                  </div>
 
-                  <div className="min-w-[140px]">
-                    <span className="font-bold text-slate-800 dark:text-slate-200 text-xs block">
-                      {order.plotName}
-                    </span>
-                    <span className="text-xs text-slate-500">
-                      {order.crop} • {String(order.targetHectares).replace('.', ',')} ha
-                    </span>
-                  </div>
+                    {/* Day Slot Cells */}
+                    {weekDays.map((d, dayIdx) => {
+                      const slotOrders = filteredOrders.filter(o => {
+                        if (o.scheduledDate !== d.dateStr) return false;
+                        const startMin = timeStringToMinutes(o.startTime || '07:00');
+                        const endMin = timeStringToMinutes(o.endTime || '09:30');
+                        const slotMin = hour * 60;
+                        return slotMin >= startMin && slotMin < endMin;
+                      });
 
-                  <div className="min-w-[140px] text-xs">
-                    <span className="font-semibold text-slate-700 dark:text-slate-300 block">
-                      👨‍✈️ {order.pilotName}
-                    </span>
-                    <span className="text-slate-500">
-                      🛸 {order.droneModel}
-                    </span>
-                  </div>
+                      return (
+                        <div
+                          key={dayIdx}
+                          onClick={() => {
+                            if (slotOrders.length === 0) {
+                              handleOpenNewModal(d.dateStr, timeSlotStr);
+                            }
+                          }}
+                          className={`p-1 border-r last:border-r-0 border-slate-100 dark:border-emerald-900/30 transition-colors relative cursor-pointer min-h-[38px] flex flex-col gap-0.5 justify-center ${
+                            isMorningGolden || isLateGolden 
+                              ? 'bg-amber-50/15 dark:bg-amber-950/10 hover:bg-emerald-50/60 dark:hover:bg-emerald-900/40' 
+                              : 'hover:bg-emerald-50/50 dark:hover:bg-emerald-950/50'
+                          }`}
+                        >
+                          {slotOrders.map((order) => {
+                            const hasConflict = conflictsMap.has(order.id);
 
-                  <div className="min-w-[120px] text-xs">
-                    <span className="font-black text-slate-900 dark:text-white block">
-                      📅 {order.scheduledDate}
-                    </span>
-                    <span className="text-emerald-700 dark:text-emerald-400 font-bold">
-                      ⏰ {order.startTime || '07:00'} - {order.endTime || '09:30'}
-                    </span>
+                            return (
+                              <div
+                                key={order.id}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenEditModal(order);
+                                }}
+                                className={`px-1.5 py-0.5 rounded-md text-left transition-all hover:scale-[1.01] cursor-pointer border text-[10px] ${
+                                  hasConflict
+                                    ? 'bg-rose-500 text-white border-rose-600 font-bold animate-pulse'
+                                    : order.status === 'OPERATING'
+                                    ? 'bg-emerald-600 text-white border-emerald-700 font-bold shadow-2xs'
+                                    : order.status === 'COMPLETED'
+                                    ? 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+                                    : 'bg-emerald-50 dark:bg-emerald-950 border-emerald-300 dark:border-emerald-800 text-emerald-950 dark:text-emerald-100 font-bold'
+                                }`}
+                                title={`${order.code} • ${order.plotName} (${order.pilotName.split(' ')[0]} / ${order.droneModel.replace('DJI Agras ', '')})`}
+                              >
+                                <div className="flex items-center justify-between gap-1 leading-tight">
+                                  <span className="truncate">{order.code}</span>
+                                  <span className="text-[9px] opacity-90 font-mono">{order.startTime}</span>
+                                </div>
+                                <div className="text-[9px] opacity-90 truncate font-normal">
+                                  {order.plotName} • {order.pilotName.split(' ')[0]}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
                   </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
-                  <div>
-                    {order.weatherFeasibility ? (
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1.5 ${
-                        order.weatherFeasibility.isAllowed
-                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                          : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+        {/* VIEW MODE 2: MONTH VIEW (Minimalist Fits-in-Viewport Month Grid) */}
+        {viewMode === 'month' && (
+          <div className="flex flex-col h-full min-h-0">
+            {/* Days Header */}
+            <div className="grid grid-cols-7 border-b border-emerald-200/80 dark:border-emerald-800/80 bg-emerald-50/70 dark:bg-emerald-950/60 text-center font-black text-[10px] uppercase text-slate-500 dark:text-emerald-300/80 py-1.5 shrink-0">
+              <div>Dom</div>
+              <div>Seg</div>
+              <div>Ter</div>
+              <div>Qua</div>
+              <div>Qui</div>
+              <div>Sex</div>
+              <div>Sáb</div>
+            </div>
+
+            {/* Month Cells Grid */}
+            <div className="flex-1 grid grid-cols-7 grid-rows-5 sm:grid-rows-6 divide-x divide-y divide-slate-100 dark:divide-emerald-900/40 min-h-0">
+              {monthData.map((cell, idx) => {
+                const dayOrders = filteredOrders.filter(o => o.scheduledDate === cell.dateStr);
+                const hasConflictsToday = dayOrders.some(o => conflictsMap.has(o.id));
+                const isToday = cell.dateStr === new Date().toISOString().split('T')[0];
+
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => handleOpenNewModal(cell.dateStr, '07:00')}
+                    className={`p-1 transition-colors cursor-pointer relative group flex flex-col justify-between overflow-hidden ${
+                      cell.isCurrentMonth
+                        ? 'bg-white dark:bg-[#072a1e] hover:bg-emerald-50/40 dark:hover:bg-emerald-900/30'
+                        : 'bg-slate-50/60 dark:bg-emerald-950/30 text-slate-400 dark:text-slate-600'
+                    } ${isToday ? 'ring-1.5 ring-emerald-500 ring-inset' : ''}`}
+                  >
+                    <div className="flex items-center justify-between leading-none">
+                      <span className={`text-[10px] font-black ${
+                        isToday ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-300'
                       }`}>
-                        <Wind className="w-3 h-3" />
-                        <span>ΔT {order.weatherFeasibility.deltaT?.toFixed(1).replace('.', ',')}°C ({order.weatherFeasibility.isAllowed ? 'Liberado' : 'Atenção'})</span>
+                        {cell.dayNumber}
                       </span>
-                    ) : (
-                      <span className="text-xs text-slate-400">Checagem Padrão</span>
-                    )}
-                  </div>
 
-                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      onClick={() => handleOpenEditModal(order)}
-                      className="p-1.5 text-slate-500 hover:text-emerald-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                      title="Editar Agendamento"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={(e) => handleDeleteOrder(order.id, e)}
-                      className="p-1.5 text-slate-500 hover:text-rose-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                      title="Desmarcar / Cancelar Agendamento"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                      {hasConflictsToday && (
+                        <span className="w-2 h-2 rounded-full bg-rose-600 animate-pulse" title="Conflito neste dia" />
+                      )}
+                    </div>
+
+                    {/* Day Badges */}
+                    <div className="space-y-0.5 flex-1 overflow-hidden my-0.5">
+                      {dayOrders.slice(0, 2).map(order => {
+                        const hasConflict = conflictsMap.has(order.id);
+                        return (
+                          <div
+                            key={order.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenEditModal(order);
+                            }}
+                            className={`px-1 py-0.2 rounded text-[9px] font-extrabold truncate flex items-center justify-between border ${
+                              hasConflict
+                                ? 'bg-rose-500 text-white border-rose-600'
+                                : order.status === 'OPERATING'
+                                ? 'bg-emerald-600 text-white border-emerald-700'
+                                : 'bg-emerald-50 text-emerald-950 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-800'
+                            }`}
+                          >
+                            <span className="truncate">{order.startTime || '07:00'} {order.code}</span>
+                          </div>
+                        );
+                      })}
+                      {dayOrders.length > 2 && (
+                        <div className="text-[8px] font-bold text-slate-400">
+                          +{dayOrders.length - 2} voo(s)
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity text-[8px] font-bold text-emerald-600 dark:text-emerald-400 text-right">
+                      + Agendar
+                    </div>
                   </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* VIEW MODE 3: TIMELINE / RESOURCE ALLOCATION (Minimalist Resource Matrix) */}
+        {viewMode === 'timeline' && (
+          <div className="flex flex-col h-full min-h-0 p-3 space-y-3 overflow-y-auto">
+            <div className="flex items-center justify-between shrink-0">
+              <span className="text-xs font-black uppercase text-emerald-950 dark:text-emerald-100">
+                Alocação de Recursos ({currentDate.toISOString().split('T')[0]}):
+              </span>
+              <div className="flex items-center p-0.5 bg-emerald-50 dark:bg-emerald-950 rounded-lg border border-emerald-200/60 dark:border-emerald-800/60">
+                <button
+                  onClick={() => setTimelineResource('pilot')}
+                  className={`px-2.5 py-0.5 rounded text-[11px] font-bold transition-all cursor-pointer ${
+                    timelineResource === 'pilot' ? 'bg-emerald-600 text-white shadow-2xs' : 'text-slate-600 dark:text-slate-300'
+                  }`}
+                >
+                  👨‍✈️ Pilotos ({pilots.length})
+                </button>
+                <button
+                  onClick={() => setTimelineResource('drone')}
+                  className={`px-2.5 py-0.5 rounded text-[11px] font-bold transition-all cursor-pointer ${
+                    timelineResource === 'drone' ? 'bg-emerald-600 text-white shadow-2xs' : 'text-slate-600 dark:text-slate-300'
+                  }`}
+                >
+                  🛸 Drones ({drones.length})
+                </button>
+              </div>
+            </div>
+
+            {/* Resource Bars List */}
+            <div className="space-y-2 flex-1 overflow-y-auto">
+              {(timelineResource === 'pilot' ? pilots : drones).map((resource) => {
+                const resourceId = resource.id;
+                const resourceName = 'name' in resource ? resource.name : resource.modelName;
+                const resourceSub = 'deceaLicense' in resource ? resource.deceaLicense : resource.anacPrefix;
+                const dayStr = currentDate.toISOString().split('T')[0];
+                const resourceOrders = filteredOrders.filter(o => {
+                  if (o.scheduledDate !== dayStr) return false;
+                  return timelineResource === 'pilot' ? o.pilotId === resourceId : o.droneId === resourceId;
+                });
+
+                return (
+                  <div key={resourceId} className="p-2 rounded-xl border border-emerald-200/70 dark:border-emerald-800/70 bg-emerald-50/30 dark:bg-emerald-950/30 space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="font-extrabold text-emerald-950 dark:text-white flex items-center gap-1.5">
+                        <span>{timelineResource === 'pilot' ? '👨‍✈️' : '🛸'} {resourceName}</span>
+                        <span className="text-[10px] text-slate-400 font-normal">({resourceSub})</span>
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-500">
+                        {resourceOrders.length} {resourceOrders.length === 1 ? 'missão' : 'missões'}
+                      </span>
+                    </div>
+
+                    {/* Timeline 24h Bar */}
+                    <div className="relative h-7 bg-slate-100 dark:bg-emerald-950/80 rounded-lg overflow-hidden flex items-center">
+                      {Array.from({ length: 24 }).map((_, h) => (
+                        <div
+                          key={h}
+                          style={{ left: `${(h / 24) * 100}%` }}
+                          className="absolute top-0 bottom-0 border-l border-slate-200/50 dark:border-emerald-800/40 text-[8px] text-slate-400 pl-0.5 pointer-events-none select-none"
+                        >
+                          {h % 3 === 0 ? `${h}h` : ''}
+                        </div>
+                      ))}
+
+                      {resourceOrders.map(order => {
+                        const startMin = timeStringToMinutes(order.startTime || '07:00');
+                        const endMin = timeStringToMinutes(order.endTime || '09:30');
+                        const leftPct = Math.max(0, Math.min(100, (startMin / (24 * 60)) * 100));
+                        const widthPct = Math.max(3, Math.min(100 - leftPct, ((endMin - startMin) / (24 * 60)) * 100));
+                        const hasConflict = conflictsMap.has(order.id);
+
+                        return (
+                          <div
+                            key={order.id}
+                            onClick={() => handleOpenEditModal(order)}
+                            style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
+                            className={`absolute top-1 bottom-1 rounded px-1.5 flex items-center justify-between text-[10px] font-black shadow-2xs cursor-pointer transition-all hover:scale-[1.02] ${
+                              hasConflict ? 'bg-rose-500 text-white animate-pulse' : 'bg-emerald-600 text-white'
+                            }`}
+                            title={`${order.code} • ${order.startTime} às ${order.endTime} (${order.plotName})`}
+                          >
+                            <span className="truncate">{order.code} - {order.plotName}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* VIEW MODE 4: LIST VIEW (Ultra-Clean Viewport Table) */}
+        {viewMode === 'list' && (
+          <div className="flex flex-col h-full min-h-0 overflow-hidden">
+            <div className="p-2.5 bg-emerald-50/70 dark:bg-emerald-950/60 border-b border-emerald-200/80 dark:border-emerald-800/80 grid grid-cols-6 font-black text-[10px] uppercase text-slate-500 dark:text-emerald-300/80 shrink-0">
+              <span>Missão / Código</span>
+              <span>Talhão & Área</span>
+              <span>Tripulação & Drone</span>
+              <span>Data & Janela</span>
+              <span>Viabilidade Clima</span>
+              <span className="text-right">Ações</span>
+            </div>
+
+            <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-emerald-900/30 text-xs">
+              {filteredOrders.length === 0 ? (
+                <div className="p-8 text-center text-slate-400 font-medium">
+                  Nenhum agendamento encontrado para os filtros selecionados.
                 </div>
-              );
-            })
-          )}
-        </div>
-      )}
+              ) : (
+                filteredOrders.map(order => {
+                  const hasConflict = conflictsMap.has(order.id);
+
+                  return (
+                    <div 
+                      key={order.id}
+                      onClick={() => handleOpenEditModal(order)}
+                      className={`p-2.5 grid grid-cols-6 items-center gap-2 hover:bg-emerald-50/40 dark:hover:bg-emerald-900/30 transition-colors cursor-pointer ${
+                        hasConflict ? 'bg-rose-50/40 dark:bg-rose-950/20' : ''
+                      }`}
+                    >
+                      <div>
+                        <span className="font-extrabold text-slate-900 dark:text-white text-xs flex items-center gap-1">
+                          {order.code}
+                          {hasConflict && <AlertTriangle className="w-3 h-3 text-rose-600" />}
+                        </span>
+                        <span className="text-[10px] text-slate-500 block truncate">{order.farmName}</span>
+                      </div>
+
+                      <div>
+                        <span className="font-bold text-slate-800 dark:text-slate-200 text-xs block truncate">{order.plotName}</span>
+                        <span className="text-[10px] text-slate-500">{order.crop} • {order.targetHectares} ha</span>
+                      </div>
+
+                      <div className="text-[11px]">
+                        <span className="font-semibold text-slate-700 dark:text-slate-300 block truncate">👨‍✈️ {order.pilotName.split(' ')[0]}</span>
+                        <span className="text-[10px] text-slate-500 truncate block">🛸 {order.droneModel.replace('DJI Agras ', '')}</span>
+                      </div>
+
+                      <div className="text-[11px]">
+                        <span className="font-bold text-slate-900 dark:text-emerald-100 block">📅 {order.scheduledDate}</span>
+                        <span className="text-emerald-700 dark:text-emerald-400 font-extrabold text-[10px]">⏰ {order.startTime || '07:00'} - {order.endTime || '09:30'}</span>
+                      </div>
+
+                      <div>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center gap-1 ${
+                          order.weatherFeasibility?.isAllowed ?? true
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                            : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                        }`}>
+                          <Wind className="w-3 h-3" />
+                          <span>{order.weatherFeasibility?.isAllowed ?? true ? 'Clima OK' : 'Restrição'}</span>
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => handleOpenEditModal(order)}
+                          className="p-1 text-slate-500 hover:text-emerald-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                          title="Editar"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={(e) => handleDeleteOrder(order.id, e)}
+                          className="p-1 text-slate-500 hover:text-rose-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                          title="Cancelar"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
+
+      </div>
 
       {/* Schedule Order Creation / Editing Modal */}
       <ScheduleOrderModal
@@ -1002,6 +1029,19 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
         initialStartTime={modalInitialStartTime}
         editingOrder={editingOrder}
         clients={clients}
+      />
+
+      {/* Schedule Conflicts Resolution Modal */}
+      <ScheduleConflictsModal
+        isOpen={isConflictsModalOpen}
+        onClose={() => setIsConflictsModalOpen(false)}
+        orders={orders}
+        conflictsMap={conflictsMap}
+        onSelectOrderToEdit={handleOpenEditModal}
+        onJumpToDate={handleJumpToDateStr}
+        onAutoResolveConflict={handleAutoResolveConflict}
+        pilots={pilots}
+        drones={drones}
       />
 
     </div>

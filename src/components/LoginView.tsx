@@ -14,10 +14,9 @@ import {
   Shield, 
   Sparkles,
   Building2,
-  Sprout,
-  UserPlus
+  Sprout
 } from 'lucide-react';
-import { signInWithSupabase, signUpWithSupabase } from '../services/supabase';
+import { signInWithSupabase } from '../services/supabase';
 import { showToast } from '../services/notificationService';
 import { UserAvatar } from './UserAvatar';
 import { BrandLogo } from './BrandLogo';
@@ -42,9 +41,6 @@ export const LoginView: React.FC<LoginViewProps> = ({
   // Merge users prop sources
   const userList = availableUsers || users || [];
 
-  // Form Mode: 'LOGIN' or 'REGISTER'
-  const [authMode, setAuthMode] = useState<'LOGIN' | 'REGISTER'>('LOGIN');
-
   // Login State
   const [emailInput, setEmailInput] = useState<string>('heber.vieira.hv@gmail.com');
   const [passwordInput, setPasswordInput] = useState<string>('••••••••');
@@ -53,13 +49,6 @@ export const LoginView: React.FC<LoginViewProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [selectedQuickUserId, setSelectedQuickUserId] = useState<string | null>(null);
-
-  // Registration State
-  const [regName, setRegName] = useState<string>('');
-  const [regEmail, setRegEmail] = useState<string>('');
-  const [regRole, setRegRole] = useState<UserRole>('USER');
-  const [regPassword, setRegPassword] = useState<string>('');
-  const [regConfirmPassword, setRegConfirmPassword] = useState<string>('');
 
   // Trigger login completion
   const handleAuthComplete = (user: UserProfile) => {
@@ -121,88 +110,10 @@ export const LoginView: React.FC<LoginViewProps> = ({
           handleAuthComplete(localMatched);
         }, 600);
       } else {
-        setErrorMsg('Usuário não encontrado no Supabase Auth. Verifique seu e-mail ou crie uma conta.');
+        setErrorMsg('Usuário não encontrado. Verifique seu e-mail corporativo ou solicite o cadastro ao Administrador.');
       }
     } catch (err: any) {
-      setErrorMsg('Falha na autenticação do Supabase: ' + (err.message || 'Erro inesperado'));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Submit New User Registration via Supabase Auth
-  const handleRegisterSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg(null);
-    setSuccessMsg(null);
-    setIsLoading(true);
-
-    if (!regName.trim() || !regEmail.trim()) {
-      setErrorMsg('Por favor, preencha o nome completo e o e-mail.');
-      setIsLoading(false);
-      return;
-    }
-    if (!regPassword) {
-      setErrorMsg('Por favor, cadastre uma senha de acesso.');
-      setIsLoading(false);
-      return;
-    }
-    if (regPassword.length < 6) {
-      setErrorMsg('A senha de acesso deve possuir pelo menos 6 caracteres.');
-      setIsLoading(false);
-      return;
-    }
-    if (regPassword !== regConfirmPassword) {
-      setErrorMsg('A confirmação de senha não confere com a senha digitada.');
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      // Register in Supabase Auth
-      const { user: supabaseUser, error: supabaseError } = await signUpWithSupabase(
-        regEmail.trim(),
-        regPassword,
-        regName.trim(),
-        regRole
-      );
-
-      const roleLabels: Record<UserRole, string> = {
-        ADMIN: 'Administrador Geral',
-        USER: 'Usuário / Produtor Rural',
-        PILOT: 'Piloto de Drone Remoto',
-        ASSISTANT: 'Auxiliar de Pulverização',
-      };
-
-      const newUser: UserProfile = {
-        id: supabaseUser?.id || `user-${Date.now()}`,
-        name: regName.trim(),
-        email: regEmail.trim(),
-        role: regRole,
-        roleLabel: roleLabels[regRole],
-        badge: roleLabels[regRole],
-        password: regPassword,
-        status: 'ACTIVE',
-        hiredDate: new Date().toISOString().split('T')[0],
-      };
-
-      if (setUsers) {
-        setUsers(prev => [newUser, ...prev]);
-      }
-
-      try {
-        const updatedList = [newUser, ...userList];
-        localStorage.setItem('agrodrone_users_fleet', JSON.stringify(updatedList));
-      } catch (e) {
-        console.warn('Erro ao persistir novo usuário:', e);
-      }
-
-      setSuccessMsg(`Conta registrada no Supabase Auth! Entrando como ${newUser.name}...`);
-      setTimeout(() => {
-        handleAuthComplete(newUser);
-      }, 700);
-    } catch (err: any) {
-      setErrorMsg('Erro ao cadastrar usuário no Supabase Auth: ' + (err.message || 'Erro inesperado'));
+      setErrorMsg('Falha na autenticação: ' + (err.message || 'Erro inesperado'));
     } finally {
       setIsLoading(false);
     }
@@ -303,43 +214,17 @@ export const LoginView: React.FC<LoginViewProps> = ({
           
           <div className="space-y-6">
             
-            {/* Mode Switcher Tabs */}
-            <div className="flex items-center gap-2 p-1.5 bg-slate-100 rounded-2xl">
-              <button
-                type="button"
-                onClick={() => { setAuthMode('LOGIN'); setErrorMsg(null); setSuccessMsg(null); }}
-                className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-2 ${
-                  authMode === 'LOGIN'
-                    ? 'bg-white text-slate-900 shadow-md'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <Lock className="w-3.5 h-3.5" />
-                <span>Entrar no Sistema</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => { setAuthMode('REGISTER'); setErrorMsg(null); setSuccessMsg(null); }}
-                className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-2 ${
-                  authMode === 'REGISTER'
-                    ? 'bg-[#064e3b] text-white shadow-md'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <UserPlus className="w-3.5 h-3.5" />
-                <span>Criar Nova Conta</span>
-              </button>
-            </div>
-
-            {/* Header Titles */}
+            {/* Header Security Badge & Titles */}
             <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-[11px] font-bold border border-emerald-200/80 mb-3.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Acesso Corporativo Seguro</span>
+              </div>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                {authMode === 'LOGIN' ? 'Bem-vindo de volta!' : 'Cadastro de Novo Usuário'}
+                Bem-vindo de volta!
               </h2>
               <p className="text-slate-500 text-xs sm:text-sm font-medium mt-1.5">
-                {authMode === 'LOGIN' 
-                  ? 'Insira suas credenciais corporativas para acessar o painel de controle.'
-                  : 'Preencha os dados abaixo e cadastre sua senha para acessar o AgroSys.'}
+                Insira suas credenciais corporativas para acessar o painel de controle.
               </p>
             </div>
 
@@ -358,189 +243,81 @@ export const LoginView: React.FC<LoginViewProps> = ({
               </div>
             )}
 
-            {/* FORM 1: Login Credentials Form */}
-            {authMode === 'LOGIN' && (
-              <form onSubmit={handleSubmitLogin} className="space-y-5">
-                
-                {/* Email Input */}
-                <div>
-                  <label className="text-[11px] font-extrabold tracking-wider text-slate-400 uppercase block mb-1.5">
-                    E-MAIL CORPORATIVO
+            {/* Login Credentials Form */}
+            <form onSubmit={handleSubmitLogin} className="space-y-5">
+              
+              {/* Email Input */}
+              <div>
+                <label className="text-[11px] font-extrabold tracking-wider text-slate-400 uppercase block mb-1.5">
+                  E-MAIL CORPORATIVO
+                </label>
+                <div className="relative bg-[#f0f4fd] border border-slate-200/80 rounded-2xl px-4 py-3.5 flex items-center gap-3 focus-within:ring-2 focus-within:ring-emerald-600 focus-within:bg-white transition-all">
+                  <Mail className="w-5 h-5 text-slate-400 shrink-0" />
+                  <input
+                    type="email"
+                    required
+                    value={emailInput}
+                    onChange={(e) => setEmailInput(e.target.value)}
+                    placeholder="heber.vieira.hv@gmail.com"
+                    className="bg-transparent text-slate-900 font-semibold text-sm outline-none w-full placeholder-slate-400"
+                  />
+                </div>
+              </div>
+
+              {/* Password Input */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-[11px] font-extrabold tracking-wider text-slate-400 uppercase">
+                    SENHA DE ACESSO
                   </label>
-                  <div className="relative bg-[#f0f4fd] border border-slate-200/80 rounded-2xl px-4 py-3.5 flex items-center gap-3 focus-within:ring-2 focus-within:ring-emerald-600 focus-within:bg-white transition-all">
-                    <Mail className="w-5 h-5 text-slate-400 shrink-0" />
-                    <input
-                      type="email"
-                      required
-                      value={emailInput}
-                      onChange={(e) => setEmailInput(e.target.value)}
-                      placeholder="heber.vieira.hv@gmail.com"
-                      className="bg-transparent text-slate-900 font-semibold text-sm outline-none w-full placeholder-slate-400"
-                    />
-                  </div>
-                </div>
-
-                {/* Password Input */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-[11px] font-extrabold tracking-wider text-slate-400 uppercase">
-                      SENHA DE ACESSO
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => showToast('Para redefinir sua senha, solicite a alteração diretamente ao Administrador no painel de controle.', 'info', 'Redefinição de Senha')}
-                      className="text-xs font-bold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
-                    >
-                      Esqueci minha senha
-                    </button>
-                  </div>
-                  <div className="relative bg-[#f0f4fd] border border-slate-200/80 rounded-2xl px-4 py-3.5 flex items-center gap-3 focus-within:ring-2 focus-within:ring-emerald-600 focus-within:bg-white transition-all">
-                    <Lock className="w-5 h-5 text-slate-400 shrink-0" />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      required
-                      value={passwordInput}
-                      onChange={(e) => setPasswordInput(e.target.value)}
-                      placeholder="••••••••"
-                      className="bg-transparent text-slate-900 font-semibold text-sm outline-none w-full placeholder-slate-400"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer transition-colors"
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Primary Login Button */}
-                <div className="pt-2">
                   <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full py-4 px-6 rounded-2xl font-extrabold text-sm tracking-wider uppercase bg-[#064e3b] hover:bg-[#022c22] text-white shadow-lg shadow-emerald-950/20 hover:shadow-xl transition-all flex items-center justify-center gap-2.5 cursor-pointer active:scale-[0.99] disabled:opacity-50"
+                    type="button"
+                    onClick={() => showToast('Para redefinir sua senha, solicite a alteração diretamente ao Administrador no painel de controle.', 'info', 'Redefinição de Senha')}
+                    className="text-xs font-bold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
                   >
-                    <span>{isLoading ? 'Autenticando...' : 'ENTRAR NO SISTEMA'}</span>
-                    <ArrowRight className="w-4 h-4" />
+                    Esqueci minha senha
                   </button>
                 </div>
-              </form>
-            )}
-
-            {/* FORM 2: New User Registration Form */}
-            {authMode === 'REGISTER' && (
-              <form onSubmit={handleRegisterSubmit} className="space-y-4">
-                
-                {/* Full Name Input */}
-                <div>
-                  <label className="text-[11px] font-extrabold tracking-wider text-slate-400 uppercase block mb-1">
-                    NOME COMPLETO *
-                  </label>
-                  <div className="relative bg-[#f0f4fd] border border-slate-200/80 rounded-2xl px-4 py-3 flex items-center gap-3 focus-within:ring-2 focus-within:ring-emerald-600 focus-within:bg-white transition-all">
-                    <User className="w-5 h-5 text-slate-400 shrink-0" />
-                    <input
-                      type="text"
-                      required
-                      value={regName}
-                      onChange={(e) => setRegName(e.target.value)}
-                      placeholder="Ex: João da Silva"
-                      className="bg-transparent text-slate-900 font-semibold text-sm outline-none w-full placeholder-slate-400"
-                    />
-                  </div>
-                </div>
-
-                {/* Email Input */}
-                <div>
-                  <label className="text-[11px] font-extrabold tracking-wider text-slate-400 uppercase block mb-1">
-                    E-MAIL CORPORATIVO *
-                  </label>
-                  <div className="relative bg-[#f0f4fd] border border-slate-200/80 rounded-2xl px-4 py-3 flex items-center gap-3 focus-within:ring-2 focus-within:ring-emerald-600 focus-within:bg-white transition-all">
-                    <Mail className="w-5 h-5 text-slate-400 shrink-0" />
-                    <input
-                      type="email"
-                      required
-                      value={regEmail}
-                      onChange={(e) => setRegEmail(e.target.value)}
-                      placeholder="joao@fazenda.com.br"
-                      className="bg-transparent text-slate-900 font-semibold text-sm outline-none w-full placeholder-slate-400"
-                    />
-                  </div>
-                </div>
-
-                {/* Role Select */}
-                <div>
-                  <label className="text-[11px] font-extrabold tracking-wider text-slate-400 uppercase block mb-1">
-                    PERFIL / FUNÇÃO *
-                  </label>
-                  <select
-                    value={regRole}
-                    onChange={(e) => setRegRole(e.target.value as UserRole)}
-                    className="w-full bg-[#f0f4fd] border border-slate-200/80 rounded-2xl px-4 py-3 font-bold text-sm text-slate-900 focus:ring-2 focus:ring-emerald-600 outline-none cursor-pointer"
-                  >
-                    <option value="USER">🌾 Produtor Rural / Cliente (Acompanhamento & OS)</option>
-                    <option value="PILOT">✈️ Piloto de Drone (Operações de Voo DECEA)</option>
-                    <option value="ASSISTANT">🧪 Auxiliar de Pulverização (Técnico de Calda)</option>
-                    <option value="ADMIN">🛡️ Administrador Geral (Gestão & Governança)</option>
-                  </select>
-                </div>
-
-                {/* Password & Confirm Password Row */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                  <div>
-                    <label className="text-[11px] font-extrabold tracking-wider text-slate-400 uppercase block mb-1">
-                      CADASTRAR SENHA *
-                    </label>
-                    <div className="relative bg-[#f0f4fd] border border-slate-200/80 rounded-2xl px-4 py-3 flex items-center gap-2 focus-within:ring-2 focus-within:ring-emerald-600 focus-within:bg-white transition-all">
-                      <Lock className="w-4 h-4 text-slate-400 shrink-0" />
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        required
-                        value={regPassword}
-                        onChange={(e) => setRegPassword(e.target.value)}
-                        placeholder="••••••••"
-                        className="bg-transparent text-slate-900 font-mono text-xs outline-none w-full placeholder-slate-400"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
-                      >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-[11px] font-extrabold tracking-wider text-slate-400 uppercase block mb-1">
-                      CONFIRMAR SENHA *
-                    </label>
-                    <div className="relative bg-[#f0f4fd] border border-slate-200/80 rounded-2xl px-4 py-3 flex items-center gap-2 focus-within:ring-2 focus-within:ring-emerald-600 focus-within:bg-white transition-all">
-                      <Lock className="w-4 h-4 text-slate-400 shrink-0" />
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        required
-                        value={regConfirmPassword}
-                        onChange={(e) => setRegConfirmPassword(e.target.value)}
-                        placeholder="••••••••"
-                        className="bg-transparent text-slate-900 font-mono text-xs outline-none w-full placeholder-slate-400"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Submit Register Button */}
-                <div className="pt-2">
+                <div className="relative bg-[#f0f4fd] border border-slate-200/80 rounded-2xl px-4 py-3.5 flex items-center gap-3 focus-within:ring-2 focus-within:ring-emerald-600 focus-within:bg-white transition-all">
+                  <Lock className="w-5 h-5 text-slate-400 shrink-0" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={passwordInput}
+                    onChange={(e) => setPasswordInput(e.target.value)}
+                    placeholder="••••••••"
+                    className="bg-transparent text-slate-900 font-semibold text-sm outline-none w-full placeholder-slate-400"
+                  />
                   <button
-                    type="submit"
-                    className="w-full py-4 px-6 rounded-2xl font-extrabold text-sm tracking-wider uppercase bg-[#064e3b] hover:bg-[#022c22] text-white shadow-lg shadow-emerald-950/20 hover:shadow-xl transition-all flex items-center justify-center gap-2.5 cursor-pointer active:scale-[0.99]"
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer transition-colors"
                   >
-                    <UserPlus className="w-4 h-4" />
-                    <span>CONCLUIR CADASTRO E ENTRAR</span>
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-              </form>
-            )}
+              </div>
+
+              {/* Notice regarding new accounts provisioned by admin */}
+              <div className="p-3 bg-slate-50 border border-slate-200/70 rounded-xl text-[11px] text-slate-500 leading-relaxed flex items-start gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Aviso de Governança:</strong> Novos usuários, pilotos e operadores são cadastrados exclusivamente pelos <strong>Administradores</strong> da empresa no painel de gestão.
+                </span>
+              </div>
+
+              {/* Primary Login Button */}
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full py-4 px-6 rounded-2xl font-extrabold text-sm tracking-wider uppercase bg-[#064e3b] hover:bg-[#022c22] text-white shadow-lg shadow-emerald-950/20 hover:shadow-xl transition-all flex items-center justify-center gap-2.5 cursor-pointer active:scale-[0.99] disabled:opacity-50"
+                >
+                  <span>{isLoading ? 'Autenticando...' : 'ENTRAR NO SISTEMA'}</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </form>
 
 
           </div>

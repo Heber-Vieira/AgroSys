@@ -262,16 +262,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
           <div className="bg-emerald-50/70 dark:bg-[#072a1e]/90 border border-emerald-200/80 dark:border-emerald-800/80 p-3 sm:p-3.5 rounded-xl shadow-2xs">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-emerald-800/80 dark:text-emerald-300/80">Previsão Financeira</span>
+              <span className="text-[11px] font-bold text-emerald-800/80 dark:text-emerald-300/80">Janela Operacional</span>
               <div className="w-7 h-7 rounded-lg bg-emerald-200/80 dark:bg-emerald-950 flex items-center justify-center text-emerald-800 dark:text-emerald-400">
-                <DollarSign className="w-3.5 h-3.5" />
+                <Clock className="w-3.5 h-3.5" />
               </div>
             </div>
             <div className="mt-2">
               <span className="text-xl sm:text-2xl font-black text-emerald-950 dark:text-white">
-                R$ 3.637,50
+                Janela Ideal
               </span>
-              <p className="text-[10px] text-emerald-700 dark:text-emerald-400 mt-0.5">Vencimento: 25/09/2026</p>
+              <p className="text-[10px] text-emerald-700 dark:text-emerald-400 mt-0.5">Voo seguro: 06h às 10h / 16h às 18h</p>
             </div>
           </div>
 
@@ -343,16 +343,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
           <div className="bg-emerald-50/70 dark:bg-[#072a1e]/90 border border-emerald-200/80 dark:border-emerald-800/80 p-3 sm:p-3.5 rounded-xl shadow-2xs">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-emerald-800/80 dark:text-emerald-300/80">Comissão Prevista</span>
+              <span className="text-[11px] font-bold text-emerald-800/80 dark:text-emerald-300/80">Horas de Voo</span>
               <div className="w-7 h-7 rounded-lg bg-emerald-200/80 dark:bg-emerald-950 flex items-center justify-center text-emerald-800 dark:text-emerald-400">
-                <DollarSign className="w-3.5 h-3.5" />
+                <Clock className="w-3.5 h-3.5" />
               </div>
             </div>
             <div className="mt-2">
               <span className="text-xl sm:text-2xl font-black text-emerald-950 dark:text-white">
-                R$ 644,00
+                32,4 <span className="text-xs font-normal text-emerald-700 dark:text-emerald-400">horas</span>
               </span>
-              <p className="text-[10px] text-emerald-700 dark:text-emerald-400 mt-0.5">Taxa: R$ 8,00/ha (80,5 ha)</p>
+              <p className="text-[10px] text-emerald-700 dark:text-emerald-400 mt-0.5">Log de voo 100% em conformidade</p>
             </div>
           </div>
         </div>
@@ -409,16 +409,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
           <div className="bg-emerald-50/70 dark:bg-[#072a1e]/90 border border-emerald-200/80 dark:border-emerald-800/80 p-3 sm:p-3.5 rounded-xl shadow-2xs">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-emerald-800/80 dark:text-emerald-300/80">Minha Comissão</span>
+              <span className="text-[11px] font-bold text-emerald-800/80 dark:text-emerald-300/80">Segurança do Trabalho</span>
               <div className="w-7 h-7 rounded-lg bg-emerald-200/80 dark:bg-emerald-950 flex items-center justify-center text-emerald-800 dark:text-emerald-400">
-                <DollarSign className="w-3.5 h-3.5" />
+                <ShieldCheck className="w-3.5 h-3.5" />
               </div>
             </div>
             <div className="mt-2">
               <span className="text-xl sm:text-2xl font-black text-emerald-950 dark:text-white">
-                R$ 241,50
+                NR-31 Conforme
               </span>
-              <p className="text-[10px] text-emerald-700 dark:text-emerald-400 mt-0.5">Taxa: R$ 3,00/ha de solo</p>
+              <p className="text-[10px] text-emerald-700 dark:text-emerald-400 mt-0.5">EPIs e kit de primeiros socorros OK</p>
             </div>
           </div>
         </div>

@@ -21,7 +21,8 @@ import {
   TrendingUp,
   Info,
   AlertTriangle,
-  Pencil
+  Pencil,
+  Lock
 } from 'lucide-react';
 import { 
   UserProfile, 
@@ -198,8 +199,32 @@ export const QuotationsView: React.FC<QuotationsViewProps> = ({
   const [newProdUnit, setNewProdUnit] = useState('L/ha');
   const [newProdPrice, setNewProdPrice] = useState<string | number>('50,00');
   const [newProdSupplied, setNewProdSupplied] = useState(true);
-  const [productError, setProductError] = useState<string | null>(null);
   const [productSuccessMsg, setProductSuccessMsg] = useState<string | null>(null);
+
+  // Strict Admin Role Guard
+  if (currentUser.role !== 'ADMIN') {
+    return (
+      <div className="max-w-2xl mx-auto my-12 p-8 bg-white dark:bg-emerald-950/80 border border-emerald-200 dark:border-emerald-800 rounded-3xl shadow-xl text-center space-y-4 animate-in fade-in">
+        <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 flex items-center justify-center text-amber-600 dark:text-amber-400 shadow-inner">
+          <Lock className="w-7 h-7" />
+        </div>
+        <div className="space-y-1.5">
+          <h2 className="text-lg font-black text-emerald-950 dark:text-white">
+            Acesso Restrito aos Orçamentos Comerciais
+          </h2>
+          <p className="text-xs text-slate-600 dark:text-emerald-300/80 leading-relaxed max-w-md mx-auto">
+            A elaboração, visualização e negociação de propostas comerciais e tabelas de faturamento por hectare são de acesso exclusivo dos <strong>Administradores</strong> da empresa.
+          </p>
+        </div>
+        <div className="pt-2">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+            Perfil Conectado: {currentUser.roleLabel}
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   // Quick preset products for instant selection
   const PRODUCT_PRESETS = [

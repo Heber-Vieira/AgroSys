@@ -145,16 +145,16 @@ export const HomeHubView: React.FC<HomeHubViewProps> = ({
     },
 
     // Comercial & Laudos
-    {
+    ...(currentUser.role === 'ADMIN' ? [{
       id: 'quotations',
       title: 'Orçamentos Comerciais',
       subtitle: 'Propostas por hectare p/ produtor',
-      category: 'comercial',
+      category: 'comercial' as const,
       icon: <FileText className="w-4 h-4 text-purple-600 dark:text-purple-400" />,
       iconBg: 'bg-purple-100 dark:bg-purple-950/80 text-purple-600',
       statBadge: `${quotations.length} propostas`,
       tags: ['orçamento', 'cotação', 'proposta', 'hectare'],
-    },
+    }] : []),
     {
       id: 'reports',
       title: 'Relatórios Técnicos (MAPA)',
@@ -165,16 +165,16 @@ export const HomeHubView: React.FC<HomeHubViewProps> = ({
       statBadge: `${completedOrdersCount} laudos prontos`,
       tags: ['relatório', 'laudo', 'mapa', 'art', 'pdf'],
     },
-    {
+    ...(currentUser.role === 'ADMIN' ? [{
       id: 'financial',
       title: 'Financeiro & Comissões',
       subtitle: 'Faturamento e adicionais NR-31',
-      category: 'comercial',
+      category: 'comercial' as const,
       icon: <DollarSign className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />,
       iconBg: 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600',
       statBadge: 'Comissões NR-31',
       tags: ['financeiro', 'comissão', 'faturamento', 'custos'],
-    },
+    }] : []),
 
     // Frota & Gestão
     {

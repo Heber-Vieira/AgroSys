@@ -511,18 +511,20 @@ export const SprayReportModal: React.FC<SprayReportModalProps> = ({
                 />
               </label>
 
-              <label className="flex items-center justify-between text-xs font-medium cursor-pointer p-1.5 rounded-lg hover:bg-slate-800/50 transition-colors">
-                <span className="flex items-center gap-2">
-                  <FileText className="w-3.5 h-3.5 text-emerald-400" />
-                  Valores Financeiros & Condições
-                </span>
-                <input
-                  type="checkbox"
-                  checked={config.showFinancialDetails}
-                  onChange={() => toggleConfig('showFinancialDetails')}
-                  className="rounded border-slate-700 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-                />
-              </label>
+              {currentUser.role === 'ADMIN' && (
+                <label className="flex items-center justify-between text-xs font-medium cursor-pointer p-1.5 rounded-lg hover:bg-slate-800/50 transition-colors">
+                  <span className="flex items-center gap-2">
+                    <FileText className="w-3.5 h-3.5 text-emerald-400" />
+                    Valores Financeiros & Condições
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={config.showFinancialDetails}
+                    onChange={() => toggleConfig('showFinancialDetails')}
+                    className="rounded border-slate-700 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                  />
+                </label>
+              )}
             </div>
 
             {/* Paste & Upload Map Images Tool */}
@@ -1017,8 +1019,8 @@ export const SprayReportModal: React.FC<SprayReportModalProps> = ({
               </div>
             )}
 
-            {/* SEÇÃO 9: Valores Financeiros (Opcional) */}
-            {config.showFinancialDetails && (
+            {/* SEÇÃO 9: Valores Financeiros (Opcional - Exclusivo ADMIN) */}
+            {config.showFinancialDetails && currentUser.role === 'ADMIN' && (
               <div className="space-y-2">
                 <h3 className="text-xs font-black uppercase tracking-wider text-emerald-800 border-b border-emerald-200 pb-1 flex items-center gap-1.5">
                   <FileText className="w-4 h-4 text-emerald-600" />

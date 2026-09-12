@@ -373,8 +373,17 @@ export const FleetDronesView: React.FC<FleetDronesViewProps> = ({
                       <strong className="text-slate-700 dark:text-slate-300 font-mono block">{pilot.totalHoursFlown}h</strong>
                     </div>
                     <div>
-                      <span>Comissão:</span>
-                      <strong className="text-emerald-600 dark:text-emerald-400 font-mono block">{formatBRL(pilot.commissionRatePerHa)}/ha</strong>
+                      {currentUser.role === 'ADMIN' ? (
+                        <>
+                          <span>Comissão:</span>
+                          <strong className="text-emerald-600 dark:text-emerald-400 font-mono block">{formatBRL(pilot.commissionRatePerHa)}/ha</strong>
+                        </>
+                      ) : (
+                        <>
+                          <span>Qualificação:</span>
+                          <strong className="text-emerald-600 dark:text-emerald-400 font-bold block truncate">ANAC/DECEA OK</strong>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -427,8 +436,17 @@ export const FleetDronesView: React.FC<FleetDronesViewProps> = ({
                       <strong className="text-slate-700 dark:text-slate-300 truncate block">{assistant.available ? 'Disponível em Campo' : 'Em Treinamento'}</strong>
                     </div>
                     <div>
-                      <span>Comissão Solo:</span>
-                      <strong className="text-emerald-600 dark:text-emerald-400 font-mono block">{formatBRL(assistant.commissionRatePerHa)}/ha</strong>
+                      {currentUser.role === 'ADMIN' ? (
+                        <>
+                          <span>Comissão Solo:</span>
+                          <strong className="text-emerald-600 dark:text-emerald-400 font-mono block">{formatBRL(assistant.commissionRatePerHa)}/ha</strong>
+                        </>
+                      ) : (
+                        <>
+                          <span>Capacitação:</span>
+                          <strong className="text-emerald-600 dark:text-emerald-400 font-bold block truncate">Apoio NR-31 Apto</strong>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -76,10 +76,12 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   onOpenReportModal,
   children,
 }) => {
+  const isScheduleView = currentView === 'schedule';
+
   return (
-    <div className="min-h-screen flex flex-col bg-emerald-50/50 dark:bg-[#051811] text-emerald-950 dark:text-emerald-50 selection:bg-emerald-500 selection:text-white transition-colors duration-200">
+    <div className={`min-h-screen ${isScheduleView ? 'h-screen overflow-hidden' : ''} flex flex-col bg-emerald-50/50 dark:bg-[#051811] text-emerald-950 dark:text-emerald-50 selection:bg-emerald-500 selection:text-white transition-colors duration-200`}>
       {/* Main Content Column */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
         {/* Sticky Reusable Top Navbar */}
         <Navbar
           currentView={currentView}
@@ -100,10 +102,12 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
         />
 
         {/* Main Content Area with Header Breadcrumb */}
-        <main className={`flex-1 w-full max-w-[1600px] mx-auto px-2.5 sm:px-4 lg:px-6 py-2.5 sm:py-4 pb-8 ${currentView === 'hub' ? 'flex flex-col justify-center' : ''}`}>
+        <main className={`flex-1 w-full max-w-[1600px] mx-auto px-2.5 sm:px-4 lg:px-6 ${
+          isScheduleView ? 'py-1.5 pb-2 flex flex-col min-h-0 overflow-hidden' : 'py-2.5 sm:py-4 pb-8'
+        } ${currentView === 'hub' ? 'flex flex-col justify-center' : ''}`}>
           {/* Sub-page Header & Navigation Trail (Hidden on main Hub view) */}
           {currentView !== 'hub' && (
-            <div className="print:hidden mb-3 flex flex-wrap items-center justify-between gap-2 p-2 sm:px-3 sm:py-2 rounded-xl bg-white dark:bg-[#072a1e] border border-emerald-200/80 dark:border-emerald-800/80 shadow-2xs">
+            <div className={`print:hidden ${isScheduleView ? 'mb-1.5 py-1 px-2.5' : 'mb-3 py-2 px-3'} flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white dark:bg-[#072a1e] border border-emerald-200/80 dark:border-emerald-800/80 shadow-2xs shrink-0`}>
               <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                 <button
                   onClick={() => setCurrentView('hub')}
@@ -142,27 +146,29 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           {children}
         </main>
 
-        {/* Global Footer */}
-        <footer className="print:hidden border-t border-emerald-200/80 dark:border-emerald-800/80 bg-emerald-50/60 dark:bg-[#041c14]/60 backdrop-blur-xs py-6 mt-auto text-center text-xs text-emerald-800/80 dark:text-emerald-300/80">
-          <div className="w-full max-w-[1600px] mx-auto px-3.5 sm:px-4 lg:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-emerald-950 dark:text-white">
-                {theme.companyName}
-              </span>
-              <span>•</span>
-              <span>AgroSys v1.0 • Gestão Completa de Pulverização por Drones</span>
+        {/* Global Footer (Hidden on Schedule View to fit 100% of viewport) */}
+        {!isScheduleView && (
+          <footer className="print:hidden border-t border-emerald-200/80 dark:border-emerald-800/80 bg-emerald-50/60 dark:bg-[#041c14]/60 backdrop-blur-xs py-6 mt-auto text-center text-xs text-emerald-800/80 dark:text-emerald-300/80">
+            <div className="w-full max-w-[1600px] mx-auto px-3.5 sm:px-4 lg:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-emerald-950 dark:text-white">
+                  {theme.companyName}
+                </span>
+                <span>•</span>
+                <span>AgroSys v1.0 • Gestão Completa de Pulverização por Drones</span>
+              </div>
+              <div className="flex items-center gap-4 text-emerald-700/70 dark:text-emerald-400/70 flex-wrap justify-center">
+                <span>ANAC / DECEA Compliance</span>
+                <span>•</span>
+                <span>PostgreSQL & PostGIS</span>
+                <span>•</span>
+                <span>NR-31 & InpEV</span>
+                <span>•</span>
+                <span>Multi-Tenant Isolado</span>
+              </div>
             </div>
-            <div className="flex items-center gap-4 text-emerald-700/70 dark:text-emerald-400/70 flex-wrap justify-center">
-              <span>ANAC / DECEA Compliance</span>
-              <span>•</span>
-              <span>PostgreSQL & PostGIS</span>
-              <span>•</span>
-              <span>NR-31 & InpEV</span>
-              <span>•</span>
-              <span>Multi-Tenant Isolado</span>
-            </div>
-          </div>
-        </footer>
+          </footer>
+        )}
       </div>
     </div>
   );
