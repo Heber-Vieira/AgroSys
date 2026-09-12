@@ -39,6 +39,7 @@ import {
   PRESET_LOGOS
 } from '../data/themeTokensData';
 import { BrandLogo } from './BrandLogo';
+import { saveTenantBrandingToSupabase } from '../services/supabase';
 
 interface AdminBrandingStudioProps {
   theme: WhiteLabelTheme;
@@ -61,6 +62,7 @@ export const AdminBrandingStudio: React.FC<AdminBrandingStudioProps> = ({
 }) => {
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string>('Alterações aplicadas com sucesso!');
+  const [isSaving, setIsSaving] = useState<boolean>(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [activeCodeTab, setActiveCodeTab] = useState<'css' | 'json' | 'tailwind'>('css');
   const [activeSubTab, setActiveSubTab] = useState<'palette' | 'logo' | 'typography' | 'company' | 'preview'>('palette');
@@ -83,49 +85,82 @@ export const AdminBrandingStudio: React.FC<AdminBrandingStudioProps> = ({
     setTimeout(() => setSavedSuccess(false), 2500);
   };
 
+  const handleSaveTheme = async (overrideTheme?: WhiteLabelTheme) => {
+    const themeToSave = overrideTheme || theme;
+    setIsSaving(true);
+    try {
+      const res = await saveTenantBrandingToSupabase(themeToSave);
+      if (res.success) {
+        showToast('Logotipo e configurações salvas no banco de dados!');
+      } else {
+        showToast(`Aviso: ${res.error || 'Falha ao gravar no Supabase'}`);
+      }
+    } catch (err: any) {
+      console.error('Erro ao salvar no banco de dados:', err);
+      showToast('Erro ao gravar logotipo no banco de dados.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     try {
+      setIsSaving(true);
       const extracted = await extractPaletteFromImage(file);
-      setTheme(prev => ({
-        ...prev,
+      const updatedTheme: WhiteLabelTheme = {
+        ...theme,
         primaryColor: extracted.primary,
         secondaryColor: extracted.secondary,
         logoUrl: extracted.dataUrl,
         logoIconId: undefined,
-      }));
-      showToast('Logotipo carregado e paleta extraída com sucesso!');
+      };
+      setTheme(updatedTheme);
+      showToast('Logotipo processado! Gravando no banco de dados...');
+      const res = await saveTenantBrandingToSupabase(updatedTheme);
+      if (res.success) {
+        showToast('Logotipo e paleta gravados com sucesso no Supabase!');
+      } else {
+        showToast('Logotipo atualizado no app. Aviso de salvamento na nuvem.');
+      }
     } catch (err) {
       console.error('Falha ao processar logotipo:', err);
+      showToast('Erro ao ler a imagem do logotipo.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const handleSelectPresetLogo = (logoId: string) => {
-    setTheme(prev => ({
-      ...prev,
+  const handleSelectPresetLogo = async (logoId: string) => {
+    const updatedTheme: WhiteLabelTheme = {
+      ...theme,
       logoIconId: logoId,
       logoUrl: undefined,
-    }));
-    showToast('Brasão vetorial selecionado!');
+    };
+    setTheme(updatedTheme);
+    showToast('Brasão vetorial selecionado! Atualizando banco...');
+    await saveTenantBrandingToSupabase(updatedTheme);
   };
 
-  const handleRemoveCustomLogo = () => {
-    setTheme(prev => ({
-      ...prev,
+  const handleRemoveCustomLogo = async () => {
+    const updatedTheme: WhiteLabelTheme = {
+      ...theme,
       logoUrl: undefined,
       logoIconId: undefined,
-    }));
-    showToast('Logotipo removido. Restaurado ícone padrão.');
+    };
+    setTheme(updatedTheme);
+    showToast('Logotipo removido. Atualizando banco de dados...');
+    await saveTenantBrandingToSupabase(updatedTheme);
   };
 
-  const handleApplyPresetTheme = (presetId: string) => {
+  const handleApplyPresetTheme = async (presetId: string) => {
     const found = PRESET_COMPANIES.find(p => p.id === presetId);
     if (!found) return;
 
-    setTheme(prev => ({
-      ...prev,
+    const updatedTheme: WhiteLabelTheme = {
+      ...theme,
       tenantId: found.id,
       companyName: found.name,
       tagline: found.tagline,
@@ -134,8 +169,10 @@ export const AdminBrandingStudio: React.FC<AdminBrandingStudioProps> = ({
       accentColor: found.accent,
       surfaceLight: found.surfaceLight || '#FFFFFF',
       surfaceDark: found.surfaceDark || '#0f172a',
-    }));
-    showToast(`Tema "${found.name}" aplicado!`);
+    };
+    setTheme(updatedTheme);
+    showToast(`Tema "${found.name}" aplicado! Sincronizando...`);
+    await saveTenantBrandingToSupabase(updatedTheme);
   };
 
   const handleResetToCleanDefault = () => {
@@ -328,11 +365,16 @@ module.exports = {
             </button>
 
             <button
-              onClick={() => showToast('Configurações de marca gravadas com sucesso!')}
-              className="px-5 py-2 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-transform active:scale-95 flex items-center gap-2 cursor-pointer ml-auto"
+              onClick={() => handleSaveTheme()}
+              disabled={isSaving}
+              className="px-5 py-2 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white shadow-xs transition-transform active:scale-95 flex items-center gap-2 cursor-pointer ml-auto"
             >
-              <CheckCircle2 className="w-4 h-4" />
-              <span>Aplicar & Salvar Alterações</span>
+              {isSaving ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4" />
+              )}
+              <span>{isSaving ? 'Gravando no Banco...' : 'Aplicar & Salvar Alterações'}</span>
             </button>
           </div>
         </div>

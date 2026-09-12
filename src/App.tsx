@@ -67,6 +67,7 @@ import {
 } from './data/mockAppState';
 import { BatteryAlertOverlay } from './components/BatteryAlertOverlay';
 import { playBatteryAlertSound } from './utils/batteryAudioAlert';
+import { loadTenantBrandingFromSupabase } from './services/supabase';
 
 // Helper to merge stored arrays with initial mock data so all companies have default records
 function loadAndMergeWithMock<T extends { id: string; companyId?: string }>(
@@ -542,6 +543,24 @@ export default function App() {
     setIsLiveTourActive(true);
     setLiveTourStepIndex(0);
   };
+
+  // Hydrate tenant branding & custom logo from Supabase database on initial mount
+  useEffect(() => {
+    async function restoreCloudBranding() {
+      try {
+        const cloudBranding = await loadTenantBrandingFromSupabase();
+        if (cloudBranding && (cloudBranding.companyName || cloudBranding.logoUrl)) {
+          setTheme(prev => ({
+            ...prev,
+            ...cloudBranding,
+          }));
+        }
+      } catch (err) {
+        console.warn('Falha ao restaurar logotipo e marca do Supabase:', err);
+      }
+    }
+    restoreCloudBranding();
+  }, []);
 
   // Dynamically apply theme class to html/body and inject CSS variables
   useEffect(() => {
