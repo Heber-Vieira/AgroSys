@@ -1,0 +1,6 @@
+{
+  "name": "AgroSys - Gestão de Pulverização Agrícola",
+  "description": "Sistema completo de gestão de pulverização com drones agrícolas: agenda sincronizada anti-conflito de pilotos e drones, validação meteorológica Delta T em tempo real, GIS PostGIS, cálculo de calda, telemetria e financeiro.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

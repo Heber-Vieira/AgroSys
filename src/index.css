@@ -1,0 +1,198 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    scroll-behavior: smooth;
+    height: 100%;
+  }
+
+  body {
+    @apply bg-[#f3faf6] text-slate-900 antialiased selection:bg-emerald-500/20 selection:text-emerald-900 dark:bg-[#041c14] dark:text-emerald-50;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-tap-highlight-color: transparent;
+    min-height: 100%;
+    overflow-x: hidden;
+  }
+
+  /* Universal high contrast defaults for form controls across light & dark mode */
+  input, select, textarea {
+    @apply transition-all duration-200 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500;
+  }
+
+  /* Prevent iOS Safari auto-zoom on input focus while keeping dense UI on desktop */
+  @media screen and (max-width: 768px) {
+    input, select, textarea {
+      font-size: 16px !important;
+    }
+  }
+
+  select option {
+    background-color: #ffffff;
+    color: #022c22;
+  }
+
+  .dark select option,
+  :is(.dark *) select option {
+    background-color: #022c22;
+    color: #ecfdf5;
+  }
+
+  /* Hide native number input spinners */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+}
+
+/* iOS Safe Area Utilities */
+.safe-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.safe-left {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+.safe-right {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* Touch friendly momentum scrolling for mobile devices */
+.touch-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+/* Custom scrollbar for clean dashboard */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.5);
+}
+
+/* Print CSS for Spray Technical Report, Certificates, Weather Reports, Quotations, & Financial Statements */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  html,
+  body,
+  #root,
+  main {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
+    min-height: 100% !important;
+    position: static !important;
+    display: block !important;
+  }
+
+  /* Hide app navigation, footer, breadcrumbs and print:hidden elements */
+  header,
+  footer,
+  nav,
+  aside,
+  .print\:hidden,
+  .print-hidden,
+  .no-print,
+  [class*="print:hidden"] {
+    display: none !important;
+  }
+
+  /* Unclip modal backdrops and containers so browser print engine flows pages naturally */
+  .spray-report-modal-wrapper,
+  .printable-wrapper,
+  .fixed.inset-0 {
+    position: static !important;
+    inset: auto !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 100% !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    backdrop-filter: none !important;
+    display: block !important;
+    z-index: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Target printable document sheets */
+  #printable-report-document,
+  #printable-certificate-document,
+  #printable-weather-document,
+  #printable-quotation-document,
+  #printable-maintenance-document,
+  #printable-help-document,
+  #printable-financial-document,
+  #print-section,
+  .printable-document {
+    display: block !important;
+    visibility: visible !important;
+    position: relative !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    overflow: visible !important;
+  }
+
+  /* Ensure all contents inside printable document are visible and dark text on white paper */
+  #printable-report-document *,
+  #printable-certificate-document *,
+  #printable-weather-document *,
+  #printable-quotation-document *,
+  #printable-maintenance-document *,
+  #printable-help-document *,
+  #printable-financial-document *,
+  #print-section *,
+  .printable-document * {
+    visibility: visible !important;
+  }
+
+  .brand-accent-text {
+    color: var(--color-primary, #059669) !important;
+  }
+
+  .print\:break-inside-avoid,
+  .break-inside-avoid {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+}
