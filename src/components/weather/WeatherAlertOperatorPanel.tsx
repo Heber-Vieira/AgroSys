@@ -26,7 +26,10 @@ import {
   Sparkles,
   ExternalLink,
   BellOff,
-  Eye
+  Eye,
+  ChevronDown,
+  ChevronUp,
+  Sliders
 } from 'lucide-react';
 import { ClimateTelemetry } from '../../types';
 import { 
@@ -72,6 +75,7 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
   const [showReadingNotification, setShowReadingNotification] = useState<boolean>(false);
   const [recordingMode, setRecordingMode] = useState<'manual' | 'auto'>('manual');
   const [isAudioSilenced, setIsAudioSilenced] = useState<boolean>(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
 
   // Active alarms & Alert timing states
   const [isAlarmActive, setIsAlarmActive] = useState<boolean>(false);
@@ -830,20 +834,41 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
         {/* Upper Section: Dashboard and Adjusters */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           
-          {/* Main Visual Gauges (Left Side - 7 Cols) */}
-          <div className="lg:col-span-7 space-y-4">
+          {/* Main Visual Gauges (Left Side - Expands to 12 cols when config is hidden) */}
+          <div className={`${isSettingsOpen ? 'lg:col-span-7' : 'lg:col-span-12'} space-y-4 transition-all duration-300`}>
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
                 <Activity className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 Telemetria Climática em Tempo Real
               </h3>
               
-              {!isInhibited && periodicitySeconds > 0 && (
-                <div className="text-[11px] text-slate-600 dark:text-slate-400 flex items-center gap-1.5 bg-slate-100 dark:bg-slate-950 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-800 shadow-2xs">
-                  <Clock className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                  <span>Próxima leitura em <strong>{countdown}s</strong></span>
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                {!isInhibited && periodicitySeconds > 0 && (
+                  <div className="text-[11px] text-slate-600 dark:text-slate-400 flex items-center gap-1.5 bg-slate-100 dark:bg-slate-950 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-800 shadow-2xs">
+                    <Clock className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span>Próxima leitura em <strong>{countdown}s</strong></span>
+                  </div>
+                )}
+
+                {/* Toggle Button for Alert Settings */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSettingsOpen(!isSettingsOpen);
+                    playSingleBeep(1100, 0.06, 0.2);
+                  }}
+                  className={`text-[11px] font-bold px-3 py-1.5 rounded-full border transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs ${
+                    isSettingsOpen
+                      ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300'
+                      : 'bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300'
+                  }`}
+                  title={isSettingsOpen ? 'Ocultar configurações de alerta' : 'Abrir configurações de alerta'}
+                >
+                  <Settings className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>{isSettingsOpen ? 'Fechar Ajustes' : 'Configurar Alertas'}</span>
+                  {isSettingsOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                </button>
+              </div>
             </div>
 
             {/* Visual Signal Tower and Gauge Grid Side-by-Side Container */}
@@ -1103,13 +1128,13 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
               <div>
                 <strong className="text-xs text-slate-900 dark:text-white block">
                   {recordingMode === 'auto' 
-                    ? '🔄 Registro Automático Ativo' 
-                    : 'Deseja arquivar esta medição meteorológica?'}
+                    ? '⚡ Coleta Automática pelo Sistema Ativa' 
+                    : '✋ Registrar Medição dos Instrumentos da Equipe'}
                 </strong>
                 <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-0.5">
                   {recordingMode === 'auto' 
-                    ? 'As medições estão sendo arquivadas de forma automática ao final de cada contagem.' 
-                    : `Associe ao prontuário da OS ${orderCode} para inserção no relatório técnico.`}
+                    ? 'Sensores integrados sincronizando medições de forma contínua no prontuário.' 
+                    : `Associe a leitura aferida pelos instrumentos de campo ao prontuário da OS ${orderCode}.`}
                 </span>
               </div>
               <button
@@ -1121,19 +1146,19 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                 }`}
               >
                 <Plus className="w-4 h-4" />
-                {recordingMode === 'auto' ? 'Forçar Registro Manual' : 'Registrar Medição Climática'}
+                {recordingMode === 'auto' ? 'Registrar Leitura Pontual' : 'Registrar Medição dos Instrumentos'}
               </button>
             </div>
 
-            {/* Weather Simulator adjusters (For testing alerts easily) moved here to fill the gap */}
+            {/* Manual Instrument Measurement Adjusters */}
             <div className="mt-4 space-y-3 bg-slate-50/50 dark:bg-slate-900/60 p-5 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-inner">
               <div>
                 <span className="font-black text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5 text-xs uppercase tracking-wider">
-                  <Settings className="w-4 h-4" />
-                  Simular Alterações de Clima (Modo Treinamento)
+                  <Thermometer className="w-4 h-4" />
+                  Ajustar Medições dos Instrumentos de Campo (Entrada Manual)
                 </span>
                 <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight mt-1">
-                  Altere os controles para forçar violações meteorológicas e conferir o disparo imediato dos alertas visuais e sonoros na torre acima:
+                  Ajuste os valores aferidos pelos instrumentos da equipe (termo-higrômetro / anemômetro) para registrar no prontuário e atualizar os indicadores em tempo real:
                 </p>
               </div>
 
@@ -1198,275 +1223,283 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
             </div>
           </div>
 
-          {/* Alert Config & Adjuster Simulation Controls (Right Side - 5 Cols) */}
-          <div className="lg:col-span-5 bg-slate-50/80 dark:bg-slate-950 p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-5 shadow-2xs">
-            <div>
-              <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-200 dark:border-slate-800 pb-2">
-                <Settings className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                Configurar Alertas Meteorológicos
-              </h4>
-            </div>
-
-            {/* Periodicity & Inhibitor settings */}
-            <div className="space-y-3 text-xs">
-              
-              {/* Enable / Inhibit Radio Toggle */}
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-700 dark:text-slate-300">Estado de Monitoramento</span>
-                <div className="flex items-center gap-1 bg-slate-200/80 dark:bg-slate-900 p-1 rounded-lg border border-slate-300/80 dark:border-slate-800">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsInhibited(false);
-                      playSingleBeep(1000, 0.08, 0.2);
-                    }}
-                    className={`px-3 py-1 text-[10px] font-black uppercase rounded-md cursor-pointer transition-colors ${
-                      !isInhibited 
-                        ? 'bg-emerald-600 text-white shadow-2xs' 
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                    }`}
-                  >
-                    ATIVO
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsInhibited(true);
-                      stopAllAlerts();
-                      setIsAlarmActive(false);
-                      playSingleBeep(600, 0.15, 0.2);
-                    }}
-                    className={`px-3 py-1 text-[10px] font-black uppercase rounded-md cursor-pointer transition-colors ${
-                      isInhibited 
-                        ? 'bg-rose-600 text-white shadow-2xs' 
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                    }`}
-                  >
-                    INIBIDO (MUTED)
-                  </button>
-                </div>
-              </div>
-
-              {/* Periodicity Selector */}
-              <div className="flex items-center justify-between gap-2 border-t border-slate-200 dark:border-slate-900 pt-2.5">
-                <div className="flex items-center gap-1">
-                  <span className="font-bold text-slate-700 dark:text-slate-300">Periodisidade de Checagem</span>
-                  <HelpCircle className="w-3.5 h-3.5 text-slate-400" title="Tempo entre reavaliações do clima operacional" />
-                </div>
-                <select
-                  disabled={isInhibited}
-                  value={periodicitySeconds}
-                  onChange={(e) => {
-                    const secs = parseInt(e.target.value);
-                    setPeriodicitySeconds(secs);
-                    playSingleBeep(900, 0.08, 0.2);
-                  }}
-                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 text-[11px] font-bold p-1.5 rounded-lg focus:outline-none focus:border-emerald-500 disabled:opacity-50 cursor-pointer shadow-2xs"
+          {/* Alert Config Controls (Right Side - 5 Cols, Visible when isSettingsOpen is true) */}
+          {isSettingsOpen && (
+            <div className="lg:col-span-5 bg-slate-50/80 dark:bg-slate-950 p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-5 shadow-2xs animate-in fade-in slide-in-from-right-4 duration-300">
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+                <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <Settings className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  Configurar Alertas Meteorológicos
+                </h4>
+                <button
+                  type="button"
+                  onClick={() => setIsSettingsOpen(false)}
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-lg transition-colors cursor-pointer"
+                  title="Ocultar Painel"
                 >
-                  <option value={900}>A cada 15 minutos</option>
-                  <option value={1200}>A cada 20 minutos</option>
-                  <option value={1800}>A cada 30 minutos</option>
-                  <option value={2700}>A cada 45 minutos</option>
-                  <option value={3600}>A cada 1 hora</option>
-                  <option value={7200}>A cada 2 horas</option>
-                </select>
+                  <X className="w-4 h-4" />
+                </button>
               </div>
 
-              {/* Sound Enabled and Volume */}
-              <div className="space-y-2 border-t border-slate-200 dark:border-slate-900 pt-2.5">
+              {/* Periodicity & Inhibitor settings */}
+              <div className="space-y-3 text-xs">
+                
+                {/* Enable / Inhibit Radio Toggle */}
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                    {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> : <VolumeX className="w-4 h-4 text-rose-500" />}
-                    Alerta Acústico (Sonoro)
-                  </span>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={soundEnabled}
-                      disabled={isInhibited}
-                      onChange={(e) => {
-                        setSoundEnabled(e.target.checked);
-                        if (!e.target.checked) stopAllAlerts();
-                      }}
-                      className="sr-only peer cursor-pointer"
-                    />
-                    <div className="w-9 h-5 bg-slate-300 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 cursor-pointer" />
-                  </label>
-                </div>
-
-                {soundEnabled && !isInhibited && (
-                  <div className="bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2 animate-in slide-in-from-top-1 shadow-2xs">
-                    {/* Sound Type */}
-                    <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-slate-500 dark:text-slate-400 font-semibold">Tom do Alarme:</span>
-                      <div className="flex flex-wrap gap-1">
-                        {(['CHIME', 'BEEP', 'SIREN', 'PULSE'] as const).map((type) => (
-                          <button
-                            key={type}
-                            type="button"
-                            onClick={() => {
-                              setSoundType(type);
-                              playSingleBeep(type === 'BEEP' ? 880 : 520, 0.1, soundVolume);
-                            }}
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold cursor-pointer uppercase transition-colors ${
-                              soundType === type 
-                                ? 'bg-emerald-600 text-white font-black shadow-2xs' 
-                                : 'bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
-                            }`}
-                          >
-                            {type}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Volume Slider */}
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between text-[10px]">
-                        <span className="text-slate-500 dark:text-slate-400 font-semibold">Volume do Alerta:</span>
-                        <span className="font-bold text-slate-700 dark:text-slate-300">{Math.round(soundVolume * 100)}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0.1"
-                        max="1.0"
-                        step="0.1"
-                        value={soundVolume}
-                        onChange={(e) => setSoundVolume(parseFloat(e.target.value))}
-                        className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-600 focus:outline-none"
-                      />
-                    </div>
-
-                    {/* Test Trigger Button */}
+                  <span className="font-bold text-slate-700 dark:text-slate-300">Estado de Monitoramento</span>
+                  <div className="flex items-center gap-1 bg-slate-200/80 dark:bg-slate-900 p-1 rounded-lg border border-slate-300/80 dark:border-slate-800">
                     <button
                       type="button"
-                      onClick={handleTestSound}
-                      className="w-full mt-1 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-emerald-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-emerald-400 border border-emerald-500/30 font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                      onClick={() => {
+                        setIsInhibited(false);
+                        playSingleBeep(1000, 0.08, 0.2);
+                      }}
+                      className={`px-3 py-1 text-[10px] font-black uppercase rounded-md cursor-pointer transition-colors ${
+                        !isInhibited 
+                          ? 'bg-emerald-600 text-white shadow-2xs' 
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                      }`}
                     >
-                      <Play className="w-3.5 h-3.5" />
-                      Testar Alarme Acústico
+                      ATIVO
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsInhibited(true);
+                        stopAllAlerts();
+                        setIsAlarmActive(false);
+                        playSingleBeep(600, 0.15, 0.2);
+                      }}
+                      className={`px-3 py-1 text-[10px] font-black uppercase rounded-md cursor-pointer transition-colors ${
+                        isInhibited 
+                          ? 'bg-rose-600 text-white shadow-2xs' 
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                      }`}
+                    >
+                      INIBIDO (MUTED)
                     </button>
                   </div>
-                )}
-              </div>
-
-              {/* Visual Alerts Configuration */}
-              <div className="space-y-2 border-t border-slate-200 dark:border-slate-900 pt-2.5">
-                <span className="font-bold text-slate-500 dark:text-slate-400 block text-[10px] uppercase tracking-wider">
-                  Sinalização Visual de Emergência
-                </span>
-                
-                {/* Visual Strobe Switch */}
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 text-xs">
-                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse border border-rose-400" />
-                    Giroflex & Alerta no Painel
-                  </span>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={visualStrobeEnabled}
-                      disabled={isInhibited}
-                      onChange={(e) => setVisualStrobeEnabled(e.target.checked)}
-                      className="sr-only peer cursor-pointer"
-                    />
-                    <div className="w-9 h-5 bg-slate-300 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 cursor-pointer" />
-                  </label>
                 </div>
 
-                {/* Screen Edge Flash Switch */}
-                <div className="flex items-center justify-between pt-1">
-                  <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 text-xs">
-                    <span className="w-2.5 h-2.5 rounded-full bg-red-600 border border-red-500" />
-                    Estrobo nas Bordas da Tela (Flash)
-                  </span>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={screenEdgeAlertEnabled}
-                      disabled={isInhibited}
-                      onChange={(e) => setScreenEdgeAlertEnabled(e.target.checked)}
-                      className="sr-only peer cursor-pointer"
-                    />
-                    <div className="w-9 h-5 bg-slate-300 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 cursor-pointer" />
-                  </label>
-                </div>
-              </div>
-
-              {/* Routine Readings Configuration */}
-              <div className="space-y-3 border-t border-slate-200 dark:border-slate-900 pt-2.5">
-                <span className="font-bold text-slate-500 dark:text-slate-400 block text-[10px] uppercase tracking-wider">
-                  Notificação de Rotina (Próxima Leitura)
-                </span>
-                
-                {/* Next Reading Alert Switch */}
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 text-xs">
-                    <span className="w-2.5 h-2.5 rounded-full bg-cyan-500 animate-pulse border border-cyan-400" />
-                    Aviso de Nova Leitura (Visual & Som)
-                  </span>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={readingAlertEnabled}
-                      disabled={isInhibited}
-                      onChange={(e) => setReadingAlertEnabled(e.target.checked)}
-                      className="sr-only peer cursor-pointer"
-                    />
-                    <div className="w-9 h-5 bg-slate-300 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 cursor-pointer" />
-                  </label>
+                {/* Periodicity Selector */}
+                <div className="flex items-center justify-between gap-2 border-t border-slate-200 dark:border-slate-900 pt-2.5">
+                  <div className="flex items-center gap-1">
+                    <span className="font-bold text-slate-700 dark:text-slate-300">Periodicidade de Checagem</span>
+                    <HelpCircle className="w-3.5 h-3.5 text-slate-400" title="Tempo entre reavaliações do clima operacional" />
+                  </div>
+                  <select
+                    disabled={isInhibited}
+                    value={periodicitySeconds}
+                    onChange={(e) => {
+                      const secs = parseInt(e.target.value);
+                      setPeriodicitySeconds(secs);
+                      playSingleBeep(900, 0.08, 0.2);
+                    }}
+                    className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 text-[11px] font-bold p-1.5 rounded-lg focus:outline-none focus:border-emerald-500 disabled:opacity-50 cursor-pointer shadow-2xs"
+                  >
+                    <option value={900}>A cada 15 minutos</option>
+                    <option value={1200}>A cada 20 minutos</option>
+                    <option value={1800}>A cada 30 minutos</option>
+                    <option value={2700}>A cada 45 minutos</option>
+                    <option value={3600}>A cada 1 hora</option>
+                    <option value={7200}>A cada 2 horas</option>
+                  </select>
                 </div>
 
-                {/* Recording Mode Selector */}
-                <div className="flex flex-col gap-1.5 pt-1.5 border-t border-slate-200 dark:border-slate-900/60">
+                {/* Sound Enabled and Volume */}
+                <div className="space-y-2 border-t border-slate-200 dark:border-slate-900 pt-2.5">
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 text-xs">
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 border border-emerald-400 animate-pulse" />
-                      Modo de Registro Climático
+                    <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                      {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> : <VolumeX className="w-4 h-4 text-rose-500" />}
+                      Alerta Acústico (Sonoro)
                     </span>
-                    <div className="flex bg-slate-200/80 dark:bg-slate-900 border border-slate-300/80 dark:border-slate-800 rounded-lg p-0.5">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={soundEnabled}
+                        disabled={isInhibited}
+                        onChange={(e) => {
+                          setSoundEnabled(e.target.checked);
+                          if (!e.target.checked) stopAllAlerts();
+                        }}
+                        className="sr-only peer cursor-pointer"
+                      />
+                      <div className="w-9 h-5 bg-slate-300 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 cursor-pointer" />
+                    </label>
+                  </div>
+
+                  {soundEnabled && !isInhibited && (
+                    <div className="bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2 animate-in slide-in-from-top-1 shadow-2xs">
+                      {/* Sound Type */}
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-slate-500 dark:text-slate-400 font-semibold">Tom do Alarme:</span>
+                        <div className="flex flex-wrap gap-1">
+                          {(['CHIME', 'BEEP', 'SIREN', 'PULSE'] as const).map((type) => (
+                            <button
+                              key={type}
+                              type="button"
+                              onClick={() => {
+                                setSoundType(type);
+                                playSingleBeep(type === 'BEEP' ? 880 : 520, 0.1, soundVolume);
+                              }}
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold cursor-pointer uppercase transition-colors ${
+                                soundType === type 
+                                  ? 'bg-emerald-600 text-white font-black shadow-2xs' 
+                                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
+                              }`}
+                            >
+                              {type}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Volume Slider */}
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-[10px]">
+                          <span className="text-slate-500 dark:text-slate-400 font-semibold">Volume do Alerta:</span>
+                          <span className="font-bold text-slate-700 dark:text-slate-300">{Math.round(soundVolume * 100)}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0.1"
+                          max="1.0"
+                          step="0.1"
+                          value={soundVolume}
+                          onChange={(e) => setSoundVolume(parseFloat(e.target.value))}
+                          className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-600 focus:outline-none"
+                        />
+                      </div>
+
+                      {/* Test Trigger Button */}
                       <button
                         type="button"
-                        onClick={() => {
-                          setRecordingMode('manual');
-                          playSingleBeep(1200, 0.05, 0.2);
-                        }}
-                        className={`px-2 py-1 text-[10px] font-bold rounded-md transition-all duration-150 cursor-pointer ${
-                          recordingMode === 'manual'
-                            ? 'bg-emerald-600 text-white shadow-xs'
-                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                        }`}
+                        onClick={handleTestSound}
+                        className="w-full mt-1 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-emerald-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-emerald-400 border border-emerald-500/30 font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
                       >
-                        Manual
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setRecordingMode('auto');
-                          playSingleBeep(1400, 0.05, 0.2);
-                        }}
-                        className={`px-2 py-1 text-[10px] font-bold rounded-md transition-all duration-150 cursor-pointer ${
-                          recordingMode === 'auto'
-                            ? 'bg-emerald-600 text-white shadow-xs'
-                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                        }`}
-                      >
-                        Automático
+                        <Play className="w-3.5 h-3.5" />
+                        Testar Alarme Acústico
                       </button>
                     </div>
-                  </div>
-                  <p className="text-[9px] text-slate-500 dark:text-slate-400 leading-tight">
-                    {recordingMode === 'manual'
-                      ? 'Requer que o operador clique no botão "Registrar" para salvar dados no prontuário.'
-                      : 'O sistema registra e arquiva as condições meteorológicas automaticamente ao final de cada contagem.'}
-                  </p>
+                  )}
                 </div>
+
+                {/* Visual Alerts Configuration */}
+                <div className="space-y-2 border-t border-slate-200 dark:border-slate-900 pt-2.5">
+                  <span className="font-bold text-slate-500 dark:text-slate-400 block text-[10px] uppercase tracking-wider">
+                    Sinalização Visual de Emergência
+                  </span>
+                  
+                  {/* Visual Strobe Switch */}
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 text-xs">
+                      <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse border border-rose-400" />
+                      Giroflex & Alerta no Painel
+                    </span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={visualStrobeEnabled}
+                        disabled={isInhibited}
+                        onChange={(e) => setVisualStrobeEnabled(e.target.checked)}
+                        className="sr-only peer cursor-pointer"
+                      />
+                      <div className="w-9 h-5 bg-slate-300 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 cursor-pointer" />
+                    </label>
+                  </div>
+
+                  {/* Screen Edge Flash Switch */}
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 text-xs">
+                      <span className="w-2.5 h-2.5 rounded-full bg-red-600 border border-red-500" />
+                      Estrobo nas Bordas da Tela (Flash)
+                    </span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={screenEdgeAlertEnabled}
+                        disabled={isInhibited}
+                        onChange={(e) => setScreenEdgeAlertEnabled(e.target.checked)}
+                        className="sr-only peer cursor-pointer"
+                      />
+                      <div className="w-9 h-5 bg-slate-300 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 cursor-pointer" />
+                    </label>
+                  </div>
+                </div>
+
+                {/* Routine Readings Configuration */}
+                <div className="space-y-3 border-t border-slate-200 dark:border-slate-900 pt-2.5">
+                  <span className="font-bold text-slate-500 dark:text-slate-400 block text-[10px] uppercase tracking-wider">
+                    Notificação de Rotina (Próxima Leitura)
+                  </span>
+                  
+                  {/* Next Reading Alert Switch */}
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 text-xs">
+                      <span className="w-2.5 h-2.5 rounded-full bg-cyan-500 animate-pulse border border-cyan-400" />
+                      Aviso de Nova Leitura (Visual & Som)
+                    </span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={readingAlertEnabled}
+                        disabled={isInhibited}
+                        onChange={(e) => setReadingAlertEnabled(e.target.checked)}
+                        className="sr-only peer cursor-pointer"
+                      />
+                      <div className="w-9 h-5 bg-slate-300 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 cursor-pointer" />
+                    </label>
+                  </div>
+
+                  {/* Recording Mode Selector */}
+                  <div className="flex flex-col gap-2 pt-2 border-t border-slate-200 dark:border-slate-900/60">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 text-xs">
+                        <Activity className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                        Origem e Coleta dos Dados Climáticos
+                      </span>
+                      <div className="flex bg-slate-200/80 dark:bg-slate-900 border border-slate-300/80 dark:border-slate-800 rounded-lg p-0.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRecordingMode('auto');
+                            playSingleBeep(1400, 0.05, 0.2);
+                          }}
+                          className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all duration-150 cursor-pointer ${
+                            recordingMode === 'auto'
+                              ? 'bg-emerald-600 text-white shadow-xs'
+                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                          }`}
+                        >
+                          ⚡ Automático (Sistema)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRecordingMode('manual');
+                            playSingleBeep(1200, 0.05, 0.2);
+                          }}
+                          className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all duration-150 cursor-pointer ${
+                            recordingMode === 'manual'
+                              ? 'bg-emerald-600 text-white shadow-xs'
+                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                          }`}
+                        >
+                          ✋ Manual (Instrumentos)
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-[9.5px] text-slate-500 dark:text-slate-400 leading-tight bg-slate-100/60 dark:bg-slate-900/40 p-2 rounded-lg border border-slate-200/50 dark:border-slate-800/50">
+                      {recordingMode === 'auto'
+                        ? '⚡ Coleta Automática: As medições são obtidas e sincronizadas em tempo real via sensores integrados da estação/drone sem intervenção manual.'
+                        : '✋ Coleta Manual (Instrumentos): A equipe em campo afere a temperatura, umidade e vento utilizando termo-higrômetros/anemômetros de mão e registra no prontuário.'}
+                    </p>
+                  </div>
+                </div>
+
               </div>
-
-              {/* Simulator moved to left column */}
-
             </div>
-          </div>
+          )}
 
         </div>
 
