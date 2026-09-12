@@ -139,7 +139,7 @@ export const FleetDronesView: React.FC<FleetDronesViewProps> = ({
             <span>Gerenciar Manutenções</span>
           </button>
 
-          {currentUser.role === 'ADMIN' && onOpenAdminManagement && (
+          {(currentUser.role === 'ADMIN' || currentUser.role === 'MASTER' || currentUser.isMaster) && onOpenAdminManagement && (
             <button
               onClick={onOpenAdminManagement}
               className="px-2.5 py-1.5 rounded-lg font-bold bg-white dark:bg-emerald-950 text-emerald-950 dark:text-emerald-100 border border-emerald-300 dark:border-emerald-700 hover:bg-emerald-50 text-xs flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
@@ -373,7 +373,7 @@ export const FleetDronesView: React.FC<FleetDronesViewProps> = ({
                       <strong className="text-slate-700 dark:text-slate-300 font-mono block">{pilot.totalHoursFlown}h</strong>
                     </div>
                     <div>
-                      {currentUser.role === 'ADMIN' ? (
+                      {(currentUser.role === 'ADMIN' || currentUser.role === 'MASTER' || currentUser.isMaster) ? (
                         <>
                           <span>Comissão:</span>
                           <strong className="text-emerald-600 dark:text-emerald-400 font-mono block">{formatBRL(pilot.commissionRatePerHa)}/ha</strong>
@@ -436,7 +436,7 @@ export const FleetDronesView: React.FC<FleetDronesViewProps> = ({
                       <strong className="text-slate-700 dark:text-slate-300 truncate block">{assistant.available ? 'Disponível em Campo' : 'Em Treinamento'}</strong>
                     </div>
                     <div>
-                      {currentUser.role === 'ADMIN' ? (
+                      {(currentUser.role === 'ADMIN' || currentUser.role === 'MASTER' || currentUser.isMaster) ? (
                         <>
                           <span>Comissão Solo:</span>
                           <strong className="text-emerald-600 dark:text-emerald-400 font-mono block">{formatBRL(assistant.commissionRatePerHa)}/ha</strong>

@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { UserAvatar } from './UserAvatar';
 import { formatInteger } from '../utils/formatters';
+import { isMasterUser, hasAdminPrivileges } from '../utils/userPermissions';
 
 interface HomeHubViewProps {
   currentUser: UserProfile;
@@ -145,7 +146,7 @@ export const HomeHubView: React.FC<HomeHubViewProps> = ({
     },
 
     // Comercial & Laudos
-    ...(currentUser.role === 'ADMIN' ? [{
+    ...(hasAdminPrivileges(currentUser) ? [{
       id: 'quotations',
       title: 'Orçamentos Comerciais',
       subtitle: 'Propostas por hectare p/ produtor',
@@ -165,7 +166,7 @@ export const HomeHubView: React.FC<HomeHubViewProps> = ({
       statBadge: `${completedOrdersCount} laudos prontos`,
       tags: ['relatório', 'laudo', 'mapa', 'art', 'pdf'],
     },
-    ...(currentUser.role === 'ADMIN' ? [{
+    ...(hasAdminPrivileges(currentUser) ? [{
       id: 'financial',
       title: 'Financeiro & Comissões',
       subtitle: 'Faturamento e adicionais NR-31',
@@ -204,7 +205,7 @@ export const HomeHubView: React.FC<HomeHubViewProps> = ({
       category: 'frota',
       icon: <ShieldCheck className="w-4 h-4 text-purple-600 dark:text-purple-400" />,
       iconBg: 'bg-purple-100 dark:bg-purple-950/80 text-purple-600',
-      statBadge: currentUser.role === 'ADMIN' ? 'Administrador' : 'Equipe',
+      statBadge: isMasterUser(currentUser) ? '👑 Super Master' : (currentUser.role === 'ADMIN' ? 'Administrador' : 'Equipe'),
       tags: ['gestão', 'cadastro', 'pilotos', 'clientes'],
     },
 

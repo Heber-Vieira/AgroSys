@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { ThemeMode, WhiteLabelTheme, AppViewMode, UserProfile } from '../types';
 import { PRESET_COMPANIES } from '../data/themeTokensData';
+import { isMasterUser } from '../utils/userPermissions';
 import { BrandLogo } from './BrandLogo';
 import { UserAvatar, UserPhotoUploadModal, saveStoredUserPhoto } from './UserAvatar';
 import { getStoredConfiguredLogoUrl, getStoredConfiguredLogoIconId } from '../services/brandingLogoStorage';
@@ -51,6 +52,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onUpdateUserPhoto,
   onLogout,
 }) => {
+  const isMaster = isMasterUser(currentUser);
   const [isOfflineSimulated, setIsOfflineSimulated] = useState<boolean>(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState<boolean>(false);
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState<boolean>(false);
@@ -83,6 +85,18 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   const handleSelectCompany = (companyId: string) => {
+    if (companyId === 'ALL') {
+      setTheme(prev => ({
+        ...prev,
+        tenantId: 'ALL',
+        companyName: 'Visão Global (Todas as Empresas)',
+        tagline: 'Gestão Centralizada Multi-Empresa AgroSys',
+        primaryColor: '#059669',
+        secondaryColor: '#047857',
+        accentColor: '#10b981',
+      }));
+      return;
+    }
     const found = PRESET_COMPANIES.find(p => p.id === companyId);
     if (found) {
       setTheme(prev => ({
@@ -182,25 +196,48 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </button>
 
-            {/* Company / Multi-Tenant Selector */}
-            <div className="relative flex items-center">
-              <div className="flex items-center gap-1.5 bg-white/90 dark:bg-emerald-950/80 border border-emerald-200/90 dark:border-emerald-800/90 rounded-xl px-2 sm:px-2.5 py-1 shadow-2xs">
-                <Building2 className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 flex-shrink-0" />
-                <select
-                  value={theme.tenantId || 'ciclodrone'}
-                  onChange={(e) => handleSelectCompany(e.target.value)}
-                  className="text-xs font-black bg-transparent text-emerald-950 dark:text-emerald-100 focus:outline-none cursor-pointer max-w-[110px] sm:max-w-[160px] md:max-w-[200px] truncate"
-                  title="Alternar Empresa (Multi-Empresa Isolada)"
-                  aria-label="Selecionar Empresa Ativa"
-                >
-                  {PRESET_COMPANIES.map(comp => (
-                    <option key={comp.id} value={comp.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-bold">
-                      {comp.name}
-                    </option>
-                  ))}
-                </select>
+            {/* Company Selector for Master / Locked Company Badge for Company Admins */}
+            {isMaster ? (
+              <div className="relative flex items-center">
+                <div className="flex items-center gap-1.5 sm:gap-2 bg-gradient-to-r from-amber-500/20 via-yellow-500/25 to-amber-500/20 dark:from-amber-500/30 dark:via-yellow-500/35 dark:to-amber-500/30 border border-amber-400/90 dark:border-amber-400 rounded-xl px-2 sm:px-2.5 py-1 shadow-2xs ring-1 ring-amber-400/40">
+                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-amber-500/30 dark:bg-amber-500/40 border border-amber-400/60 shadow-2xs" title="Acesso Master Total Multi-Empresa">
+                    <span className="text-xs select-none">👑</span>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-950 dark:text-amber-100 hidden sm:inline">
+                      SUPER MASTER
+                    </span>
+                  </div>
+                  <div className="relative flex items-center">
+                    <select
+                      value={theme.tenantId || 'ciclodrone'}
+                      onChange={(e) => handleSelectCompany(e.target.value)}
+                      className="text-xs font-black bg-transparent text-amber-950 dark:text-amber-100 focus:outline-none cursor-pointer pr-4 max-w-[120px] sm:max-w-[170px] md:max-w-[210px] truncate appearance-none"
+                      title="Alternar Empresa em Modo MASTER (Acesso Multi-Empresas Global)"
+                      aria-label="Selecionar Empresa Ativa (Modo Master)"
+                    >
+                      <option value="ALL" className="bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 font-black">
+                        🌐 Visão Global (Todas)
+                      </option>
+                      {PRESET_COMPANIES.map(comp => (
+                        <option key={comp.id} value={comp.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-bold">
+                          🏢 {comp.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-3.5 h-3.5 text-amber-700 dark:text-amber-300 absolute right-0 pointer-events-none" />
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div 
+                className="flex items-center gap-1.5 bg-white/90 dark:bg-emerald-950/80 border border-emerald-200/90 dark:border-emerald-800/90 rounded-xl px-2.5 sm:px-3 py-1.5 shadow-2xs"
+                title={`Empresa Vinculada: ${theme.companyName} (Acesso Restrito à Unidade)`}
+              >
+                <Building2 className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 flex-shrink-0" />
+                <span className="text-xs font-black text-emerald-950 dark:text-emerald-100 truncate max-w-[120px] sm:max-w-[170px] md:max-w-[210px]">
+                  {theme.companyName}
+                </span>
+              </div>
+            )}
 
             {/* Minimalist Theme Mode Toggle */}
             <button
@@ -289,9 +326,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                           {currentUser.email}
                         </p>
                         <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/80 text-emerald-900 dark:text-emerald-200">
-                            {currentUser.roleLabel}
-                          </span>
+                          {isMaster ? (
+                            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-900 dark:text-amber-200 border border-amber-500/30 flex items-center gap-1">
+                              👑 SUPER MASTER
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/80 text-emerald-900 dark:text-emerald-200">
+                              {currentUser.roleLabel}
+                            </span>
+                          )}
                           <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-sky-100 dark:bg-sky-950 text-sky-900 dark:text-sky-200">
                             🏢 {theme.companyName}
                           </span>

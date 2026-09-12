@@ -156,7 +156,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </div>
 
       {/* METRICS CARDS BY ROLE */}
-      {currentUser.role === 'ADMIN' && (
+      {(currentUser.role === 'ADMIN' || currentUser.role === 'MASTER' || currentUser.isMaster) && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
           <div className="bg-emerald-50/70 dark:bg-[#072a1e]/90 border border-emerald-200/80 dark:border-emerald-800/80 p-3 sm:p-3.5 rounded-xl shadow-2xs">
             <div className="flex items-center justify-between">

@@ -54,6 +54,7 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
   const [isInspectionOpen, setIsInspectionOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSoundMuted, setIsSoundMuted] = useState(false);
+  const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'MASTER' || currentUser?.isMaster;
   
   // Local temporary settings state while editing in modal
   const [tempSettings, setTempSettings] = useState<BatteryAlertSettings>(settings);
@@ -232,7 +233,7 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                   </button>
                 )}
 
-                {currentUser?.role === 'ADMIN' && (
+                {isAdmin && (
                   <button
                     type="button"
                     onClick={handleOpenSettings}
@@ -270,7 +271,7 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
               </div>
 
               <div className="flex items-center gap-2">
-                {currentUser?.role === 'ADMIN' && (
+                {isAdmin && (
                   <button
                     type="button"
                     onClick={() => {

@@ -511,7 +511,7 @@ export const SprayReportModal: React.FC<SprayReportModalProps> = ({
                 />
               </label>
 
-              {currentUser.role === 'ADMIN' && (
+              {(currentUser.role === 'ADMIN' || currentUser.role === 'MASTER' || currentUser.isMaster) && (
                 <label className="flex items-center justify-between text-xs font-medium cursor-pointer p-1.5 rounded-lg hover:bg-slate-800/50 transition-colors">
                   <span className="flex items-center gap-2">
                     <FileText className="w-3.5 h-3.5 text-emerald-400" />
@@ -1019,8 +1019,8 @@ export const SprayReportModal: React.FC<SprayReportModalProps> = ({
               </div>
             )}
 
-            {/* SEÇÃO 9: Valores Financeiros (Opcional - Exclusivo ADMIN) */}
-            {config.showFinancialDetails && currentUser.role === 'ADMIN' && (
+            {/* SEÇÃO 9: Valores Financeiros (Opcional - Exclusivo ADMIN/MASTER) */}
+            {config.showFinancialDetails && (currentUser.role === 'ADMIN' || currentUser.role === 'MASTER' || currentUser.isMaster) && (
               <div className="space-y-2">
                 <h3 className="text-xs font-black uppercase tracking-wider text-emerald-800 border-b border-emerald-200 pb-1 flex items-center gap-1.5">
                   <FileText className="w-4 h-4 text-emerald-600" />

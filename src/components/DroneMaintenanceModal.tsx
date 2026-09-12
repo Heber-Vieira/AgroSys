@@ -58,6 +58,7 @@ export const DroneMaintenanceModal: React.FC<DroneMaintenanceModalProps> = ({
   theme
 }) => {
   const [activeTab, setActiveTab] = useState<'NEW' | 'HISTORY' | 'ANALYTICS'>('NEW');
+  const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'MASTER' || currentUser?.isMaster;
 
   // Selected Drone
   const [targetDroneId, setTargetDroneId] = useState<string>(
@@ -517,11 +518,11 @@ export const DroneMaintenanceModal: React.FC<DroneMaintenanceModalProps> = ({
               <div className="bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 space-y-4">
                 <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                   <Wrench className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                  <span>{currentUser?.role === 'ADMIN' ? 'Custos Financeiros & Status' : 'Status da Manutenção'}</span>
+                  <span>{isAdmin ? 'Custos Financeiros & Status' : 'Status da Manutenção'}</span>
                 </h3>
 
-                <div className={`grid grid-cols-1 ${currentUser?.role === 'ADMIN' ? 'sm:grid-cols-4' : 'sm:grid-cols-1'} gap-3`}>
-                  {currentUser?.role === 'ADMIN' && (
+                <div className={`grid grid-cols-1 ${isAdmin ? 'sm:grid-cols-4' : 'sm:grid-cols-1'} gap-3`}>
+                  {isAdmin && (
                     <>
                       <div className="space-y-1">
                         <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">Custo de Peças (R$):</label>
@@ -742,7 +743,7 @@ export const DroneMaintenanceModal: React.FC<DroneMaintenanceModalProps> = ({
                         </div>
 
                         <div className="flex items-center gap-2 self-start sm:self-auto">
-                          {currentUser?.role === 'ADMIN' && (
+                          {isAdmin && (
                             <span className="text-xs font-mono font-bold text-slate-900 dark:text-slate-200">
                               {formatBRL(log.totalCost || 0)}
                             </span>
@@ -814,13 +815,13 @@ export const DroneMaintenanceModal: React.FC<DroneMaintenanceModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-1">
                   <span className="text-slate-500 dark:text-slate-400 text-xs font-semibold">
-                    {currentUser?.role === 'ADMIN' ? 'Custo Total de Manutenção' : 'Total de Intervenções'}
+                    {isAdmin ? 'Custo Total de Manutenção' : 'Total de Intervenções'}
                   </span>
                   <div className="text-xl font-black text-emerald-600 dark:text-emerald-400 font-mono">
-                    {currentUser?.role === 'ADMIN' ? formatBRL(totalCostAll) : `${logs.length} registros`}
+                    {isAdmin ? formatBRL(totalCostAll) : `${logs.length} registros`}
                   </div>
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
-                    {currentUser?.role === 'ADMIN' ? 'Peças + Mão de Obra' : 'Histórico Consolidado'}
+                    {isAdmin ? 'Peças + Mão de Obra' : 'Histórico Consolidado'}
                   </span>
                 </div>
 
@@ -854,7 +855,7 @@ export const DroneMaintenanceModal: React.FC<DroneMaintenanceModalProps> = ({
                 <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
                   <Plane className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   <span>
-                    {currentUser?.role === 'ADMIN' 
+                    {isAdmin 
                       ? 'Investimento em Manutenção por Aeronave (Frota)' 
                       : 'Volume de Manutenções por Aeronave (Frota)'}
                   </span>
@@ -874,7 +875,7 @@ export const DroneMaintenanceModal: React.FC<DroneMaintenanceModalProps> = ({
                             <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">({drone.anacPrefix})</span>
                           </div>
                           <div className="font-mono text-emerald-700 dark:text-emerald-300 font-bold">
-                            {currentUser?.role === 'ADMIN' ? (
+                            {isAdmin ? (
                               <>
                                 {formatBRL(droneTotal)}
                                 <span className="text-slate-500 font-normal ml-2">({droneLogs.length} serviços)</span>

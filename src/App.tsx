@@ -52,6 +52,7 @@ import {
   SprayQuotation
 } from './types';
 import { PRESET_COMPANIES, generateToneScale } from './data/themeTokensData';
+import { isMasterUser, normalizeUserProfile } from './utils/userPermissions';
 import { 
   getStoredConfiguredLogoUrl, 
   setStoredConfiguredLogoUrl, 
@@ -172,10 +173,8 @@ export default function App() {
 
   // Master Application State collections (Persisted to LocalStorage)
   const [allUsers, setAllUsers] = useState<UserProfile[]>(() => {
-    const loaded = loadAndMergeWithMock('agrodrone_users_fleet', USER_PROFILES);
-    const allowedEmails = new Set(['heber.vieira.hv@gmail.com', 'thalesfelipe1@hotmail.com']);
-    const filtered = loaded.filter(u => allowedEmails.has(u.email.toLowerCase()) || (u.id && u.id.startsWith('user-1')));
-    return filtered.length > 0 ? filtered : USER_PROFILES;
+    const raw = loadAndMergeWithMock('agrodrone_users_fleet', USER_PROFILES);
+    return raw.map(normalizeUserProfile);
   });
 
   const [currentUser, setCurrentUser] = useState<UserProfile>(() => {
@@ -183,12 +182,12 @@ export default function App() {
     if (savedUser) {
       try {
         const parsed = JSON.parse(savedUser);
-        if (parsed && (parsed.email === 'heber.vieira.hv@gmail.com' || parsed.email === 'thalesfelipe1@hotmail.com')) {
-          return parsed;
+        if (parsed && (parsed.id || parsed.email)) {
+          return normalizeUserProfile(parsed);
         }
       } catch (e) {}
     }
-    return USER_PROFILES[0];
+    return normalizeUserProfile(USER_PROFILES[0]); // Heber Vieira (MASTER)
   });
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
@@ -209,17 +208,29 @@ export default function App() {
     } catch (e) {}
   }, [currentUser]);
 
-  // Automatically update currentUser when company is switched if user belongs to a different company
+  // Automatically synchronize tenant theme when an admin or regular user logs in with a specific companyId
   useEffect(() => {
-    if (currentUser.companyId && currentUser.companyId !== activeTenantId && currentUser.role !== 'ADMIN') {
-      const companyUser = allUsers.find(u => u.companyId === activeTenantId && u.role === 'ADMIN') 
-        || allUsers.find(u => u.companyId === activeTenantId) 
-        || allUsers[0];
-      if (companyUser) {
-        setCurrentUser(companyUser);
+    const isMaster = isMasterUser(currentUser);
+    if (!isMaster && currentUser.companyId && currentUser.companyId !== activeTenantId) {
+      const matchedCompany = PRESET_COMPANIES.find(p => p.id === currentUser.companyId);
+      if (matchedCompany) {
+        setTheme(prev => ({
+          ...prev,
+          tenantId: matchedCompany.id,
+          companyName: matchedCompany.name,
+          tagline: matchedCompany.tagline,
+          primaryColor: matchedCompany.primary,
+          secondaryColor: matchedCompany.secondary,
+          accentColor: matchedCompany.accent,
+          surfaceLight: matchedCompany.surfaceLight || '#FFFFFF',
+          surfaceDark: matchedCompany.surfaceDark || '#081320',
+          contactPhone: matchedCompany.contactPhone,
+          contactEmail: matchedCompany.contactEmail,
+          registryCreaMapa: matchedCompany.registryCreaMapa,
+        }));
       }
     }
-  }, [activeTenantId, allUsers]);
+  }, [currentUser, activeTenantId]);
 
   // Master collections with automatic mock merging for multi-tenancy
   const [allOrders, setAllOrders] = useState<ServiceOrder[]>(() => 
@@ -324,66 +335,70 @@ export default function App() {
   const [compensation, setCompensation] = useState<CompensationPolicy>(INITIAL_COMPENSATION_POLICY);
 
   // =========================================================================
-  // MULTI-TENANCY DATA ISOLATION: Scoped Data for Active Company
+  // MULTI-TENANCY DATA ISOLATION: Scoped Data for Active Company or Global View
   // =========================================================================
+  const isGlobalView = activeTenantId === 'ALL';
+
   const orders = useMemo(() => 
-    allOrders.filter(o => (o.companyId || 'ciclodrone') === activeTenantId), 
-    [allOrders, activeTenantId]
+    isGlobalView ? allOrders : allOrders.filter(o => (o.companyId || 'ciclodrone') === activeTenantId), 
+    [allOrders, activeTenantId, isGlobalView]
   );
 
   const plots = useMemo(() => 
-    allPlots.filter(p => (p.companyId || 'ciclodrone') === activeTenantId), 
-    [allPlots, activeTenantId]
+    isGlobalView ? allPlots : allPlots.filter(p => (p.companyId || 'ciclodrone') === activeTenantId), 
+    [allPlots, activeTenantId, isGlobalView]
   );
 
   const drones = useMemo(() => 
-    allDrones.filter(d => (d.companyId || 'ciclodrone') === activeTenantId), 
-    [allDrones, activeTenantId]
+    isGlobalView ? allDrones : allDrones.filter(d => (d.companyId || 'ciclodrone') === activeTenantId), 
+    [allDrones, activeTenantId, isGlobalView]
   );
 
   const pilots = useMemo(() => 
-    allPilots.filter(p => (p.companyId || 'ciclodrone') === activeTenantId), 
-    [allPilots, activeTenantId]
+    isGlobalView ? allPilots : allPilots.filter(p => (p.companyId || 'ciclodrone') === activeTenantId), 
+    [allPilots, activeTenantId, isGlobalView]
   );
 
   const assistants = useMemo(() => 
-    allAssistants.filter(a => (a.companyId || 'ciclodrone') === activeTenantId), 
-    [allAssistants, activeTenantId]
+    isGlobalView ? allAssistants : allAssistants.filter(a => (a.companyId || 'ciclodrone') === activeTenantId), 
+    [allAssistants, activeTenantId, isGlobalView]
   );
 
   const clients = useMemo(() => 
-    allClients.filter(c => (c.companyId || 'ciclodrone') === activeTenantId), 
-    [allClients, activeTenantId]
+    isGlobalView ? allClients : allClients.filter(c => (c.companyId || 'ciclodrone') === activeTenantId), 
+    [allClients, activeTenantId, isGlobalView]
   );
 
   const quotations = useMemo(() => 
-    allQuotations.filter(q => (q.companyId || 'ciclodrone') === activeTenantId), 
-    [allQuotations, activeTenantId]
+    isGlobalView ? allQuotations : allQuotations.filter(q => (q.companyId || 'ciclodrone') === activeTenantId), 
+    [allQuotations, activeTenantId, isGlobalView]
   );
 
   const financials = useMemo(() => 
-    allFinancials.filter(f => (f.companyId || 'ciclodrone') === activeTenantId), 
-    [allFinancials, activeTenantId]
+    isGlobalView ? allFinancials : allFinancials.filter(f => (f.companyId || 'ciclodrone') === activeTenantId), 
+    [allFinancials, activeTenantId, isGlobalView]
   );
 
   const maintenanceLogs = useMemo(() => 
-    allMaintenanceLogs.filter(m => (m.companyId || 'ciclodrone') === activeTenantId), 
-    [allMaintenanceLogs, activeTenantId]
+    isGlobalView ? allMaintenanceLogs : allMaintenanceLogs.filter(m => (m.companyId || 'ciclodrone') === activeTenantId), 
+    [allMaintenanceLogs, activeTenantId, isGlobalView]
   );
 
   const batteries = useMemo(() => 
-    allBatteries.filter(b => (b.companyId || 'ciclodrone') === activeTenantId), 
-    [allBatteries, activeTenantId]
+    isGlobalView ? allBatteries : allBatteries.filter(b => (b.companyId || 'ciclodrone') === activeTenantId), 
+    [allBatteries, activeTenantId, isGlobalView]
   );
 
   const pricingRules = useMemo(() => 
-    allPricingRules.filter(r => (r.companyId || 'ciclodrone') === activeTenantId), 
-    [allPricingRules, activeTenantId]
+    isGlobalView ? allPricingRules : allPricingRules.filter(r => (r.companyId || 'ciclodrone') === activeTenantId), 
+    [allPricingRules, activeTenantId, isGlobalView]
   );
 
   const users = useMemo(() => 
-    allUsers.filter(u => u.role === 'ADMIN' || (u.companyId || 'ciclodrone') === activeTenantId), 
-    [allUsers, activeTenantId]
+    isGlobalView 
+      ? allUsers 
+      : allUsers.filter(u => u.role === 'ADMIN' || u.role === 'MASTER' || u.isMaster || (u.companyId || 'ciclodrone') === activeTenantId), 
+    [allUsers, activeTenantId, isGlobalView]
   );
 
   // =========================================================================
@@ -391,6 +406,9 @@ export default function App() {
   // =========================================================================
   const setOrders: React.Dispatch<React.SetStateAction<ServiceOrder[]>> = (action) => {
     setAllOrders(prevAll => {
+      if (activeTenantId === 'ALL') {
+        return typeof action === 'function' ? (action as any)(prevAll) : action;
+      }
       const currentScoped = prevAll.filter(o => (o.companyId || 'ciclodrone') === activeTenantId);
       const resolved = typeof action === 'function' ? (action as any)(currentScoped) : action;
       const tagged = resolved.map((item: ServiceOrder) => ({ ...item, companyId: item.companyId || activeTenantId }));
@@ -401,6 +419,9 @@ export default function App() {
 
   const setPlots: React.Dispatch<React.SetStateAction<FarmPlot[]>> = (action) => {
     setAllPlots(prevAll => {
+      if (activeTenantId === 'ALL') {
+        return typeof action === 'function' ? (action as any)(prevAll) : action;
+      }
       const currentScoped = prevAll.filter(p => (p.companyId || 'ciclodrone') === activeTenantId);
       const resolved = typeof action === 'function' ? (action as any)(currentScoped) : action;
       const tagged = resolved.map((item: FarmPlot) => ({ ...item, companyId: item.companyId || activeTenantId }));
@@ -411,6 +432,9 @@ export default function App() {
 
   const setDrones: React.Dispatch<React.SetStateAction<AgriculturalDrone[]>> = (action) => {
     setAllDrones(prevAll => {
+      if (activeTenantId === 'ALL') {
+        return typeof action === 'function' ? (action as any)(prevAll) : action;
+      }
       const currentScoped = prevAll.filter(d => (d.companyId || 'ciclodrone') === activeTenantId);
       const resolved = typeof action === 'function' ? (action as any)(currentScoped) : action;
       const tagged = resolved.map((item: AgriculturalDrone) => ({ ...item, companyId: item.companyId || activeTenantId }));
@@ -421,6 +445,9 @@ export default function App() {
 
   const setBatteries: React.Dispatch<React.SetStateAction<DroneBatteryAsset[]>> = (action) => {
     setAllBatteries(prevAll => {
+      if (activeTenantId === 'ALL') {
+        return typeof action === 'function' ? (action as any)(prevAll) : action;
+      }
       const currentScoped = prevAll.filter(b => (b.companyId || 'ciclodrone') === activeTenantId);
       const resolved = typeof action === 'function' ? (action as any)(currentScoped) : action;
       const tagged = resolved.map((item: DroneBatteryAsset) => ({ ...item, companyId: item.companyId || activeTenantId }));
@@ -431,6 +458,9 @@ export default function App() {
 
   const setPilots: React.Dispatch<React.SetStateAction<CrewPilot[]>> = (action) => {
     setAllPilots(prevAll => {
+      if (activeTenantId === 'ALL') {
+        return typeof action === 'function' ? (action as any)(prevAll) : action;
+      }
       const currentScoped = prevAll.filter(p => (p.companyId || 'ciclodrone') === activeTenantId);
       const resolved = typeof action === 'function' ? (action as any)(currentScoped) : action;
       const tagged = resolved.map((item: CrewPilot) => ({ ...item, companyId: item.companyId || activeTenantId }));
@@ -441,6 +471,9 @@ export default function App() {
 
   const setAssistants: React.Dispatch<React.SetStateAction<CrewAssistant[]>> = (action) => {
     setAllAssistants(prevAll => {
+      if (activeTenantId === 'ALL') {
+        return typeof action === 'function' ? (action as any)(prevAll) : action;
+      }
       const currentScoped = prevAll.filter(a => (a.companyId || 'ciclodrone') === activeTenantId);
       const resolved = typeof action === 'function' ? (action as any)(currentScoped) : action;
       const tagged = resolved.map((item: CrewAssistant) => ({ ...item, companyId: item.companyId || activeTenantId }));
@@ -451,6 +484,9 @@ export default function App() {
 
   const setClients: React.Dispatch<React.SetStateAction<ClientProducer[]>> = (action) => {
     setAllClients(prevAll => {
+      if (activeTenantId === 'ALL') {
+        return typeof action === 'function' ? (action as any)(prevAll) : action;
+      }
       const currentScoped = prevAll.filter(c => (c.companyId || 'ciclodrone') === activeTenantId);
       const resolved = typeof action === 'function' ? (action as any)(currentScoped) : action;
       const tagged = resolved.map((item: ClientProducer) => ({ ...item, companyId: item.companyId || activeTenantId }));
@@ -461,6 +497,9 @@ export default function App() {
 
   const setQuotations: React.Dispatch<React.SetStateAction<SprayQuotation[]>> = (action) => {
     setAllQuotations(prevAll => {
+      if (activeTenantId === 'ALL') {
+        return typeof action === 'function' ? (action as any)(prevAll) : action;
+      }
       const currentScoped = prevAll.filter(q => (q.companyId || 'ciclodrone') === activeTenantId);
       const resolved = typeof action === 'function' ? (action as any)(currentScoped) : action;
       const tagged = resolved.map((item: SprayQuotation) => ({ ...item, companyId: item.companyId || activeTenantId }));
@@ -471,6 +510,9 @@ export default function App() {
 
   const setMaintenanceLogs: React.Dispatch<React.SetStateAction<DroneMaintenanceLog[]>> = (action) => {
     setAllMaintenanceLogs(prevAll => {
+      if (activeTenantId === 'ALL') {
+        return typeof action === 'function' ? (action as any)(prevAll) : action;
+      }
       const currentScoped = prevAll.filter(m => (m.companyId || 'ciclodrone') === activeTenantId);
       const resolved = typeof action === 'function' ? (action as any)(currentScoped) : action;
       const tagged = resolved.map((item: DroneMaintenanceLog) => ({ ...item, companyId: item.companyId || activeTenantId }));
@@ -481,6 +523,9 @@ export default function App() {
 
   const setPricingRules: React.Dispatch<React.SetStateAction<PricingMatrixRule[]>> = (action) => {
     setAllPricingRules(prevAll => {
+      if (activeTenantId === 'ALL') {
+        return typeof action === 'function' ? (action as any)(prevAll) : action;
+      }
       const currentScoped = prevAll.filter(r => (r.companyId || 'ciclodrone') === activeTenantId);
       const resolved = typeof action === 'function' ? (action as any)(currentScoped) : action;
       const tagged = resolved.map((item: PricingMatrixRule) => ({ ...item, companyId: item.companyId || activeTenantId }));
@@ -491,10 +536,13 @@ export default function App() {
 
   const setUsers: React.Dispatch<React.SetStateAction<UserProfile[]>> = (action) => {
     setAllUsers(prevAll => {
-      const currentScoped = prevAll.filter(u => u.role === 'ADMIN' || (u.companyId || 'ciclodrone') === activeTenantId);
+      if (activeTenantId === 'ALL') {
+        return typeof action === 'function' ? (action as any)(prevAll) : action;
+      }
+      const currentScoped = prevAll.filter(u => u.role === 'ADMIN' || u.role === 'MASTER' || u.isMaster || (u.companyId || 'ciclodrone') === activeTenantId);
       const resolved = typeof action === 'function' ? (action as any)(currentScoped) : action;
       const tagged = resolved.map((item: UserProfile) => ({ ...item, companyId: item.companyId || activeTenantId }));
-      const otherCompanies = prevAll.filter(u => u.role !== 'ADMIN' && (u.companyId || 'ciclodrone') !== activeTenantId);
+      const otherCompanies = prevAll.filter(u => u.role !== 'ADMIN' && u.role !== 'MASTER' && !u.isMaster && (u.companyId || 'ciclodrone') !== activeTenantId);
       return [...otherCompanies, ...tagged];
     });
   };
@@ -959,12 +1007,12 @@ export default function App() {
           />
         )}
 
-        {/* Administration & Governance Modules (Restricted to ADMIN) */}
+        {/* Administration & Governance Modules (Accessible to Master & Company Admins) */}
         {currentView === 'admin-management' && (
           <AdminManagementHubView
             currentUser={currentUser}
-            users={users}
-            setUsers={setUsers}
+            users={currentUser.role === 'MASTER' || currentUser.isMaster ? allUsers : users}
+            setUsers={currentUser.role === 'MASTER' || currentUser.isMaster ? setAllUsers : setUsers}
             drones={drones}
             setDrones={setDrones}
             batteries={batteries}
@@ -979,7 +1027,7 @@ export default function App() {
             compensation={compensation}
             setCompensation={setCompensation}
             onSwitchToAdmin={() => {
-              const adminUser = users.find(u => u.role === 'ADMIN') || USER_PROFILES[0];
+              const adminUser = allUsers.find(u => u.role === 'MASTER') || allUsers.find(u => u.role === 'ADMIN') || USER_PROFILES[0];
               setCurrentUser(adminUser);
             }}
             onNavigate={(view) => setCurrentView(view as AppViewMode)}

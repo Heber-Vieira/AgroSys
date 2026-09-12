@@ -254,7 +254,7 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
             <span>Agenda & Calendário</span>
           </button>
 
-          {(currentUser.role === 'ADMIN' || currentUser.role === 'USER') && (
+          {(currentUser.role === 'ADMIN' || currentUser.role === 'MASTER' || currentUser.isMaster || currentUser.role === 'USER') && (
             <button
               onClick={() => setShowNewOSModal(true)}
               className="px-3 py-1.5 rounded-lg font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs transition-transform active:scale-95 flex items-center gap-1.5 text-xs cursor-pointer"
@@ -378,8 +378,8 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
                     </p>
                   </div>
 
-                  {/* Pricing / Gross Info - Restricted to ADMIN */}
-                  {currentUser.role === 'ADMIN' && (
+                  {/* Pricing / Gross Info - Restricted to ADMIN & MASTER */}
+                  {(currentUser.role === 'ADMIN' || currentUser.role === 'MASTER' || currentUser.isMaster) && (
                     <div className="flex flex-wrap items-center gap-4 text-xs">
                       <div className="bg-white/80 dark:bg-emerald-950/60 border border-emerald-200/90 dark:border-emerald-800 px-3 py-2 rounded-xl">
                         <span className="text-[10px] text-emerald-700/70 dark:text-emerald-400/70 block font-semibold">Valor Bruto OS</span>
@@ -792,8 +792,8 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
                 )}
               </div>
 
-              {/* Calculated Summary Box - Financials visible only to ADMIN */}
-              {currentUser.role === 'ADMIN' ? (
+              {/* Calculated Summary Box - Financials visible to ADMIN & MASTER */}
+              {(currentUser.role === 'ADMIN' || currentUser.role === 'MASTER' || currentUser.isMaster) ? (
                 <div className="p-4 rounded-2xl bg-emerald-100/60 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 space-y-2">
                   <span className="font-black text-emerald-950 dark:text-emerald-300 block">
                     Resumo Financeiro da Ordem de Serviço

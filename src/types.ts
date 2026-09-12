@@ -1,6 +1,6 @@
 export type ThemeMode = 'light' | 'dark' | 'field';
 
-export type UserRole = 'ADMIN' | 'USER' | 'PILOT' | 'ASSISTANT';
+export type UserRole = 'MASTER' | 'ADMIN' | 'USER' | 'PILOT' | 'ASSISTANT';
 
 export interface RegisteredCompany {
   id: string; // e.g. 'ciclodrone', 'agro-clean-emerald'
@@ -42,6 +42,7 @@ export interface UserProfile {
   salaryBase?: number;
   hiredDate?: string;
   password?: string;
+  isMaster?: boolean; // Usuário Master com privilégio total multi-empresa
 }
 
 export interface ClientProducer {

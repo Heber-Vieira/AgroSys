@@ -68,9 +68,9 @@ export const PricingMatrixView: React.FC<PricingMatrixViewProps> = ({
   pricingRules,
   setPricingRules,
 }) => {
-  const isAdmin = currentUser.role === 'ADMIN';
+  const isAdmin = currentUser.role === 'ADMIN' || currentUser.role === 'MASTER' || currentUser.isMaster;
 
-  // Strict Admin Role Guard
+  // Strict Admin & Master Role Guard
   if (!isAdmin) {
     return (
       <div className="max-w-2xl mx-auto my-12 p-8 bg-white dark:bg-emerald-950/80 border border-emerald-200 dark:border-emerald-800 rounded-3xl shadow-xl text-center space-y-4 animate-in fade-in">
@@ -82,7 +82,7 @@ export const PricingMatrixView: React.FC<PricingMatrixViewProps> = ({
             Acesso Restrito à Matriz de Precificação
           </h2>
           <p className="text-xs text-slate-600 dark:text-emerald-300/80 leading-relaxed max-w-md mx-auto">
-            A visualização, simulação e configuração de tarifas base, fatores de relevo e faixas de desconto por volume são de acesso exclusivo aos <strong>Administradores</strong> da empresa.
+            A visualização, simulação e configuração de tarifas base, fatores de relevo e faixas de desconto por volume são de acesso exclusivo aos <strong>Administradores</strong> e <strong>Usuários Master</strong>.
           </p>
         </div>
         <div className="pt-2">

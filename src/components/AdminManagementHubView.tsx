@@ -57,6 +57,7 @@ import { PricingMatrixView } from './PricingMatrixView';
 import { FleetDronesView } from './FleetDronesView';
 import { AdminBrandingStudio } from './AdminBrandingStudio';
 import { formatBRL, formatDecimal, parseInputNumber } from '../utils/formatters';
+import { PRESET_COMPANIES } from '../data/themeTokensData';
 
 interface AdminManagementHubViewProps {
   currentUser: UserProfile;
@@ -117,8 +118,13 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
   themeMode = 'light',
   setThemeMode = () => {},
 }) => {
+  const isMaster = currentUser.role === 'MASTER' || currentUser.isMaster === true;
+  const isCompanyAdmin = currentUser.role === 'ADMIN';
+  const hasAdminAccess = isMaster || isCompanyAdmin;
+
   const [activeTab, setActiveTab] = useState<AdminTab>('users');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCompanyFilter, setSelectedCompanyFilter] = useState<string>('ALL');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // User Modal State
@@ -138,6 +144,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
     status: 'ACTIVE',
     salaryBase: 0,
     photoUrl: '',
+    companyId: currentUser.companyId || theme?.tenantId || 'ciclodrone',
   });
 
   // User Password Form State
@@ -198,8 +205,8 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // RBAC Check: Only ADMIN has permission
-  if (currentUser.role !== 'ADMIN') {
+  // RBAC Check: Only MASTER or ADMIN has permission
+  if (!hasAdminAccess) {
     return (
       <div className="max-w-4xl mx-auto my-8 p-8 bg-white dark:bg-slate-900 border-2 border-rose-300 dark:border-rose-900/60 rounded-3xl shadow-2xl text-center space-y-6">
         <div className="w-16 h-16 mx-auto rounded-2xl bg-rose-100 dark:bg-rose-950/60 flex items-center justify-center text-rose-600 dark:text-rose-400 shadow-inner">
@@ -215,7 +222,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
           </h2>
           <p className="text-sm text-slate-600 dark:text-slate-400 max-w-xl mx-auto">
             Você está conectado atualmente como <strong>{currentUser.name}</strong> com perfil de <strong>{currentUser.roleLabel}</strong>. 
-            Por normas de governança e proteção de dados (LGPD / ANAC), o cadastro e edição de usuários, drones, clientes e valores salariais/comissões é restrito a Administradores Gerais.
+            Por normas de governança e proteção de dados (LGPD / ANAC), o cadastro e edição de usuários, drones, clientes e valores salariais/comissões é restrito a Administradores Gerais e Usuários Master.
           </p>
         </div>
 
@@ -247,19 +254,22 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
     setEditingUser(null);
     setUserFormData({
       name: '',
-      role: 'PILOT',
-      roleLabel: 'Piloto de Drone Remoto',
+      role: isMaster ? 'ADMIN' : 'PILOT',
+      roleLabel: isMaster ? 'Administrador da Empresa' : 'Piloto de Drone Remoto',
       email: '',
-      badge: 'Piloto DECEA / ANAC',
+      badge: isMaster ? 'Administrador Empresa' : 'Piloto DECEA / ANAC',
       documentNumber: '',
       phone: '',
       farmName: '',
       licenseCode: '',
       status: 'ACTIVE',
-      salaryBase: 4800,
+      salaryBase: isMaster ? 5500 : 4800,
       photoUrl: '',
+      companyId: isMaster 
+        ? (selectedCompanyFilter !== 'ALL' ? selectedCompanyFilter : (theme?.tenantId || 'ciclodrone'))
+        : (currentUser.companyId || theme?.tenantId || 'ciclodrone'),
     });
-    setUserSalaryInput('4.800,00');
+    setUserSalaryInput(isMaster ? '5.500,00' : '4.800,00');
     setUserPasswordInput('');
     setUserConfirmPasswordInput('');
     setShowUserPassword(false);
@@ -267,8 +277,13 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
   };
 
   const handleOpenEditUser = (u: UserProfile) => {
+    // If not master, prevent editing master users
+    if (!isMaster && (u.isMaster || u.role === 'MASTER')) {
+      showToast('Você não possui permissão para editar um usuário Master.', 'warning');
+      return;
+    }
     setEditingUser(u);
-    setUserFormData({ ...u, photoUrl: getUserPhotoUrl(u) });
+    setUserFormData({ ...u, photoUrl: getUserPhotoUrl(u), companyId: u.companyId || 'ciclodrone' });
     setUserSalaryInput(u.salaryBase ? formatDecimal(u.salaryBase, 2) : '0,00');
     setUserPasswordInput(u.password || '');
     setUserConfirmPasswordInput(u.password || '');
@@ -302,21 +317,24 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
     }
 
     const roleLabels: Record<UserRole, string> = {
-      ADMIN: 'Administrador Geral',
+      MASTER: 'Usuário Master (Acesso Total)',
+      ADMIN: 'Administrador da Empresa',
       USER: 'Usuário / Produtor Rural',
       PILOT: 'Piloto de Drone Remoto',
       ASSISTANT: 'Auxiliar de Pulverização',
     };
 
     const role = userFormData.role || 'USER';
-    const roleLabel = roleLabels[role];
+    const roleLabel = roleLabels[role] || 'Colaborador';
     const photoUrl = userFormData.photoUrl || undefined;
+    const targetCompanyId = userFormData.companyId || (isMaster ? (theme?.tenantId || 'ciclodrone') : (currentUser.companyId || 'ciclodrone'));
 
     if (editingUser) {
       // Update existing
       setUsers(prev => prev.map(u => u.id === editingUser.id ? {
         ...u,
         ...userFormData,
+        companyId: targetCompanyId,
         password: userPasswordInput || u.password || '123456',
         photoUrl,
         avatarUrl: photoUrl,
@@ -337,6 +355,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
           deceaLicense: userFormData.licenseCode || p.deceaLicense,
           photoUrl: photoUrl || p.photoUrl,
           avatarUrl: photoUrl || p.avatarUrl,
+          companyId: targetCompanyId,
         } : p));
       } else if (role === 'ASSISTANT') {
         setAssistants(prev => prev.map(a => (a.cpf === editingUser.documentNumber || a.id === editingUser.id) ? {
@@ -345,6 +364,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
           phone: userFormData.phone || a.phone,
           photoUrl: photoUrl || a.photoUrl,
           avatarUrl: photoUrl || a.avatarUrl,
+          companyId: targetCompanyId,
         } : a));
       }
 
@@ -369,6 +389,8 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
         hiredDate: new Date().toISOString().split('T')[0],
         photoUrl,
         avatarUrl: photoUrl,
+        companyId: targetCompanyId,
+        isMaster: role === 'MASTER',
       };
 
       if (photoUrl) {
@@ -391,6 +413,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
           available: true,
           photoUrl,
           avatarUrl: photoUrl,
+          companyId: targetCompanyId,
         }]);
       } else if (role === 'ASSISTANT') {
         setAssistants(prev => [...prev, {
@@ -403,10 +426,11 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
           available: true,
           photoUrl,
           avatarUrl: photoUrl,
+          companyId: targetCompanyId,
         }]);
       }
 
-      showToast(`Novo usuário "${newUser.name}" cadastrado com sucesso!`);
+      showToast(`Novo usuário "${newUser.name}" cadastrado com sucesso na empresa ${PRESET_COMPANIES.find(p => p.id === targetCompanyId)?.name || 'selecionada'}!`);
     }
 
     setIsUserModalOpen(false);
@@ -415,6 +439,11 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
   const handleDeleteUser = (id: string, name: string) => {
     if (id === currentUser.id) {
       showToast('Você não pode excluir o usuário conectado no momento.', 'warning');
+      return;
+    }
+    const targetUser = users.find(u => u.id === id);
+    if (!isMaster && targetUser && (targetUser.isMaster || targetUser.role === 'MASTER')) {
+      showToast('Você não possui permissão para excluir um usuário Master.', 'warning');
       return;
     }
     showConfirm({
@@ -617,12 +646,28 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
   };
 
   // Filtered lists
-  const filteredUsers = users.filter(u => 
-    u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    u.roleLabel.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (u.documentNumber && u.documentNumber.includes(searchQuery))
-  );
+  const filteredUsers = users.filter(u => {
+    // If not master, enforce tenant isolation strictly
+    if (!isMaster) {
+      const userTenant = u.companyId || 'ciclodrone';
+      const currentTenant = currentUser.companyId || theme?.tenantId || 'ciclodrone';
+      if (userTenant !== currentTenant && !u.isMaster && u.role !== 'MASTER') {
+        return false;
+      }
+    } else if (selectedCompanyFilter !== 'ALL') {
+      const userTenant = u.companyId || (u.isMaster || u.role === 'MASTER' ? 'ALL' : 'ciclodrone');
+      if (userTenant !== selectedCompanyFilter && userTenant !== 'ALL') {
+        return false;
+      }
+    }
+    return (
+      u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      u.roleLabel.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (u.documentNumber && u.documentNumber.includes(searchQuery)) ||
+      (u.companyId && u.companyId.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+  });
 
   const filteredDrones = drones.filter(d => 
     d.modelName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -797,35 +842,86 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
       {/* ========================================================================= */}
       {activeTab === 'users' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-black text-slate-800 dark:text-slate-200 flex items-center gap-2">
-              <Users className="w-4 h-4 text-purple-600" />
-              Equipe & Usuários Cadastrados no Sistema
-            </h2>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-black text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                <Users className="w-4 h-4 text-purple-600" />
+                {isMaster ? 'Equipe & Usuários Multi-Empresas (Visão Master)' : `Equipe & Usuários • ${theme?.companyName || 'Empresa'}`}
+              </h2>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                {isMaster 
+                  ? 'Controle total sobre administradores, pilotos e operadores de todas as empresas registradas.'
+                  : 'Cadastro e gestão de novos pilotos, auxiliares e operadores vinculados exclusivamente à sua empresa.'
+                }
+              </p>
+            </div>
             <button
               onClick={handleOpenNewUser}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 transition-colors flex items-center gap-1.5 cursor-pointer"
+              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-95 shrink-0"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Adicionar Colaborador</span>
+              <span>{isMaster ? 'Cadastrar Novo Administrador / Usuário' : 'Adicionar Colaborador'}</span>
             </button>
           </div>
+
+          {/* Master Company Filter Pills */}
+          {isMaster && (
+            <div className="flex flex-wrap items-center gap-1.5 p-2.5 bg-slate-50 dark:bg-slate-900/80 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-xs">
+              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1 mr-1">
+                <Building2 className="w-3.5 h-3.5 text-purple-600" />
+                Filtrar por Empresa:
+              </span>
+              <button
+                onClick={() => setSelectedCompanyFilter('ALL')}
+                className={`px-2.5 py-1 rounded-xl font-bold text-xs transition-colors cursor-pointer ${
+                  selectedCompanyFilter === 'ALL'
+                    ? 'bg-purple-600 text-white shadow-2xs'
+                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                🌐 Todas as Empresas ({users.length})
+              </button>
+              {PRESET_COMPANIES.map(comp => {
+                const compCount = users.filter(u => u.companyId === comp.id).length;
+                return (
+                  <button
+                    key={comp.id}
+                    onClick={() => setSelectedCompanyFilter(comp.id)}
+                    className={`px-2.5 py-1 rounded-xl font-bold text-xs transition-colors cursor-pointer flex items-center gap-1 ${
+                      selectedCompanyFilter === comp.id
+                        ? 'bg-purple-600 text-white shadow-2xs'
+                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span>🏢 {comp.name}</span>
+                    <span className="opacity-70 text-[10px]">({compCount})</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {filteredUsers.map((u) => {
               const roleColors: Record<UserRole, string> = {
-                ADMIN: 'bg-purple-100/90 text-purple-800 dark:bg-purple-950/80 dark:text-purple-300 border-purple-300/80',
+                MASTER: 'bg-amber-100/90 text-amber-900 dark:bg-amber-950/80 dark:text-amber-200 border-amber-300/80 font-black',
+                ADMIN: 'bg-purple-100/90 text-purple-800 dark:bg-purple-950/80 dark:text-purple-300 border-purple-300/80 font-bold',
                 USER: 'bg-emerald-100/90 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border-emerald-300/80',
                 PILOT: 'bg-blue-100/90 text-blue-800 dark:bg-blue-950/80 dark:text-blue-300 border-blue-300/80',
                 ASSISTANT: 'bg-amber-100/90 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border-amber-300/80',
               };
 
+              const compPreset = PRESET_COMPANIES.find(p => p.id === u.companyId);
+              const companyName = u.isMaster || u.role === 'MASTER' ? 'Multi-Empresa Global' : (compPreset?.name || theme?.companyName || 'Ciclodrone');
+
               return (
                 <div 
                   key={u.id}
-                  className={`bg-white dark:bg-slate-800/95 border rounded-xl p-3.5 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between ${
+                  className={`bg-white dark:bg-slate-800/95 border rounded-2xl p-3.5 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between ${
                     u.status === 'INACTIVE' 
                       ? 'border-slate-200 dark:border-slate-800 opacity-60' 
+                      : u.isMaster || u.role === 'MASTER'
+                      ? 'border-amber-300 dark:border-amber-700/80 bg-gradient-to-b from-amber-50/20 to-white dark:from-amber-950/20 dark:to-slate-800/95'
                       : 'border-slate-200/80 dark:border-slate-700/80 hover:border-purple-400 dark:hover:border-purple-500'
                   }`}
                 >
@@ -846,11 +942,12 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
                           />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <h3 className="text-xs font-extrabold text-slate-900 dark:text-white truncate leading-tight">
+                          <h3 className="text-xs font-extrabold text-slate-900 dark:text-white truncate leading-tight flex items-center gap-1">
                             {u.name}
+                            {(u.isMaster || u.role === 'MASTER') && <span title="Usuário Super Master">👑</span>}
                           </h3>
-                          <span className={`inline-block mt-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-md border ${roleColors[u.role]} truncate max-w-full`}>
-                            {u.roleLabel}
+                          <span className={`inline-block mt-0.5 text-[9px] px-1.5 py-0.5 rounded-md border ${roleColors[u.role] || roleColors.USER} truncate max-w-full`}>
+                            {u.isMaster || u.role === 'MASTER' ? '👑 SUPER MASTER' : u.roleLabel}
                           </span>
                         </div>
                       </div>
@@ -883,6 +980,15 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
 
                     {/* Compact Details Grid */}
                     <div className="space-y-1 text-[11px] text-slate-600 dark:text-slate-400 border-t border-slate-100 dark:border-slate-700/60 pt-2">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-slate-400 flex items-center gap-1 text-[10px]">
+                          <Building2 className="w-3 h-3 shrink-0 text-purple-500" /> Empresa:
+                        </span>
+                        <span className="font-semibold text-purple-700 dark:text-purple-300 truncate max-w-[150px]" title={companyName}>
+                          {u.isMaster || u.role === 'MASTER' ? '👑 Multi-Empresa' : companyName}
+                        </span>
+                      </div>
+
                       <div className="flex items-center justify-between gap-1">
                         <span className="text-slate-400 flex items-center gap-1 text-[10px]">
                           <Mail className="w-3 h-3 shrink-0" /> E-mail:
@@ -1757,19 +1863,58 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
                   />
                 </div>
 
+                {/* Company Selection Field */}
                 <div>
                   <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Perfil / Função *
+                    Empresa Vinculada *
+                  </label>
+                  {isMaster ? (
+                    <select
+                      value={userFormData.companyId || 'ciclodrone'}
+                      onChange={(e) => setUserFormData({ ...userFormData, companyId: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer"
+                    >
+                      {PRESET_COMPANIES.map(comp => (
+                        <option key={comp.id} value={comp.id}>
+                          🏢 {comp.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <Building2 className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                        <span className="truncate">{PRESET_COMPANIES.find(p => p.id === (currentUser.companyId || theme?.tenantId))?.name || theme?.companyName || 'Empresa Local'}</span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-medium shrink-0">(Sua Empresa)</span>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Perfil / Função no Sistema *
                   </label>
                   <select
-                    value={userFormData.role || 'USER'}
+                    value={userFormData.role || (isMaster ? 'ADMIN' : 'PILOT')}
                     onChange={(e) => setUserFormData({ ...userFormData, role: e.target.value as UserRole })}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer"
                   >
-                    <option value="ADMIN">🛡️ Administrador Geral (Gestão & Governança)</option>
-                    <option value="PILOT">✈️ Piloto de Drone (DECEA / Operações de Voo)</option>
-                    <option value="ASSISTANT">🧪 Auxiliar de Pulverização (Calda & NR-31)</option>
-                    <option value="USER">🌾 Produtor Rural / Cliente (Acompanhamento & OS)</option>
+                    {isMaster ? (
+                      <>
+                        <option value="ADMIN">🛡️ Administrador da Empresa (Gestão Local da Empresa)</option>
+                        <option value="PILOT">✈️ Piloto de Drone (DECEA / Operações de Voo)</option>
+                        <option value="ASSISTANT">🧪 Auxiliar de Pulverização (Calda & NR-31)</option>
+                        <option value="USER">🌾 Produtor Rural / Cliente (Acompanhamento & OS)</option>
+                        <option value="MASTER">👑 Super Master (Privilégio Total Multi-Empresa)</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="PILOT">✈️ Piloto de Drone (DECEA / Operações de Voo)</option>
+                        <option value="ASSISTANT">🧪 Auxiliar de Pulverização (Calda & NR-31)</option>
+                        <option value="USER">🌾 Produtor Rural / Cliente (Acompanhamento & OS)</option>
+                      </>
+                    )}
                   </select>
                 </div>
 
@@ -1783,7 +1928,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
                     value={userFormData.email || ''}
                     onChange={(e) => setUserFormData({ ...userFormData, email: e.target.value })}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder="marcos@agrosys.agr.br"
+                    placeholder="marcos@empresa.com.br"
                   />
                 </div>
 

@@ -29,8 +29,9 @@ export const FinancialCommissionsView: React.FC<FinancialCommissionsViewProps> =
 }) => {
   const [filterType, setFilterType] = useState<string>('ALL');
 
-  // Strict Admin Role Guard
-  if (currentUser.role !== 'ADMIN') {
+  // Strict Admin & Master Role Guard
+  const hasAccess = currentUser.role === 'ADMIN' || currentUser.role === 'MASTER' || currentUser.isMaster;
+  if (!hasAccess) {
     return (
       <div className="max-w-2xl mx-auto my-12 p-8 bg-white dark:bg-emerald-950/80 border border-emerald-200 dark:border-emerald-800 rounded-3xl shadow-xl text-center space-y-4 animate-in fade-in">
         <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 flex items-center justify-center text-amber-600 dark:text-amber-400 shadow-inner">
@@ -41,7 +42,7 @@ export const FinancialCommissionsView: React.FC<FinancialCommissionsViewProps> =
             Acesso Restrito ao Módulo Financeiro
           </h2>
           <p className="text-xs text-slate-600 dark:text-emerald-300/80 leading-relaxed max-w-md mx-auto">
-            As informações de faturamento, comissões da tripulação, contas a pagar e contas a receber são de visualização e controle exclusivo dos <strong>Administradores</strong> do sistema.
+            As informações de faturamento, comissões da tripulação, contas a pagar e contas a receber são de visualização e controle exclusivo dos <strong>Administradores</strong> e <strong>Usuários Master</strong> do sistema.
           </p>
         </div>
         <div className="pt-2">
@@ -157,7 +158,7 @@ export const FinancialCommissionsView: React.FC<FinancialCommissionsViewProps> =
             Lançamentos Financeiros & Títulos
           </h3>
 
-          {currentUser.role === 'ADMIN' && (
+          {(currentUser.role === 'ADMIN' || currentUser.role === 'MASTER' || currentUser.isMaster) && (
             <div className="flex items-center gap-1 bg-emerald-100/70 dark:bg-emerald-950/80 p-0.5 rounded-lg text-xs border border-emerald-200/60 dark:border-emerald-800 self-start sm:self-auto">
               <button
                 onClick={() => setFilterType('ALL')}

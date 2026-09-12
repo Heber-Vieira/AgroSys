@@ -77,7 +77,7 @@ export const AdminBrandingStudio: React.FC<AdminBrandingStudioProps> = ({
   const textOnPrimary = evaluateWcagCompliance('#FFFFFF', theme.primaryColor);
   const accentOnWhite = evaluateWcagCompliance(theme.accentColor, '#FFFFFF');
 
-  const isAdmin = currentUser.role === 'ADMIN';
+  const isAdmin = currentUser.role === 'ADMIN' || currentUser.role === 'MASTER' || currentUser.isMaster;
 
   const showToast = (msg: string = 'Alterações salvas e sincronizadas!') => {
     setToastMessage(msg);
