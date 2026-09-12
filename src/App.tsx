@@ -74,6 +74,13 @@ import {
 } from './data/mockAppState';
 import { BatteryAlertOverlay } from './components/BatteryAlertOverlay';
 import { playBatteryAlertSound } from './utils/batteryAudioAlert';
+import { 
+  calculateNextBatteryAlertTimestamp, 
+  calculateBatterySnoozeTimestamp, 
+  formatBatteryPeriodLabel, 
+  formatTimestampToDate 
+} from './utils/batteryAlertUtils';
+import { showToast } from './services/notificationService';
 import { loadTenantBrandingFromSupabase, loadUserPhotosFromSupabase } from './services/supabase';
 import { USER_PHOTO_STORAGE_KEY } from './components/UserAvatar';
 
@@ -472,7 +479,10 @@ export default function App() {
       try {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed.periodValue === 'number') {
-          return parsed;
+          return {
+            ...INITIAL_BATTERY_ALERT_SETTINGS,
+            ...parsed,
+          };
         }
       } catch (e) {
         console.warn('Falha ao carregar configurações de alertas de bateria:', e);
@@ -493,43 +503,53 @@ export default function App() {
   }, [batteryAlertSettings]);
 
   // Periodic Timer Effect for Battery Health Checks
+  // Respeita estritamente a periodicidade configurada em Dias ou Meses e o reconhecimento do alarme
   useEffect(() => {
     if (!batteryAlertSettings.enabled) {
       setShowBatteryAlertBanner(false);
       return;
     }
 
-    const checkIntervalMs = 10000; // Check every 10 seconds
+    const checkIntervalMs = 5000; // Avalia o relógio a cada 5 segundos
     const timer = setInterval(() => {
       const now = Date.now();
-      const nextTime = batteryAlertSettings.nextAlertTimestamp || now;
+      const nextTime = batteryAlertSettings.nextAlertTimestamp;
 
-      // Trigger condition: Next time reached OR any drone in active fleet has battery health alert
-      const hasUnhealthyBattery = drones.some(d => (d.batteryHealthPct && d.batteryHealthPct < (batteryAlertSettings.minHealthThresholdPct || 85)));
-      if (now >= nextTime || hasUnhealthyBattery) {
-        setShowBatteryAlertBanner(true);
-
-        // Play audio alert if enabled
-        if (batteryAlertSettings.soundEnabled) {
-          playBatteryAlertSound(batteryAlertSettings.soundType, batteryAlertSettings.soundVolume);
-        }
-
-        // Schedule next alert based on configured Days / Months
-        const unit = batteryAlertSettings.periodUnit || 'DAYS';
-        const val = batteryAlertSettings.periodValue || (unit === 'MONTHS' ? 1 : 15);
-        const periodMs = unit === 'MONTHS' ? val * 30 * 24 * 60 * 60 * 1000 : val * 24 * 60 * 60 * 1000;
-        const nextMs = now + periodMs;
-
-        setBatteryAlertSettings((prev) => ({
+      // Se nextAlertTimestamp não estiver definido, calcula com base na periodicidade
+      if (!nextTime) {
+        const nextMs = calculateNextBatteryAlertTimestamp(batteryAlertSettings, now);
+        setBatteryAlertSettings(prev => ({
           ...prev,
-          lastAlertTimestamp: now,
           nextAlertTimestamp: nextMs,
         }));
+        return;
+      }
+
+      // O alerta só é disparado quando a data agendada for atingida ou ultrapassada
+      if (now >= nextTime) {
+        setShowBatteryAlertBanner(prevShow => {
+          if (!prevShow) {
+            // Emite o aviso sonoro apenas uma vez ao abrir o alerta
+            if (batteryAlertSettings.soundEnabled) {
+              playBatteryAlertSound(batteryAlertSettings.soundType, batteryAlertSettings.soundVolume);
+            }
+            return true;
+          }
+          return prevShow;
+        });
       }
     }, checkIntervalMs);
 
     return () => clearInterval(timer);
-  }, [batteryAlertSettings, drones]);
+  }, [
+    batteryAlertSettings.enabled, 
+    batteryAlertSettings.nextAlertTimestamp, 
+    batteryAlertSettings.periodUnit, 
+    batteryAlertSettings.periodValue, 
+    batteryAlertSettings.soundEnabled, 
+    batteryAlertSettings.soundType, 
+    batteryAlertSettings.soundVolume
+  ]);
 
   // Handler for photo updates
   const handleUpdateUserPhoto = (userId: string, photoUrl: string) => {
@@ -1016,26 +1036,45 @@ export default function App() {
         onDismissAlert={() => setShowBatteryAlertBanner(false)}
         onSnoozeAlert={() => {
           setShowBatteryAlertBanner(false);
-          setBatteryAlertSettings((prev) => {
-            const snoozeDays = prev.snoozeDays || 3;
-            return {
-              ...prev,
-              nextAlertTimestamp: Date.now() + snoozeDays * 24 * 60 * 60 * 1000,
-            };
-          });
+          const snoozeDays = batteryAlertSettings.snoozeDays || 1;
+          const nextMs = calculateBatterySnoozeTimestamp(snoozeDays, Date.now());
+          setBatteryAlertSettings((prev) => ({
+            ...prev,
+            nextAlertTimestamp: nextMs,
+          }));
+          showToast(
+            `Alerta de baterias adiado por ${snoozeDays} ${snoozeDays === 1 ? 'dia' : 'dias'}. Próximo aviso: ${formatTimestampToDate(nextMs)}.`,
+            'info',
+            'Alerta Adiado'
+          );
         }}
         onRecordInspection={() => {
           setShowBatteryAlertBanner(false);
-          setBatteryAlertSettings((prev) => {
-            const unit = prev.periodUnit || 'DAYS';
-            const val = prev.periodValue || (unit === 'MONTHS' ? 1 : 15);
-            const periodMs = unit === 'MONTHS' ? val * 30 * 24 * 60 * 60 * 1000 : val * 24 * 60 * 60 * 1000;
-            return {
-              ...prev,
-              lastAlertTimestamp: Date.now(),
-              nextAlertTimestamp: Date.now() + periodMs,
-            };
-          });
+          const now = Date.now();
+          const nextMs = calculateNextBatteryAlertTimestamp(batteryAlertSettings, now);
+          setBatteryAlertSettings((prev) => ({
+            ...prev,
+            lastAlertTimestamp: now,
+            nextAlertTimestamp: nextMs,
+          }));
+          showToast(
+            `Inspeção confirmada e alarme de baterias reconhecido! Próxima checagem: ${formatTimestampToDate(nextMs)}.`,
+            'success',
+            'Alarme Reconhecido'
+          );
+        }}
+        onSaveSettings={(newSettings) => {
+          const nextMs = calculateNextBatteryAlertTimestamp(newSettings, Date.now());
+          const updated: BatteryAlertSettings = {
+            ...newSettings,
+            nextAlertTimestamp: nextMs,
+          };
+          setBatteryAlertSettings(updated);
+          showToast(
+            `Periodicidade salva (a cada ${formatBatteryPeriodLabel(newSettings.periodUnit, newSettings.periodValue)}). Próxima checagem: ${formatTimestampToDate(nextMs)}.`,
+            'success',
+            'Configurações Atualizadas'
+          );
         }}
       />
 

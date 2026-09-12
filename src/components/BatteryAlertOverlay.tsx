@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { AgriculturalDrone, BatteryAlertSettings, BatteryAlertPeriodUnit, UserProfile } from '../types';
 import { 
   BatteryCharging, 
@@ -10,17 +10,21 @@ import {
   CheckCircle2, 
   Settings, 
   X, 
-  ShieldAlert, 
   Zap, 
-  Activity, 
   Sliders,
   Play,
-  RotateCcw,
   Sparkles,
-  Info,
-  Clock
+  Clock,
+  Eye,
+  ShieldCheck
 } from 'lucide-react';
 import { playBatteryAlertSound } from '../utils/batteryAudioAlert';
+import { 
+  formatBatteryPeriodLabel, 
+  calculateNextBatteryAlertTimestamp, 
+  calculateBatterySnoozeTimestamp, 
+  formatTimestampToDate 
+} from '../utils/batteryAlertUtils';
 
 interface BatteryAlertOverlayProps {
   currentUser?: UserProfile;
@@ -32,6 +36,7 @@ interface BatteryAlertOverlayProps {
   onDismissAlert: () => void;
   onSnoozeAlert: () => void;
   onRecordInspection: () => void;
+  onSaveSettings?: (newSettings: BatteryAlertSettings) => void;
 }
 
 export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
@@ -44,17 +49,14 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
   onDismissAlert,
   onSnoozeAlert,
   onRecordInspection,
+  onSaveSettings,
 }) => {
   const [isInspectionOpen, setIsInspectionOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSoundMuted, setIsSoundMuted] = useState(false);
-
-  // Automatically open inspection modal when banner is manually triggered or shown
-  useEffect(() => {
-    if (showAlertBanner) {
-      setIsInspectionOpen(true);
-    }
-  }, [showAlertBanner]);
+  
+  // Local temporary settings state while editing in modal
+  const [tempSettings, setTempSettings] = useState<BatteryAlertSettings>(settings);
 
   // Period presets for Days and Months
   const DAY_PRESETS = [
@@ -81,27 +83,9 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
     { days: 7, label: '7 dias' },
   ];
 
-  // Helper to format periodicity text
   const currentPeriodUnit: BatteryAlertPeriodUnit = settings.periodUnit || 'DAYS';
   const currentPeriodValue = settings.periodValue || (currentPeriodUnit === 'MONTHS' ? 1 : 15);
   const currentSnoozeDays = settings.snoozeDays || 1;
-
-  const getPeriodLabel = (unit: BatteryAlertPeriodUnit, val: number) => {
-    if (unit === 'MONTHS') {
-      return val === 1 ? '1 Mês' : `${val} Meses`;
-    }
-    return val === 1 ? '1 Dia' : `${val} Dias`;
-  };
-
-  const getEstimatedNextDate = (unit: BatteryAlertPeriodUnit, val: number) => {
-    const d = new Date();
-    if (unit === 'MONTHS') {
-      d.setMonth(d.getMonth() + (Number(val) || 1));
-    } else {
-      d.setDate(d.getDate() + (Number(val) || 15));
-    }
-    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  };
 
   // Identify drones needing battery attention
   const dronesNeedingAttention = drones.filter((d) => {
@@ -111,7 +95,7 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
   });
 
   const handleTestSound = () => {
-    playBatteryAlertSound(settings.soundType, settings.soundVolume);
+    playBatteryAlertSound(tempSettings.soundType, tempSettings.soundVolume);
   };
 
   const handleConfirmInspection = () => {
@@ -121,7 +105,6 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
         prev.map((d) => ({
           ...d,
           lastBatteryInspectionDate: today,
-          // Option to reset minor voltage deltas upon inspection
           cellVoltageDeltaMv: Math.min(d.cellVoltageDeltaMv ?? 15, 12),
         }))
       );
@@ -130,18 +113,36 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
     setIsInspectionOpen(false);
   };
 
+  const handleOpenSettings = () => {
+    setTempSettings({ ...settings });
+    setIsSettingsOpen(true);
+  };
+
+  const handleSaveSettingsModal = () => {
+    if (onSaveSettings) {
+      onSaveSettings(tempSettings);
+    } else {
+      const nextMs = calculateNextBatteryAlertTimestamp(tempSettings, Date.now());
+      setSettings({
+        ...tempSettings,
+        nextAlertTimestamp: nextMs,
+      });
+    }
+    setIsSettingsOpen(false);
+  };
+
   return (
     <>
       {/* 1. ELEGANT CENTERED VISUAL & AUDIO ALERT CARD */}
       {showAlertBanner && (
-        <div className="fixed inset-0 z-50 bg-black/65 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="relative w-full max-w-lg bg-gradient-to-b from-[#0a281e] via-[#051c15] to-[#03130e] text-white border-2 border-amber-500/70 rounded-3xl shadow-2xl shadow-emerald-950/90 p-5 sm:p-6 space-y-5 animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg bg-gradient-to-b from-[#0a281e] via-[#051c15] to-[#03130e] text-white border-2 border-amber-500/80 rounded-3xl shadow-2xl shadow-emerald-950/90 p-5 sm:p-6 space-y-5 animate-in zoom-in-95 duration-200">
             {/* Top Close Button */}
             <button
               type="button"
               onClick={onDismissAlert}
               className="absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-emerald-900/60 transition-colors cursor-pointer"
-              title="Fechar alerta"
+              title="Fechar alerta temporariamente"
             >
               <X className="w-5 h-5" />
             </button>
@@ -158,9 +159,10 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                     <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
                     Alerta de Baterias
                   </span>
+
                   <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-amber-950/90 text-amber-300 border border-amber-700/80 font-bold flex items-center gap-1">
                     {currentPeriodUnit === 'MONTHS' ? <Calendar className="w-3 h-3 text-amber-400" /> : <CalendarDays className="w-3 h-3 text-amber-400" />}
-                    A cada {getPeriodLabel(currentPeriodUnit, currentPeriodValue)}
+                    Ciclo: A cada {formatBatteryPeriodLabel(currentPeriodUnit, currentPeriodValue)}
                   </span>
                 </div>
 
@@ -174,62 +176,71 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
             <div className="p-3.5 rounded-2xl bg-emerald-950/80 border border-emerald-800/80 space-y-1 text-xs">
               <p className="text-amber-200 font-bold flex items-center gap-1.5">
                 {dronesNeedingAttention.length > 0
-                  ? `⚠️ ${dronesNeedingAttention.length} drone(s) requerem atenção na saúde ou células!`
-                  : `Lembrete periódico (${getPeriodLabel(currentPeriodUnit, currentPeriodValue)}) ativado.`}
+                  ? `⚠️ ${dronesNeedingAttention.length} drone(s) requerem atenção em células ou saúde!`
+                  : `Lembrete periódico (${formatBatteryPeriodLabel(currentPeriodUnit, currentPeriodValue)}) atingido.`}
               </p>
               <p className="text-emerald-300/80 text-[11px] leading-relaxed">
-                Inspeção recomendada para verificar ciclos de carga, desbalanço celular (mV), saúde (SoH) e temperatura de operabilidade.
+                Inspeção recomendada para conferir ciclos de carga, balanceamento celular (mV) e saúde geral (SoH) das baterias Smart.
               </p>
             </div>
 
             {/* Actions Grid */}
             <div className="space-y-2.5 pt-1">
-              {/* Primary Action Button */}
+              {/* Primary Action Button: Acknowledge & Record Inspection */}
               <button
                 type="button"
-                onClick={() => setIsInspectionOpen(true)}
-                className="w-full py-3 px-4 rounded-2xl font-black text-xs sm:text-sm bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 shadow-lg shadow-amber-950/40 transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                onClick={handleConfirmInspection}
+                className="w-full py-3 px-4 rounded-2xl font-black text-xs sm:text-sm bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-400 hover:to-emerald-300 text-slate-950 shadow-lg shadow-emerald-950/40 transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
               >
-                <Zap className="w-4 h-4 fill-slate-950" />
-                <span>Checar Baterias & Telemetria Agora</span>
+                <CheckCircle2 className="w-4 h-4 fill-slate-950 text-emerald-400" />
+                <span>Reconhecer Alarme & Confirmar Inspeção</span>
               </button>
 
-              {/* Secondary Action Row */}
-              <div className="flex items-center gap-2">
+              {/* Secondary Buttons */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsInspectionOpen(true)}
+                  className="py-2.5 px-3 rounded-xl font-bold text-xs bg-emerald-900/60 hover:bg-emerald-800/80 text-emerald-200 border border-emerald-700/80 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                  title="Ver telemetria detalhada de cada bateria"
+                >
+                  <Eye className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Ver Telemetria</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={onSnoozeAlert}
-                  className="flex-1 py-2.5 px-3 rounded-xl font-bold text-xs bg-emerald-900/60 hover:bg-emerald-800/80 text-amber-200 border border-emerald-700/80 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="py-2.5 px-3 rounded-xl font-bold text-xs bg-amber-950/60 hover:bg-amber-900/80 text-amber-200 border border-amber-700/80 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                   title={`Adiar alerta por ${currentSnoozeDays} ${currentSnoozeDays === 1 ? 'dia' : 'dias'}`}
                 >
                   <Clock className="w-3.5 h-3.5 text-amber-400" />
                   <span>Adiar ({currentSnoozeDays} {currentSnoozeDays === 1 ? 'dia' : 'dias'})</span>
                 </button>
+              </div>
 
+              {/* Bottom Quick Controls */}
+              <div className="flex items-center justify-between pt-1 border-t border-emerald-900/80 text-xs">
                 {settings.soundEnabled && (
                   <button
                     type="button"
                     onClick={() => setIsSoundMuted(!isSoundMuted)}
-                    className={`py-2.5 px-3 rounded-xl text-xs font-bold border transition-colors cursor-pointer flex items-center gap-1.5 ${
-                      isSoundMuted
-                        ? 'bg-rose-950/70 text-rose-300 border-rose-800 hover:bg-rose-900/70'
-                        : 'bg-emerald-900/60 text-emerald-300 border-emerald-700 hover:bg-emerald-800/80'
-                    }`}
-                    title={isSoundMuted ? 'Som mutado' : 'Som ativo'}
+                    className="text-[11px] text-emerald-400 hover:text-emerald-200 flex items-center gap-1 cursor-pointer"
                   >
                     {isSoundMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
-                    <span>{isSoundMuted ? 'Mutado' : 'Som On'}</span>
+                    <span>{isSoundMuted ? 'Som silenciado' : 'Som ativo'}</span>
                   </button>
                 )}
 
                 {currentUser?.role === 'ADMIN' && (
                   <button
                     type="button"
-                    onClick={() => setIsSettingsOpen(true)}
-                    className="p-2.5 rounded-xl bg-emerald-900/60 hover:bg-emerald-800/80 text-emerald-300 border border-emerald-700/80 transition-colors cursor-pointer"
-                    title="Configurar Periodicidade em Dias/Meses e Sons (Admin)"
+                    onClick={handleOpenSettings}
+                    className="text-[11px] text-amber-400 hover:text-amber-200 flex items-center gap-1 cursor-pointer font-bold ml-auto"
+                    title="Configurar Periodicidade em Dias ou Meses (Admin)"
                   >
-                    <Settings className="w-4 h-4" />
+                    <Settings className="w-3.5 h-3.5" />
+                    <span>Configurar Periodicidade</span>
                   </button>
                 )}
               </div>
@@ -253,7 +264,7 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                     Inspeção de Saúde das Baterias da Frota
                   </h3>
                   <p className="text-xs text-slate-600 dark:text-emerald-300/80">
-                    Telemetria das baterias Smart LiPo/LiFePO4 dos drones e diagnóstico de células.
+                    Telemetria das baterias Smart dos drones, ciclos e diagnóstico de células.
                   </p>
                 </div>
               </div>
@@ -264,7 +275,7 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                     type="button"
                     onClick={() => {
                       setIsInspectionOpen(false);
-                      setIsSettingsOpen(true);
+                      handleOpenSettings();
                     }}
                     className="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-emerald-900/80 hover:bg-slate-200 dark:hover:bg-emerald-800 border border-slate-300 dark:border-emerald-700 text-slate-700 dark:text-emerald-200 transition-colors flex items-center gap-1.5 cursor-pointer"
                   >
@@ -379,7 +390,7 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
             {/* Footer Action */}
             <div className="pt-4 border-t border-slate-200 dark:border-emerald-800 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="text-xs text-slate-600 dark:text-emerald-300/80">
-                A confirmação registra a inspeção, zera os alertas visuais e reinicia a contagem periódica ({getPeriodLabel(currentPeriodUnit, currentPeriodValue)}).
+                A confirmação registra a inspeção, zera os alertas visuais e reinicia a contagem periódica ({formatBatteryPeriodLabel(currentPeriodUnit, currentPeriodValue)}).
               </div>
 
               <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -388,7 +399,7 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                   onClick={() => setIsInspectionOpen(false)}
                   className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl font-bold bg-slate-100 hover:bg-slate-200 dark:bg-emerald-900 dark:hover:bg-emerald-800 text-slate-700 dark:text-emerald-200 text-xs transition-colors cursor-pointer"
                 >
-                  Cancelar
+                  Fechar
                 </button>
 
                 <button
@@ -405,7 +416,7 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
         </div>
       )}
 
-      {/* 3. ADMIN SETTINGS MODAL - CONFIGURABLE ONLY IN DAYS AND MONTHS */}
+      {/* 3. ADMIN SETTINGS MODAL - CONFIGURABLE IN DAYS AND MONTHS */}
       {isSettingsOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
           <div className="relative w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-3xl shadow-2xl p-6 space-y-6 max-h-[90vh] overflow-y-auto">
@@ -420,7 +431,7 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                     Configuração de Periodicidade de Alertas
                   </h3>
                   <p className="text-xs text-slate-600 dark:text-emerald-300/80">
-                    Defina o ciclo de checagem obrigatória (Configurável exclusivamente em <strong>Dias</strong> e <strong>Meses</strong>).
+                    Defina o ciclo de checagem obrigatória (Configurável em <strong>Dias</strong> e <strong>Meses</strong>).
                   </p>
                 </div>
               </div>
@@ -448,13 +459,13 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
 
                 <input
                   type="checkbox"
-                  checked={settings.enabled}
-                  onChange={(e) => setSettings({ ...settings, enabled: e.target.checked })}
+                  checked={tempSettings.enabled}
+                  onChange={(e) => setTempSettings({ ...tempSettings, enabled: e.target.checked })}
                   className="w-5 h-5 accent-emerald-500 cursor-pointer"
                 />
               </div>
 
-              {/* CREATIVE PERIODICITY SELECTOR: ONLY DAYS AND MONTHS */}
+              {/* PERIODICITY SELECTOR: DAYS AND MONTHS */}
               <div className="space-y-3.5 p-4 rounded-2xl bg-slate-50 dark:bg-emerald-900/30 border border-slate-200 dark:border-emerald-800">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-black uppercase text-emerald-700 dark:text-emerald-400 tracking-wider flex items-center gap-1.5">
@@ -471,14 +482,14 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      setSettings({
-                        ...settings,
+                      setTempSettings({
+                        ...tempSettings,
                         periodUnit: 'DAYS',
-                        periodValue: currentPeriodUnit === 'MONTHS' ? 15 : currentPeriodValue,
+                        periodValue: tempSettings.periodUnit === 'MONTHS' ? 15 : tempSettings.periodValue,
                       });
                     }}
                     className={`py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                      currentPeriodUnit === 'DAYS'
+                      tempSettings.periodUnit === 'DAYS'
                         ? 'bg-emerald-600 dark:bg-emerald-500 text-white dark:text-slate-950 shadow-md scale-100'
                         : 'text-slate-700 dark:text-emerald-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-300/50 dark:hover:bg-emerald-900/50'
                     }`}
@@ -490,14 +501,14 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      setSettings({
-                        ...settings,
+                      setTempSettings({
+                        ...tempSettings,
                         periodUnit: 'MONTHS',
-                        periodValue: currentPeriodUnit === 'DAYS' ? 1 : currentPeriodValue,
+                        periodValue: tempSettings.periodUnit === 'DAYS' ? 1 : tempSettings.periodValue,
                       });
                     }}
                     className={`py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                      currentPeriodUnit === 'MONTHS'
+                      tempSettings.periodUnit === 'MONTHS'
                         ? 'bg-emerald-600 dark:bg-emerald-500 text-white dark:text-slate-950 shadow-md scale-100'
                         : 'text-slate-700 dark:text-emerald-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-300/50 dark:hover:bg-emerald-900/50'
                     }`}
@@ -508,21 +519,21 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                 </div>
 
                 {/* Presets based on selected unit */}
-                {currentPeriodUnit === 'DAYS' ? (
+                {tempSettings.periodUnit === 'DAYS' ? (
                   <div className="space-y-2">
                     <span className="text-[11px] font-bold text-slate-700 dark:text-emerald-300 block">
                       Ciclos recomendados em Dias:
                     </span>
                     <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                       {DAY_PRESETS.map((preset) => {
-                        const isSelected = currentPeriodValue === preset.value;
+                        const isSelected = tempSettings.periodValue === preset.value;
                         return (
                           <button
                             key={preset.value}
                             type="button"
                             onClick={() =>
-                              setSettings({
-                                ...settings,
+                              setTempSettings({
+                                ...tempSettings,
                                 periodUnit: 'DAYS',
                                 periodValue: preset.value,
                               })
@@ -547,14 +558,14 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                     </span>
                     <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                       {MONTH_PRESETS.map((preset) => {
-                        const isSelected = currentPeriodValue === preset.value;
+                        const isSelected = tempSettings.periodValue === preset.value;
                         return (
                           <button
                             key={preset.value}
                             type="button"
                             onClick={() =>
-                              setSettings({
-                                ...settings,
+                              setTempSettings({
+                                ...tempSettings,
                                 periodUnit: 'MONTHS',
                                 periodValue: preset.value,
                               })
@@ -577,7 +588,7 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                 {/* Custom numeric input */}
                 <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-white dark:bg-emerald-950/70 border border-slate-200 dark:border-emerald-800/80">
                   <div className="text-xs text-slate-700 dark:text-emerald-300">
-                    {currentPeriodUnit === 'DAYS'
+                    {tempSettings.periodUnit === 'DAYS'
                       ? 'Ou digite uma quantidade personalizada de dias:'
                       : 'Ou digite uma quantidade personalizada de meses:'}
                   </div>
@@ -585,21 +596,21 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                     <input
                       type="number"
                       min="1"
-                      max={currentPeriodUnit === 'DAYS' ? 365 : 24}
-                      value={currentPeriodValue}
+                      max={tempSettings.periodUnit === 'DAYS' ? 365 : 24}
+                      value={tempSettings.periodValue}
                       onChange={(e) => {
                         const val = Math.max(1, parseInt(e.target.value) || 1);
-                        setSettings({
-                          ...settings,
+                        setTempSettings({
+                          ...tempSettings,
                           periodValue: val,
                         });
                       }}
                       className="w-20 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-emerald-950 border border-slate-300 dark:border-emerald-700 text-slate-900 dark:text-white font-mono text-xs text-center focus:ring-2 focus:ring-emerald-500 outline-none"
                     />
                     <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
-                      {currentPeriodUnit === 'DAYS'
-                        ? currentPeriodValue === 1 ? 'dia' : 'dias'
-                        : currentPeriodValue === 1 ? 'mês' : 'meses'}
+                      {tempSettings.periodUnit === 'DAYS'
+                        ? tempSettings.periodValue === 1 ? 'dia' : 'dias'
+                        : tempSettings.periodValue === 1 ? 'mês' : 'meses'}
                     </span>
                   </div>
                 </div>
@@ -612,15 +623,15 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                       Previsão da Próxima Notificação:
                     </span>
                     <span className="font-mono font-bold text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/80 border border-amber-200 dark:border-amber-800">
-                      {getEstimatedNextDate(currentPeriodUnit, currentPeriodValue)}
+                      {formatTimestampToDate(calculateNextBatteryAlertTimestamp(tempSettings, Date.now()))}
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-600 dark:text-emerald-300/80 leading-relaxed">
-                    {currentPeriodUnit === 'DAYS'
-                      ? currentPeriodValue <= 15
+                    {tempSettings.periodUnit === 'DAYS'
+                      ? tempSettings.periodValue <= 15
                         ? '⚡ Ciclo Intensivo de Campo: Ideal para períodos de pulverização diária e alta rotatividade de baterias Smart.'
                         : '🌿 Ciclo Padrão de Manutenção: Balanceamento de tensão entre células e revisão de conectores XT90 / AS150.'
-                      : currentPeriodValue <= 3
+                      : tempSettings.periodValue <= 3
                         ? '🛠️ Ciclo Trimestral Preventivo: Calibração de capacidade total, teste de impedância e validação de descarga de armazenamento.'
                         : '🔒 Ciclo Semestral/Anual de Entressafra: Preservação de células em modo Storage (40-60% SoC) e laudo técnico.'}
                   </p>
@@ -642,9 +653,9 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                     <button
                       key={snz.days}
                       type="button"
-                      onClick={() => setSettings({ ...settings, snoozeDays: snz.days })}
+                      onClick={() => setTempSettings({ ...tempSettings, snoozeDays: snz.days })}
                       className={`py-2 px-1 rounded-xl text-xs font-bold border transition-all cursor-pointer text-center ${
-                        currentSnoozeDays === snz.days
+                        tempSettings.snoozeDays === snz.days
                           ? 'bg-emerald-600 dark:bg-emerald-500 text-white dark:text-slate-950 border-emerald-500 shadow-md scale-105'
                           : 'bg-white dark:bg-emerald-950/80 text-slate-700 dark:text-emerald-300 border-slate-200 dark:border-emerald-800 hover:bg-slate-100 dark:hover:bg-emerald-900'
                       }`}
@@ -665,21 +676,21 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
 
                   <input
                     type="checkbox"
-                    checked={settings.soundEnabled}
-                    onChange={(e) => setSettings({ ...settings, soundEnabled: e.target.checked })}
+                    checked={tempSettings.soundEnabled}
+                    onChange={(e) => setTempSettings({ ...tempSettings, soundEnabled: e.target.checked })}
                     className="w-5 h-5 accent-emerald-500 cursor-pointer"
                   />
                 </div>
 
-                {settings.soundEnabled && (
+                {tempSettings.soundEnabled && (
                   <div className="space-y-3 pt-2">
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <span className="text-xs text-slate-700 dark:text-emerald-300 block mb-1">Tipo de Sinal Sonoro:</span>
                         <select
-                          value={settings.soundType}
+                          value={tempSettings.soundType}
                           onChange={(e) =>
-                            setSettings({ ...settings, soundType: e.target.value as any })
+                            setTempSettings({ ...tempSettings, soundType: e.target.value as any })
                           }
                           className="w-full px-3 py-2 rounded-xl bg-white dark:bg-emerald-950 border border-slate-300 dark:border-emerald-700 text-slate-900 dark:text-white text-xs"
                         >
@@ -691,14 +702,14 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                       </div>
 
                       <div>
-                        <span className="text-xs text-slate-700 dark:text-emerald-300 block mb-1">Volume ({Math.round(settings.soundVolume * 100)}%):</span>
+                        <span className="text-xs text-slate-700 dark:text-emerald-300 block mb-1">Volume ({Math.round(tempSettings.soundVolume * 100)}%):</span>
                         <input
                           type="range"
                           min="0.1"
                           max="1.0"
                           step="0.05"
-                          value={settings.soundVolume}
-                          onChange={(e) => setSettings({ ...settings, soundVolume: parseFloat(e.target.value) })}
+                          value={tempSettings.soundVolume}
+                          onChange={(e) => setTempSettings({ ...tempSettings, soundVolume: parseFloat(e.target.value) })}
                           className="w-full accent-emerald-500 cursor-pointer mt-2"
                         />
                       </div>
@@ -715,7 +726,7 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                       </button>
 
                       <span className="text-[11px] text-slate-500 dark:text-emerald-300/80">
-                        Não necessita arquivos externos (Síntese Web Audio)
+                        Síntese de áudio nativa do navegador
                       </span>
                     </div>
                   </div>
@@ -732,9 +743,9 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                     type="number"
                     min="50"
                     max="100"
-                    value={settings.minHealthThresholdPct}
+                    value={tempSettings.minHealthThresholdPct}
                     onChange={(e) =>
-                      setSettings({ ...settings, minHealthThresholdPct: parseInt(e.target.value) || 85 })
+                      setTempSettings({ ...tempSettings, minHealthThresholdPct: parseInt(e.target.value) || 85 })
                     }
                     className="w-full px-3 py-2 rounded-xl bg-white dark:bg-emerald-950 border border-slate-300 dark:border-emerald-700 text-slate-900 dark:text-white font-mono"
                   />
@@ -749,9 +760,9 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                     type="number"
                     min="5"
                     max="200"
-                    value={settings.maxCellDeltaMv}
+                    value={tempSettings.maxCellDeltaMv}
                     onChange={(e) =>
-                      setSettings({ ...settings, maxCellDeltaMv: parseInt(e.target.value) || 30 })
+                      setTempSettings({ ...tempSettings, maxCellDeltaMv: parseInt(e.target.value) || 30 })
                     }
                     className="w-full px-3 py-2 rounded-xl bg-white dark:bg-emerald-950 border border-slate-300 dark:border-emerald-700 text-slate-900 dark:text-white font-mono"
                   />
@@ -765,9 +776,18 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
               <button
                 type="button"
                 onClick={() => setIsSettingsOpen(false)}
-                className="px-5 py-2.5 rounded-xl font-bold bg-emerald-600 hover:bg-emerald-500 text-white text-xs transition-all hover:scale-105 cursor-pointer shadow-md"
+                className="px-4 py-2.5 rounded-xl font-bold bg-slate-100 hover:bg-slate-200 dark:bg-emerald-900 text-slate-700 dark:text-emerald-200 text-xs transition-colors cursor-pointer"
               >
-                Salvar Configurações
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSaveSettingsModal}
+                className="px-5 py-2.5 rounded-xl font-bold bg-emerald-600 hover:bg-emerald-500 text-white text-xs transition-all hover:scale-105 cursor-pointer shadow-md flex items-center gap-1.5"
+              >
+                <ShieldCheck className="w-4 h-4" />
+                <span>Salvar Configurações</span>
               </button>
             </div>
           </div>
@@ -776,4 +796,3 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
     </>
   );
 };
-
