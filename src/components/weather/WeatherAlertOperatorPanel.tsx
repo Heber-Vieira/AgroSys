@@ -325,35 +325,35 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
               openTelemetryDetails();
             }
           }}
-          className="fixed top-6 right-6 max-w-md w-[calc(100vw-3rem)] bg-slate-950/95 backdrop-blur-md border-2 border-cyan-500/70 hover:border-cyan-400 hover:shadow-[0_12px_45px_rgba(6,182,212,0.45)] rounded-2xl p-4 text-white flex items-center justify-between gap-4 animate-in slide-in-from-top-8 sm:slide-in-from-right-8 duration-300 z-50 shadow-[0_12px_40px_rgba(6,182,212,0.35)] cursor-pointer group transition-all transform hover:-translate-y-0.5 active:translate-y-0 select-none"
+          className="fixed top-6 right-6 max-w-md w-[calc(100vw-3rem)] bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-2 border-cyan-500/70 hover:border-cyan-400 hover:shadow-[0_12px_45px_rgba(6,182,212,0.35)] rounded-2xl p-4 text-slate-900 dark:text-white flex items-center justify-between gap-4 animate-in slide-in-from-top-8 sm:slide-in-from-right-8 duration-300 z-50 shadow-2xl cursor-pointer group transition-all transform hover:-translate-y-0.5 active:translate-y-0 select-none"
           title="Clique para abrir as informações completas da telemetria climática"
         >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-cyan-500/20 group-hover:bg-cyan-500/30 flex items-center justify-center font-bold text-cyan-400 animate-bounce shrink-0 border border-cyan-400/40 transition-colors shadow-[0_0_15px_rgba(6,182,212,0.3)]">
-              <Clock className="w-5 h-5 text-cyan-400 animate-pulse" />
+            <div className="w-10 h-10 rounded-full bg-cyan-500/15 dark:bg-cyan-500/20 group-hover:bg-cyan-500/30 flex items-center justify-center font-bold text-cyan-600 dark:text-cyan-400 animate-bounce shrink-0 border border-cyan-400/40 transition-colors shadow-2xs">
+              <Clock className="w-5 h-5 text-cyan-600 dark:text-cyan-400 animate-pulse" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest block font-mono">TELEMETRIA ATUALIZADA</span>
-                <span className="text-[9px] bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 px-1.5 py-0.5 rounded-full font-bold inline-flex items-center gap-1 group-hover:bg-cyan-500/30 transition-colors">
-                  <Sparkles className="w-2.5 h-2.5 text-cyan-300" />
+                <span className="text-[10px] font-black text-cyan-700 dark:text-cyan-400 uppercase tracking-widest block font-mono">TELEMETRIA ATUALIZADA</span>
+                <span className="text-[9px] bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border border-cyan-400/40 px-1.5 py-0.5 rounded-full font-bold inline-flex items-center gap-1 group-hover:bg-cyan-500/30 transition-colors">
+                  <Sparkles className="w-2.5 h-2.5 text-cyan-600 dark:text-cyan-300" />
                   Abrir Informações
                 </span>
               </div>
-              <h4 className="text-xs sm:text-sm font-black uppercase text-white leading-tight mt-0.5 group-hover:text-cyan-200 transition-colors">
+              <h4 className="text-xs sm:text-sm font-black uppercase text-slate-900 dark:text-white leading-tight mt-0.5 group-hover:text-cyan-600 dark:group-hover:text-cyan-200 transition-colors">
                 Nova Leitura Climática Executada!
               </h4>
-              <p className="text-[10px] text-slate-300 mt-0.5">
+              <p className="text-[10px] text-slate-600 dark:text-slate-300 mt-0.5">
                 Os sensores avaliaram as condições atuais de temperatura, umidade, ventos e Delta T em tempo real.
               </p>
-              <div className="mt-1 flex items-center gap-2 text-[9px] text-cyan-400 font-semibold font-mono">
+              <div className="mt-1 flex items-center gap-2 text-[9px] text-cyan-700 dark:text-cyan-400 font-semibold font-mono">
                 <span>🌡️ {formatDecimal(temperature, 1)}°C</span>
                 <span>•</span>
                 <span>💧 {humidity}%</span>
                 <span>•</span>
                 <span>💨 {formatDecimal(windSpeed, 1)} km/h</span>
                 <span>•</span>
-                <span className="text-emerald-400">ΔT {formatDecimal(deltaT, 1)}°C</span>
+                <span className="text-emerald-600 dark:text-emerald-400">ΔT {formatDecimal(deltaT, 1)}°C</span>
               </div>
             </div>
           </div>
@@ -365,12 +365,12 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                 setShowReadingNotification(false);
                 stopReadingSound();
               }}
-              className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-[10px] font-bold rounded-lg cursor-pointer transition-colors"
+              className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-700 text-[10px] font-bold rounded-lg cursor-pointer transition-colors"
               title="Fechar notificação"
             >
               Fechar
             </button>
-            <span className="text-[9px] text-cyan-300 font-bold group-hover:underline flex items-center gap-0.5">
+            <span className="text-[9px] text-cyan-600 dark:text-cyan-300 font-bold group-hover:underline flex items-center gap-0.5">
               Ver Dados ➜
             </span>
           </div>
@@ -380,29 +380,29 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
       {/* Detailed Telemetry Information Modal (Opened upon clicking toast balloon or manual inspection) */}
       {isTelemetryModalOpen && (
         <div 
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 bg-black/60 dark:bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-200"
           onClick={() => setIsTelemetryModalOpen(false)}
         >
           <div 
-            className="relative w-full max-w-2xl bg-slate-950 border-2 border-cyan-500/50 rounded-3xl shadow-[0_25px_70px_rgba(6,182,212,0.35)] overflow-hidden flex flex-col max-h-[90vh] my-auto animate-in zoom-in-95 duration-200"
+            className="relative w-full max-w-2xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-cyan-500/50 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] my-auto animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-slate-900 via-cyan-950/60 to-slate-900 px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+            <div className="bg-gradient-to-r from-slate-50 via-cyan-50/60 to-slate-50 dark:from-slate-900 dark:via-cyan-950/60 dark:to-slate-900 px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.3)]">
+                <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 dark:bg-cyan-500/20 border border-cyan-400/30 dark:border-cyan-400/40 flex items-center justify-center text-cyan-600 dark:text-cyan-400 shadow-2xs">
                   <Activity className="w-5 h-5 animate-pulse" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-cyan-400 font-mono">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-cyan-700 dark:text-cyan-400 font-mono">
                       DIAGNÓSTICO METEOROLÓGICO OPERACIONAL
                     </span>
-                    <span className="text-[9px] bg-slate-800 text-slate-300 border border-slate-700 px-2 py-0.5 rounded-full font-mono">
+                    <span className="text-[9px] bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-full font-mono font-bold">
                       OS {orderCode}
                     </span>
                   </div>
-                  <h3 className="text-sm sm:text-base font-black text-white uppercase tracking-tight">
+                  <h3 className="text-sm sm:text-base font-black text-slate-900 dark:text-white uppercase tracking-tight">
                     Telemetria Climática em Tempo Real
                   </h3>
                 </div>
@@ -410,7 +410,7 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
 
               <button
                 onClick={() => setIsTelemetryModalOpen(false)}
-                className="p-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-700 transition-colors cursor-pointer"
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 dark:bg-slate-900/80 dark:hover:bg-slate-800 dark:text-slate-400 dark:hover:text-white border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
                 title="Fechar Janela"
               >
                 <X className="w-5 h-5" />
@@ -418,43 +418,43 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
             </div>
 
             {/* Modal Scrollable Content */}
-            <div className="p-5 sm:p-6 overflow-y-auto space-y-5 text-slate-200 text-xs">
+            <div className="p-5 sm:p-6 overflow-y-auto space-y-5 text-slate-700 dark:text-slate-200 text-xs">
               
               {/* General Operational Safety Status Banner */}
               {isSafe ? (
-                <div className="bg-emerald-950/40 border border-emerald-800/80 rounded-2xl p-4 flex items-start gap-3">
-                  <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-400/30 shrink-0">
+                <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/80 rounded-2xl p-4 flex items-start gap-3">
+                  <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-300/60 dark:border-emerald-400/30 shrink-0">
                     <ShieldCheck className="w-5 h-5" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <strong className="text-xs sm:text-sm font-black text-emerald-300 uppercase">
+                      <strong className="text-xs sm:text-sm font-black text-emerald-900 dark:text-emerald-300 uppercase">
                         Janela Operacional Segura & Liberada
                       </strong>
-                      <span className="text-[9px] bg-emerald-900/80 text-emerald-300 px-2 py-0.5 rounded-full font-bold">
+                      <span className="text-[9px] bg-emerald-100 text-emerald-800 dark:bg-emerald-900/80 dark:text-emerald-300 px-2 py-0.5 rounded-full font-bold">
                         Padrão MAPA / DECEA
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-300 mt-1 leading-relaxed">
+                    <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
                       As variáveis meteorológicas atuais estão rigorosamente dentro dos parâmetros normativos para pulverização com drones. Baixo risco de deriva e taxa de evaporação segura para deposição foliar.
                     </p>
                   </div>
                 </div>
               ) : (
-                <div className="bg-rose-950/40 border border-rose-800/80 rounded-2xl p-4 flex items-start gap-3">
-                  <div className="p-2 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-400/30 shrink-0">
+                <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/80 rounded-2xl p-4 flex items-start gap-3">
+                  <div className="p-2 rounded-xl bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-400 border border-rose-300/60 dark:border-rose-400/30 shrink-0">
                     <AlertOctagon className="w-5 h-5" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <strong className="text-xs sm:text-sm font-black text-rose-300 uppercase">
+                      <strong className="text-xs sm:text-sm font-black text-rose-900 dark:text-rose-300 uppercase">
                         Atenção: Restrições Climáticas Detectadas
                       </strong>
-                      <span className="text-[9px] bg-rose-900/80 text-rose-300 px-2 py-0.5 rounded-full font-bold">
+                      <span className="text-[9px] bg-rose-100 text-rose-800 dark:bg-rose-900/80 dark:text-rose-300 px-2 py-0.5 rounded-full font-bold">
                         Ajuste Necessário
                       </span>
                     </div>
-                    <ul className="text-[11px] text-rose-200/90 mt-1.5 list-disc list-inside space-y-1">
+                    <ul className="text-[11px] text-rose-800 dark:text-rose-200/90 mt-1.5 list-disc list-inside space-y-1">
                       {currentWarnings.map((w, idx) => (
                         <li key={idx}>{w}</li>
                       ))}
@@ -465,119 +465,119 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
 
               {/* 4 Main Parameter Cards */}
               <div>
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-2 font-mono">
+                <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2 font-mono">
                   📊 Parâmetros Climáticos Avaliados na Última Leitura ({activeTelemetryData?.timestamp || 'Agora'}):
                 </span>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   
                   {/* Temperatura */}
-                  <div className="bg-slate-900/90 p-3.5 rounded-2xl border border-slate-800 space-y-1.5">
+                  <div className="bg-slate-50 dark:bg-slate-900/90 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1">
-                        <Thermometer className="w-3.5 h-3.5 text-amber-400" />
+                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase flex items-center gap-1">
+                        <Thermometer className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
                         Temperatura do Ar
                       </span>
                       <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
                         temperature >= 15 && temperature <= 30
-                          ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
-                          : 'bg-rose-950 text-rose-400 border border-rose-800'
+                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                          : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
                       }`}>
                         {temperature >= 15 && temperature <= 30 ? 'Ideal' : 'Fora da Faixa'}
                       </span>
                     </div>
-                    <div className="text-xl sm:text-2xl font-black font-mono text-white">
+                    <div className="text-xl sm:text-2xl font-black font-mono text-slate-900 dark:text-white">
                       {formatDecimal(activeTelemetryData?.temperatureC ?? temperature, 1)} °C
                     </div>
-                    <div className="text-[10px] text-slate-400 border-t border-slate-800/80 pt-1 flex items-center justify-between">
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800/80 pt-1 flex items-center justify-between">
                       <span>Faixa MAPA: <strong>15°C a 30°C</strong></span>
-                      <span className="text-slate-500">
+                      <span className="text-slate-500 dark:text-slate-400 font-medium">
                         {temperature > 30 ? '🔥 Risco Evaporação' : temperature < 15 ? '❄️ Absorção Lenta' : '✓ Normal'}
                       </span>
                     </div>
                   </div>
 
                   {/* Umidade */}
-                  <div className="bg-slate-900/90 p-3.5 rounded-2xl border border-slate-800 space-y-1.5">
+                  <div className="bg-slate-50 dark:bg-slate-900/90 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1">
-                        <Droplets className="w-3.5 h-3.5 text-cyan-400" />
+                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase flex items-center gap-1">
+                        <Droplets className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
                         Umidade Relativa (UR)
                       </span>
                       <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
                         humidity >= 55
-                          ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
                           : humidity >= 50
-                          ? 'bg-amber-950 text-amber-400 border border-amber-800'
-                          : 'bg-rose-950 text-rose-400 border border-rose-800'
+                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
+                          : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
                       }`}>
                         {humidity >= 55 ? 'Excelente' : humidity >= 50 ? 'Aceitável' : 'Crítico'}
                       </span>
                     </div>
-                    <div className="text-xl sm:text-2xl font-black font-mono text-white">
+                    <div className="text-xl sm:text-2xl font-black font-mono text-slate-900 dark:text-white">
                       {activeTelemetryData?.relativeHumidityPct ?? humidity}%
                     </div>
-                    <div className="text-[10px] text-slate-400 border-t border-slate-800/80 pt-1 flex items-center justify-between">
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800/80 pt-1 flex items-center justify-between">
                       <span>Mínimo Legal: <strong>≥ 50%</strong></span>
-                      <span className="text-slate-500">
+                      <span className="text-slate-500 dark:text-slate-400 font-medium">
                         {humidity < 50 ? '⚠️ Evaporação Rápida' : '✓ Sobrevida da Gota'}
                       </span>
                     </div>
                   </div>
 
                   {/* Vento */}
-                  <div className="bg-slate-900/90 p-3.5 rounded-2xl border border-slate-800 space-y-1.5">
+                  <div className="bg-slate-50 dark:bg-slate-900/90 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1">
-                        <Wind className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase flex items-center gap-1">
+                        <Wind className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                         Velocidade do Vento
                       </span>
                       <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
                         windSpeed >= 3 && windSpeed <= 12
-                          ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
-                          : 'bg-rose-950 text-rose-400 border border-rose-800'
+                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                          : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
                       }`}>
                         {windSpeed >= 3 && windSpeed <= 12 ? 'Estável' : 'Fora da Faixa'}
                       </span>
                     </div>
                     <div className="flex items-baseline gap-2">
-                      <div className="text-xl sm:text-2xl font-black font-mono text-white">
+                      <div className="text-xl sm:text-2xl font-black font-mono text-slate-900 dark:text-white">
                         {formatDecimal(activeTelemetryData?.windSpeedKmh ?? windSpeed, 1)} km/h
                       </div>
-                      <span className="text-[11px] font-mono text-slate-400">
+                      <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
                         ({((activeTelemetryData?.windSpeedKmh ?? windSpeed) / 3.6).toFixed(1).replace('.', ',')} m/s)
                       </span>
                     </div>
-                    <div className="text-[10px] text-slate-400 border-t border-slate-800/80 pt-1 flex items-center justify-between">
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800/80 pt-1 flex items-center justify-between">
                       <span>Faixa MAPA: <strong>3 a 12 km/h</strong></span>
-                      <span className="text-slate-500">
+                      <span className="text-slate-500 dark:text-slate-400 font-medium">
                         {windSpeed > 12 ? '💨 Risco Deriva' : windSpeed < 3 ? '🛑 Risco Inversão' : '✓ Uniforme'}
                       </span>
                     </div>
                   </div>
 
                   {/* Delta T */}
-                  <div className="bg-slate-900/90 p-3.5 rounded-2xl border border-slate-800 space-y-1.5">
+                  <div className="bg-slate-50 dark:bg-slate-900/90 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1">
-                        <Compass className="w-3.5 h-3.5 text-purple-400" />
+                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase flex items-center gap-1">
+                        <Compass className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
                         Delta T (Psicrométrico)
                       </span>
                       <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
                         deltaT >= 2 && deltaT <= 8
-                          ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
                           : deltaT > 8 && deltaT <= 10
-                          ? 'bg-amber-950 text-amber-400 border border-amber-800'
-                          : 'bg-rose-950 text-rose-400 border border-rose-800'
+                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
+                          : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
                       }`}>
                         {deltaT >= 2 && deltaT <= 8 ? 'Janela Ótima' : deltaT > 8 && deltaT <= 10 ? 'Atenção' : 'Crítico'}
                       </span>
                     </div>
-                    <div className="text-xl sm:text-2xl font-black font-mono text-emerald-400">
+                    <div className="text-xl sm:text-2xl font-black font-mono text-emerald-600 dark:text-emerald-400">
                       {formatDecimal(activeTelemetryData?.deltaT ?? deltaT, 1)} °C
                     </div>
-                    <div className="text-[10px] text-slate-400 border-t border-slate-800/80 pt-1 flex items-center justify-between">
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800/80 pt-1 flex items-center justify-between">
                       <span>Faixa Ideal: <strong>2°C a 8°C</strong></span>
-                      <span className="text-slate-500">
+                      <span className="text-slate-500 dark:text-slate-400 font-medium">
                         {deltaT < 2 ? 'Inversão Térmica' : deltaT > 8 ? 'Evaporação Alta' : '✓ Absorção Ótima'}
                       </span>
                     </div>
@@ -587,44 +587,44 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
               </div>
 
               {/* Agronomic & Flight Guidelines */}
-              <div className="bg-slate-900/60 p-4 rounded-2xl border border-slate-800 space-y-2">
-                <span className="text-[10px] font-black text-cyan-400 uppercase tracking-wider block font-mono">
+              <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
+                <span className="text-[10px] font-black text-cyan-700 dark:text-cyan-400 uppercase tracking-wider block font-mono">
                   🌱 Recomendações Agronômicas para o Piloto Remoto:
                 </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-300">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-700 dark:text-slate-300">
                   <div className="flex items-start gap-2">
-                    <span className="text-emerald-400 font-bold">•</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">•</span>
                     <span><strong>Espectro de Gotas:</strong> Gotas Médias a Grossas (250-350 µm) para evitar perda por deriva.</span>
                   </div>
                   <div className="flex items-start gap-2">
-                    <span className="text-emerald-400 font-bold">•</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">•</span>
                     <span><strong>Distância Regulamentar:</strong> Manter afastamento de 100m de mananciais hídricos (Portaria 298/2021).</span>
                   </div>
                   <div className="flex items-start gap-2">
-                    <span className="text-emerald-400 font-bold">•</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">•</span>
                     <span><strong>Altura de Voo:</strong> Manter 2,5m a 3,5m acima do dossel da cultura para máxima deposição.</span>
                   </div>
                   <div className="flex items-start gap-2">
-                    <span className="text-emerald-400 font-bold">•</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">•</span>
                     <span><strong>Aditivação:</strong> Recomenda-se adjuvante antideriva/antievaporante se UR &lt; 60% ou vento &gt; 8 km/h.</span>
                   </div>
                 </div>
               </div>
 
               {/* Registered History Section */}
-              <div className="space-y-2 border-t border-slate-800/80 pt-3">
+              <div className="space-y-2 border-t border-slate-200 dark:border-slate-800/80 pt-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider font-mono">
+                  <span className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-wider font-mono">
                     Histórico Recente de Medições da OS ({weatherReadings.length})
                   </span>
-                  <span className="text-[10px] text-slate-500">
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400">
                     Modo atual: <strong>{recordingMode === 'auto' ? 'Automático' : 'Manual'}</strong>
                   </span>
                 </div>
                 {weatherReadings.length > 0 ? (
-                  <div className="bg-slate-950 rounded-xl border border-slate-800 max-h-32 overflow-y-auto">
+                  <div className="bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 max-h-32 overflow-y-auto">
                     <table className="w-full text-left text-[10px]">
-                      <thead className="bg-slate-900/80 text-slate-400 border-b border-slate-800">
+                      <thead className="bg-slate-50 dark:bg-slate-900/80 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
                         <tr>
                           <th className="p-2">Horário</th>
                           <th className="p-2">Temp</th>
@@ -634,17 +634,17 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                           <th className="p-2 text-center">Status</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-800/60 font-mono">
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-mono text-slate-700 dark:text-slate-300">
                         {weatherReadings.slice(-5).reverse().map((r, i) => (
-                          <tr key={i} className="hover:bg-slate-900/40">
-                            <td className="p-2 font-bold text-slate-300">{r.timestamp}</td>
+                          <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-900/40">
+                            <td className="p-2 font-bold text-slate-900 dark:text-slate-300">{r.timestamp}</td>
                             <td className="p-2">{formatDecimal(r.temperatureC, 1)}°C</td>
                             <td className="p-2">{r.relativeHumidityPct}%</td>
                             <td className="p-2">{formatDecimal(r.windSpeedKmh, 1)} km/h</td>
-                            <td className="p-2 text-emerald-400 font-bold">{formatDecimal(r.deltaT, 1)}°C</td>
+                            <td className="p-2 text-emerald-600 dark:text-emerald-400 font-bold">{formatDecimal(r.deltaT, 1)}°C</td>
                             <td className="p-2 text-center">
                               <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${
-                                r.isSafeForSpraying ? 'bg-emerald-950 text-emerald-400' : 'bg-rose-950 text-rose-400'
+                                r.isSafeForSpraying ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-400'
                               }`}>
                                 {r.isSafeForSpraying ? 'Seguro' : 'Alerta'}
                               </span>
@@ -664,8 +664,8 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
             </div>
 
             {/* Modal Footer */}
-            <div className="bg-slate-900 px-6 py-4 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
-              <span className="text-[10px] text-slate-400">
+            <div className="bg-slate-50 dark:bg-slate-900 px-6 py-4 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <span className="text-[10px] text-slate-500 dark:text-slate-400">
                 {hasJustRecorded 
                   ? '✅ Medição arquivada com sucesso no prontuário!' 
                   : `Associação direta ao prontuário técnico da OS ${orderCode}`}
@@ -677,9 +677,9 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                   onClick={() => {
                     handleRecordMeasurement();
                   }}
-                  className={`px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer flex-1 sm:flex-initial ${
+                  className={`px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer flex-1 sm:flex-initial shadow-xs ${
                     hasJustRecorded
-                      ? 'bg-emerald-600 text-white shadow-sm'
+                      ? 'bg-emerald-600 text-white'
                       : 'bg-emerald-600 hover:bg-emerald-500 text-white'
                   }`}
                 >
@@ -689,7 +689,7 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                 <button
                   type="button"
                   onClick={() => setIsTelemetryModalOpen(false)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                  className="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 text-xs font-bold rounded-xl transition-colors cursor-pointer"
                 >
                   Fechar
                 </button>
@@ -700,10 +700,10 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
         </div>
       )}
 
-      <div className={`text-slate-100 rounded-3xl border shadow-xl overflow-hidden transition-all duration-300 ${
+      <div className={`rounded-3xl border shadow-xl overflow-hidden transition-all duration-300 ${
         isAlarmActive && visualStrobeEnabled
-          ? 'border-rose-500 ring-4 ring-rose-600/50 shadow-[0_0_30px_rgba(244,63,94,0.7)] bg-slate-900/95 animate-pulse'
-          : 'border-slate-800 bg-slate-900'
+          ? 'border-rose-500 ring-4 ring-rose-600/50 shadow-[0_0_30px_rgba(244,63,94,0.4)] bg-rose-50/30 dark:bg-slate-900/95 animate-pulse text-slate-900 dark:text-slate-100'
+          : 'border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100'
       }`}>
         
         {/* Visual Alarm Header Banner */}
@@ -735,7 +735,7 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
             </div>
           </div>
         ) : (
-          <div className="bg-emerald-600 px-6 py-3 flex items-center justify-between">
+          <div className="bg-emerald-600 dark:bg-emerald-700 px-6 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <CheckCircle className="w-5 h-5 text-emerald-100" />
               <div>
@@ -757,14 +757,14 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
           {/* Main Visual Gauges (Left Side - 7 Cols) */}
           <div className="lg:col-span-7 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-1.5">
-                <Activity className="w-4 h-4 text-emerald-400" />
+              <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                <Activity className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 Telemetria Climática em Tempo Real
               </h3>
               
               {!isInhibited && periodicitySeconds > 0 && (
-                <div className="text-[11px] text-slate-400 flex items-center gap-1.5 bg-slate-950 px-3 py-1 rounded-full border border-slate-800">
-                  <Clock className="w-3.5 h-3.5 text-emerald-400" />
+                <div className="text-[11px] text-slate-600 dark:text-slate-400 flex items-center gap-1.5 bg-slate-100 dark:bg-slate-950 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-800 shadow-2xs">
+                  <Clock className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                   <span>Próxima leitura em <strong>{countdown}s</strong></span>
                 </div>
               )}
@@ -774,7 +774,7 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
             <div className="flex flex-col sm:flex-row items-stretch gap-4">
               
               {/* Virtual LED Signal Tower (Torre de Luz de Automação Agroindustrial) */}
-              <div className="flex sm:flex-col items-center justify-around sm:justify-center gap-3 bg-slate-950 p-3 sm:px-3 sm:py-4 rounded-2xl border border-slate-800/80 w-full sm:w-20 shrink-0 shadow-inner">
+              <div className="flex sm:flex-col items-center justify-around sm:justify-center gap-3 bg-slate-100 dark:bg-slate-950 p-3 sm:px-3 sm:py-4 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 w-full sm:w-20 shrink-0 shadow-inner">
                 <span className="text-[8px] font-black tracking-widest text-slate-500 uppercase text-center hidden sm:block leading-tight">TORRE LED</span>
                 
                 {/* RED LED (CRITICAL ALARM) */}
@@ -782,9 +782,9 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                   <div className={`w-8 h-8 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
                     isAlarmActive
                       ? 'bg-rose-600 border-rose-400 shadow-[0_0_20px_rgba(244,63,94,1)] animate-pulse'
-                      : 'bg-rose-950/20 border-rose-950/60 text-rose-950/30'
+                      : 'bg-rose-100/60 dark:bg-rose-950/20 border-rose-300 dark:border-rose-950/60 text-rose-300 dark:text-rose-950/30'
                   }`}>
-                    <div className={`w-3.5 h-3.5 rounded-full transition-all duration-300 ${isAlarmActive ? 'bg-white shadow-[0_0_8px_white] animate-ping' : 'bg-rose-950/50'}`} />
+                    <div className={`w-3.5 h-3.5 rounded-full transition-all duration-300 ${isAlarmActive ? 'bg-white shadow-[0_0_8px_white] animate-ping' : 'bg-rose-300/60 dark:bg-rose-950/50'}`} />
                   </div>
                   <span className="text-[6px] font-black text-slate-500 uppercase tracking-tighter">CRÍTICO</span>
                 </div>
@@ -794,9 +794,9 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                   <div className={`w-8 h-8 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
                     !isSafe && !isAlarmActive
                       ? 'bg-amber-500 border-amber-300 shadow-[0_0_20px_rgba(245,158,11,1)] animate-bounce'
-                      : 'bg-amber-950/20 border-amber-950/60 text-amber-950/30'
+                      : 'bg-amber-100/60 dark:bg-amber-950/20 border-amber-300 dark:border-amber-950/60 text-amber-300 dark:text-amber-950/30'
                   }`}>
-                    <div className={`w-3.5 h-3.5 rounded-full transition-all duration-300 ${(!isSafe && !isAlarmActive) ? 'bg-white shadow-[0_0_8px_white]' : 'bg-amber-950/50'}`} />
+                    <div className={`w-3.5 h-3.5 rounded-full transition-all duration-300 ${(!isSafe && !isAlarmActive) ? 'bg-white shadow-[0_0_8px_white]' : 'bg-amber-300/60 dark:bg-amber-950/50'}`} />
                   </div>
                   <span className="text-[6px] font-black text-slate-500 uppercase tracking-tighter">ALERTA</span>
                 </div>
@@ -806,9 +806,9 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                   <div className={`w-8 h-8 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
                     isSafe
                       ? 'bg-emerald-500 border-emerald-300 shadow-[0_0_20px_rgba(16,185,129,1)]'
-                      : 'bg-emerald-950/20 border-emerald-950/60 text-emerald-950/30'
+                      : 'bg-emerald-100/60 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-950/60 text-emerald-300 dark:text-emerald-950/30'
                   }`}>
-                    <div className={`w-3.5 h-3.5 rounded-full transition-all duration-300 ${isSafe ? 'bg-white shadow-[0_0_8px_white]' : 'bg-emerald-950/50'}`} />
+                    <div className={`w-3.5 h-3.5 rounded-full transition-all duration-300 ${isSafe ? 'bg-white shadow-[0_0_8px_white]' : 'bg-emerald-300/60 dark:bg-emerald-950/50'}`} />
                   </div>
                   <span className="text-[6px] font-black text-slate-500 uppercase tracking-tighter">SEGURO</span>
                 </div>
@@ -817,63 +817,63 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
               {/* Grid of Gauges */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 flex-1">
                 {/* Temp Gauge */}
-                <div className={`p-3.5 rounded-2xl border transition-all text-center ${
+                <div className={`p-3.5 rounded-2xl border transition-all text-center shadow-2xs ${
                   temperature > 30.0 || temperature < 15.0 
-                    ? 'bg-rose-950/40 border-rose-800/60 text-rose-300 shadow-2xs shadow-rose-950/20' 
-                    : 'bg-slate-950 border-slate-800'
+                    ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800/60 text-rose-800 dark:text-rose-300' 
+                    : 'bg-slate-50 dark:bg-slate-950 border-slate-200/80 dark:border-slate-800'
                 }`}>
-                  <span className="text-[10px] font-bold text-slate-400 block uppercase">TEMPERATURA</span>
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 block uppercase">TEMPERATURA</span>
                   <span className={`text-xl sm:text-2xl font-black block mt-1 ${
-                    temperature > 30.0 || temperature < 15.0 ? 'text-rose-400' : 'text-emerald-400'
+                    temperature > 30.0 || temperature < 15.0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
                   }`}>
                     {temperature.toFixed(1).replace('.', ',')} °C
                   </span>
-                  <span className="text-[9px] text-slate-500 block mt-1">Limite: 15°C a 30°C</span>
+                  <span className="text-[9px] text-slate-500 dark:text-slate-400 block mt-1">Limite: 15°C a 30°C</span>
                 </div>
 
                 {/* Humidity Gauge */}
-                <div className={`p-3.5 rounded-2xl border transition-all text-center ${
+                <div className={`p-3.5 rounded-2xl border transition-all text-center shadow-2xs ${
                   humidity < 50.0 
-                    ? 'bg-rose-950/40 border-rose-800/60 text-rose-300 shadow-2xs shadow-rose-950/20' 
-                    : 'bg-slate-950 border-slate-800'
+                    ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800/60 text-rose-800 dark:text-rose-300' 
+                    : 'bg-slate-50 dark:bg-slate-950 border-slate-200/80 dark:border-slate-800'
                 }`}>
-                  <span className="text-[10px] font-bold text-slate-400 block uppercase">UMIDADE</span>
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 block uppercase">UMIDADE</span>
                   <span className={`text-xl sm:text-2xl font-black block mt-1 ${
-                    humidity < 50.0 ? 'text-rose-400' : 'text-emerald-400'
+                    humidity < 50.0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
                   }`}>
                     {humidity}%
                   </span>
-                  <span className="text-[9px] text-slate-500 block mt-1">Limite: &gt; 50%</span>
+                  <span className="text-[9px] text-slate-500 dark:text-slate-400 block mt-1">Limite: &gt; 50%</span>
                 </div>
 
                 {/* Wind Speed Gauge */}
-                <div className={`p-3.5 rounded-2xl border transition-all text-center ${
+                <div className={`p-3.5 rounded-2xl border transition-all text-center shadow-2xs ${
                   windSpeed > 12.0 || windSpeed < 3.0
-                    ? 'bg-rose-950/40 border-rose-800/60 text-rose-300 shadow-2xs shadow-rose-950/20' 
-                    : 'bg-slate-950 border-slate-800'
+                    ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800/60 text-rose-800 dark:text-rose-300' 
+                    : 'bg-slate-50 dark:bg-slate-950 border-slate-200/80 dark:border-slate-800'
                 }`}>
-                  <span className="text-[10px] font-bold text-slate-400 block uppercase">VELOCIDADE VENTO</span>
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 block uppercase">VELOCIDADE VENTO</span>
                   <span className={`text-xl sm:text-2xl font-black block mt-1 ${
-                    windSpeed > 12.0 || windSpeed < 3.0 ? 'text-rose-400' : 'text-emerald-400'
+                    windSpeed > 12.0 || windSpeed < 3.0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
                   }`}>
                     {windSpeed.toFixed(1).replace('.', ',')} km/h
                   </span>
-                  <span className="text-[9px] text-slate-500 block mt-1">Limite: 3 a 12 km/h</span>
+                  <span className="text-[9px] text-slate-500 dark:text-slate-400 block mt-1">Limite: 3 a 12 km/h</span>
                 </div>
 
                 {/* Delta T Gauge */}
-                <div className={`p-3.5 rounded-2xl border transition-all text-center ${
+                <div className={`p-3.5 rounded-2xl border transition-all text-center shadow-2xs ${
                   deltaT < 2.0 || deltaT > 8.0 
-                    ? 'bg-rose-950/40 border-rose-800/60 text-rose-300 shadow-2xs shadow-rose-950/20' 
-                    : 'bg-slate-950 border-slate-800'
+                    ? 'bg-amber-50 dark:bg-rose-950/40 border-amber-300 dark:border-rose-800/60 text-amber-800 dark:text-rose-300' 
+                    : 'bg-slate-50 dark:bg-slate-950 border-slate-200/80 dark:border-slate-800'
                 }`}>
-                  <span className="text-[10px] font-bold text-slate-400 block uppercase">DELTA T</span>
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 block uppercase">DELTA T</span>
                   <span className={`text-xl sm:text-2xl font-black block mt-1 ${
-                    deltaT < 2.0 || deltaT > 8.0 ? 'text-amber-400' : 'text-emerald-400'
+                    deltaT < 2.0 || deltaT > 8.0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'
                   }`}>
                     {deltaT.toFixed(1).replace('.', ',')} °C
                   </span>
-                  <span className="text-[9px] text-slate-500 block mt-1">Ideal: 2°C a 8°C</span>
+                  <span className="text-[9px] text-slate-500 dark:text-slate-400 block mt-1">Ideal: 2°C a 8°C</span>
                 </div>
               </div>
 
@@ -881,12 +881,12 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
 
             {/* Warnings Alert Banner list */}
             {currentWarnings.length > 0 && (
-              <div className="bg-rose-950/50 border border-rose-900/60 rounded-2xl p-4 text-xs text-rose-200 space-y-1.5">
-                <p className="font-bold text-rose-400 flex items-center gap-1.5 uppercase tracking-wider text-[10px]">
+              <div className="bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/60 rounded-2xl p-4 text-xs text-rose-900 dark:text-rose-200 space-y-1.5 shadow-2xs">
+                <p className="font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1.5 uppercase tracking-wider text-[10px]">
                   <AlertTriangle className="w-4 h-4" />
                   Inadequações Climáticas Detectadas:
                 </p>
-                <ul className="list-disc list-inside space-y-1 pl-1 text-slate-300">
+                <ul className="list-disc list-inside space-y-1 pl-1 text-slate-700 dark:text-slate-300">
                   {currentWarnings.map((warn, index) => (
                     <li key={index} className="leading-tight">{warn}</li>
                   ))}
@@ -895,14 +895,14 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
             )}
 
             {/* Record current reading action bar */}
-            <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-2xs">
               <div>
-                <strong className="text-xs text-white block">
+                <strong className="text-xs text-slate-900 dark:text-white block">
                   {recordingMode === 'auto' 
                     ? '🔄 Registro Automático Ativo' 
                     : 'Deseja arquivar esta medição meteorológica?'}
                 </strong>
-                <span className="text-[10px] text-slate-400 block mt-0.5">
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-0.5">
                   {recordingMode === 'auto' 
                     ? 'As medições estão sendo arquivadas de forma automática ao final de cada contagem.' 
                     : `Associe ao prontuário da OS ${orderCode} para inserção no relatório técnico.`}
@@ -912,7 +912,7 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                 onClick={handleRecordMeasurement}
                 className={`w-full sm:w-auto px-5 py-2.5 font-black text-xs rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2 ${
                   recordingMode === 'auto'
-                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
+                    ? 'bg-slate-200 hover:bg-slate-300 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700'
                     : 'bg-emerald-600 hover:bg-emerald-500 text-white'
                 }`}
               >
@@ -923,10 +923,10 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
           </div>
 
           {/* Alert Config & Adjuster Simulation Controls (Right Side - 5 Cols) */}
-          <div className="lg:col-span-5 bg-slate-950 p-4 sm:p-5 rounded-2xl border border-slate-800 space-y-5">
+          <div className="lg:col-span-5 bg-slate-50/80 dark:bg-slate-950 p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-5 shadow-2xs">
             <div>
-              <h4 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-800 pb-2">
-                <Settings className="w-3.5 h-3.5 text-emerald-400" />
+              <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-200 dark:border-slate-800 pb-2">
+                <Settings className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 Configurar Alertas Meteorológicos
               </h4>
             </div>
@@ -936,8 +936,8 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
               
               {/* Enable / Inhibit Radio Toggle */}
               <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-300">Estado de Monitoramento</span>
-                <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-lg border border-slate-800">
+                <span className="font-bold text-slate-700 dark:text-slate-300">Estado de Monitoramento</span>
+                <div className="flex items-center gap-1 bg-slate-200/80 dark:bg-slate-900 p-1 rounded-lg border border-slate-300/80 dark:border-slate-800">
                   <button
                     type="button"
                     onClick={() => {
@@ -947,7 +947,7 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                     className={`px-3 py-1 text-[10px] font-black uppercase rounded-md cursor-pointer transition-colors ${
                       !isInhibited 
                         ? 'bg-emerald-600 text-white shadow-2xs' 
-                        : 'text-slate-400 hover:text-slate-200'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                     }`}
                   >
                     ATIVO
@@ -963,7 +963,7 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                     className={`px-3 py-1 text-[10px] font-black uppercase rounded-md cursor-pointer transition-colors ${
                       isInhibited 
                         ? 'bg-rose-600 text-white shadow-2xs' 
-                        : 'text-slate-400 hover:text-slate-200'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                     }`}
                   >
                     INIBIDO (MUTED)
@@ -972,10 +972,10 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
               </div>
 
               {/* Periodicity Selector */}
-              <div className="flex items-center justify-between gap-2 border-t border-slate-900 pt-2.5">
+              <div className="flex items-center justify-between gap-2 border-t border-slate-200 dark:border-slate-900 pt-2.5">
                 <div className="flex items-center gap-1">
-                  <span className="font-bold text-slate-300">Periodisidade de Checagem</span>
-                  <HelpCircle className="w-3.5 h-3.5 text-slate-500" title="Tempo entre reavaliações do clima operacional" />
+                  <span className="font-bold text-slate-700 dark:text-slate-300">Periodisidade de Checagem</span>
+                  <HelpCircle className="w-3.5 h-3.5 text-slate-400" title="Tempo entre reavaliações do clima operacional" />
                 </div>
                 <select
                   disabled={isInhibited}
@@ -985,7 +985,7 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                     setPeriodicitySeconds(secs);
                     playSingleBeep(900, 0.08, 0.2);
                   }}
-                  className="bg-slate-900 border border-slate-800 text-slate-200 text-[11px] font-bold p-1.5 rounded-lg focus:outline-none focus:border-emerald-500 disabled:opacity-50 cursor-pointer"
+                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 text-[11px] font-bold p-1.5 rounded-lg focus:outline-none focus:border-emerald-500 disabled:opacity-50 cursor-pointer shadow-2xs"
                 >
                   <option value={5}>A cada 5 segundos (Demo)</option>
                   <option value={15}>A cada 15 segundos (Demo)</option>
@@ -997,10 +997,10 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
               </div>
 
               {/* Sound Enabled and Volume */}
-              <div className="space-y-2 border-t border-slate-900 pt-2.5">
+              <div className="space-y-2 border-t border-slate-200 dark:border-slate-900 pt-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-300 flex items-center gap-1.5">
-                    {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4 text-rose-400" />}
+                  <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> : <VolumeX className="w-4 h-4 text-rose-500" />}
                     Alerta Acústico (Sonoro)
                   </span>
                   <label className="relative inline-flex items-center cursor-pointer">
@@ -1014,15 +1014,15 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                       }}
                       className="sr-only peer cursor-pointer"
                     />
-                    <div className="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-300 after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 cursor-pointer" />
+                    <div className="w-9 h-5 bg-slate-300 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 cursor-pointer" />
                   </label>
                 </div>
 
                 {soundEnabled && !isInhibited && (
-                  <div className="bg-slate-900 p-2.5 rounded-xl border border-slate-800 space-y-2 animate-in slide-in-from-top-1">
+                  <div className="bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2 animate-in slide-in-from-top-1 shadow-2xs">
                     {/* Sound Type */}
                     <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-slate-400 font-semibold">Tom do Alarme:</span>
+                      <span className="text-slate-500 dark:text-slate-400 font-semibold">Tom do Alarme:</span>
                       <div className="flex flex-wrap gap-1">
                         {(['CHIME', 'BEEP', 'SIREN', 'PULSE'] as const).map((type) => (
                           <button
@@ -1032,10 +1032,10 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                               setSoundType(type);
                               playSingleBeep(type === 'BEEP' ? 880 : 520, 0.1, soundVolume);
                             }}
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold cursor-pointer uppercase ${
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold cursor-pointer uppercase transition-colors ${
                               soundType === type 
-                                ? 'bg-emerald-600 text-white font-black' 
-                                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                                ? 'bg-emerald-600 text-white font-black shadow-2xs' 
+                                : 'bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
                             }`}
                           >
                             {type}
@@ -1047,8 +1047,8 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                     {/* Volume Slider */}
                     <div className="space-y-1">
                       <div className="flex items-center justify-between text-[10px]">
-                        <span className="text-slate-400 font-semibold">Volume do Alerta:</span>
-                        <span className="font-bold text-slate-300">{Math.round(soundVolume * 100)}%</span>
+                        <span className="text-slate-500 dark:text-slate-400 font-semibold">Volume do Alerta:</span>
+                        <span className="font-bold text-slate-700 dark:text-slate-300">{Math.round(soundVolume * 100)}%</span>
                       </div>
                       <input
                         type="range"
@@ -1057,7 +1057,7 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                         step="0.1"
                         value={soundVolume}
                         onChange={(e) => setSoundVolume(parseFloat(e.target.value))}
-                        className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500 focus:outline-none"
+                        className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-600 focus:outline-none"
                       />
                     </div>
 
@@ -1065,7 +1065,7 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                     <button
                       type="button"
                       onClick={handleTestSound}
-                      className="w-full mt-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-500/30 font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5"
+                      className="w-full mt-1 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-emerald-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-emerald-400 border border-emerald-500/30 font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
                     >
                       <Play className="w-3.5 h-3.5" />
                       Testar Alarme Acústico
@@ -1075,14 +1075,14 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
               </div>
 
               {/* Visual Alerts Configuration */}
-              <div className="space-y-2 border-t border-slate-900 pt-2.5">
-                <span className="font-bold text-slate-400 block text-[10px] uppercase tracking-wider">
+              <div className="space-y-2 border-t border-slate-200 dark:border-slate-900 pt-2.5">
+                <span className="font-bold text-slate-500 dark:text-slate-400 block text-[10px] uppercase tracking-wider">
                   Sinalização Visual de Emergência
                 </span>
                 
                 {/* Visual Strobe Switch */}
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-300 flex items-center gap-1.5 text-xs">
+                  <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 text-xs">
                     <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse border border-rose-400" />
                     Giroflex & Alerta no Painel
                   </span>
@@ -1094,13 +1094,13 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                       onChange={(e) => setVisualStrobeEnabled(e.target.checked)}
                       className="sr-only peer cursor-pointer"
                     />
-                    <div className="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-300 after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 cursor-pointer" />
+                    <div className="w-9 h-5 bg-slate-300 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 cursor-pointer" />
                   </label>
                 </div>
 
                 {/* Screen Edge Flash Switch */}
                 <div className="flex items-center justify-between pt-1">
-                  <span className="font-bold text-slate-300 flex items-center gap-1.5 text-xs">
+                  <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 text-xs">
                     <span className="w-2.5 h-2.5 rounded-full bg-red-600 border border-red-500" />
                     Estrobo nas Bordas da Tela (Flash)
                   </span>
@@ -1112,20 +1112,20 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                       onChange={(e) => setScreenEdgeAlertEnabled(e.target.checked)}
                       className="sr-only peer cursor-pointer"
                     />
-                    <div className="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-300 after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 cursor-pointer" />
+                    <div className="w-9 h-5 bg-slate-300 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 cursor-pointer" />
                   </label>
                 </div>
               </div>
 
               {/* Routine Readings Configuration */}
-              <div className="space-y-3 border-t border-slate-900 pt-2.5">
-                <span className="font-bold text-slate-400 block text-[10px] uppercase tracking-wider">
+              <div className="space-y-3 border-t border-slate-200 dark:border-slate-900 pt-2.5">
+                <span className="font-bold text-slate-500 dark:text-slate-400 block text-[10px] uppercase tracking-wider">
                   Notificação de Rotina (Próxima Leitura)
                 </span>
                 
                 {/* Next Reading Alert Switch */}
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-300 flex items-center gap-1.5 text-xs">
+                  <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 text-xs">
                     <span className="w-2.5 h-2.5 rounded-full bg-cyan-500 animate-pulse border border-cyan-400" />
                     Aviso de Nova Leitura (Visual & Som)
                   </span>
@@ -1137,18 +1137,18 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                       onChange={(e) => setReadingAlertEnabled(e.target.checked)}
                       className="sr-only peer cursor-pointer"
                     />
-                    <div className="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-300 after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 cursor-pointer" />
+                    <div className="w-9 h-5 bg-slate-300 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 cursor-pointer" />
                   </label>
                 </div>
 
                 {/* Recording Mode Selector */}
-                <div className="flex flex-col gap-1.5 pt-1.5 border-t border-slate-900/60">
+                <div className="flex flex-col gap-1.5 pt-1.5 border-t border-slate-200 dark:border-slate-900/60">
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-300 flex items-center gap-1.5 text-xs">
+                    <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 text-xs">
                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 border border-emerald-400 animate-pulse" />
                       Modo de Registro Climático
                     </span>
-                    <div className="flex bg-slate-900 border border-slate-800 rounded-lg p-0.5">
+                    <div className="flex bg-slate-200/80 dark:bg-slate-900 border border-slate-300/80 dark:border-slate-800 rounded-lg p-0.5">
                       <button
                         type="button"
                         onClick={() => {
@@ -1158,7 +1158,7 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                         className={`px-2 py-1 text-[10px] font-bold rounded-md transition-all duration-150 cursor-pointer ${
                           recordingMode === 'manual'
                             ? 'bg-emerald-600 text-white shadow-xs'
-                            : 'text-slate-400 hover:text-slate-200'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                         }`}
                       >
                         Manual
@@ -1172,14 +1172,14 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                         className={`px-2 py-1 text-[10px] font-bold rounded-md transition-all duration-150 cursor-pointer ${
                           recordingMode === 'auto'
                             ? 'bg-emerald-600 text-white shadow-xs'
-                            : 'text-slate-400 hover:text-slate-200'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                         }`}
                       >
                         Automático
                       </button>
                     </div>
                   </div>
-                  <p className="text-[9px] text-slate-400 leading-tight">
+                  <p className="text-[9px] text-slate-500 dark:text-slate-400 leading-tight">
                     {recordingMode === 'manual'
                       ? 'Requer que o operador clique no botão "Registrar" para salvar dados no prontuário.'
                       : 'O sistema registra e arquiva as condições meteorológicas automaticamente ao final de cada contagem.'}
@@ -1188,21 +1188,21 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
               </div>
 
               {/* Weather Simulator adjusters (For testing alerts easily) */}
-              <div className="space-y-2 border-t border-slate-900 pt-3">
-                <span className="font-bold text-slate-300 flex items-center gap-1 text-[11px] uppercase tracking-wider text-emerald-400">
+              <div className="space-y-2 border-t border-slate-200 dark:border-slate-900 pt-3">
+                <span className="font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1 text-[11px] uppercase tracking-wider">
                   <Settings className="w-3.5 h-3.5" />
                   Simular Alterações de Clima:
                 </span>
-                <p className="text-[10px] text-slate-400 leading-tight">
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
                   Altere os controles para forçar violações meteorológicas e conferir o disparo imediato dos alertas visuais e sonoros:
                 </p>
 
-                <div className="space-y-2.5 bg-slate-900 p-3 rounded-xl border border-slate-800 text-[11px]">
+                <div className="space-y-2.5 bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] shadow-2xs">
                   {/* Temperature slider */}
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-400">Temperatura Externa:</span>
-                      <strong className={`font-mono ${temperature > 30.0 ? 'text-rose-400 font-black' : 'text-slate-200'}`}>
+                      <span className="text-slate-500 dark:text-slate-400">Temperatura Externa:</span>
+                      <strong className={`font-mono ${temperature > 30.0 ? 'text-rose-600 dark:text-rose-400 font-black' : 'text-slate-800 dark:text-slate-200'}`}>
                         {temperature.toFixed(1).replace('.', ',')} °C
                       </strong>
                     </div>
@@ -1213,15 +1213,15 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                       step="0.5"
                       value={temperature}
                       onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                      className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                      className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-600"
                     />
                   </div>
 
                   {/* Humidity slider */}
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-400">Umidade Relativa:</span>
-                      <strong className={`font-mono ${humidity < 50 ? 'text-rose-400 font-black' : 'text-slate-200'}`}>
+                      <span className="text-slate-500 dark:text-slate-400">Umidade Relativa:</span>
+                      <strong className={`font-mono ${humidity < 50 ? 'text-rose-600 dark:text-rose-400 font-black' : 'text-slate-800 dark:text-slate-200'}`}>
                         {humidity}%
                       </strong>
                     </div>
@@ -1232,15 +1232,15 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                       step="1"
                       value={humidity}
                       onChange={(e) => setHumidity(parseInt(e.target.value))}
-                      className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                      className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-600"
                     />
                   </div>
 
                   {/* Wind speed slider */}
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-400">Velocidade do Vento:</span>
-                      <strong className={`font-mono ${windSpeed > 12.0 || windSpeed < 3.0 ? 'text-rose-400 font-black' : 'text-slate-200'}`}>
+                      <span className="text-slate-500 dark:text-slate-400">Velocidade do Vento:</span>
+                      <strong className={`font-mono ${windSpeed > 12.0 || windSpeed < 3.0 ? 'text-rose-600 dark:text-rose-400 font-black' : 'text-slate-800 dark:text-slate-200'}`}>
                         {windSpeed.toFixed(1).replace('.', ',')} km/h
                       </strong>
                     </div>
@@ -1251,7 +1251,7 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                       step="0.5"
                       value={windSpeed}
                       onChange={(e) => setWindSpeed(parseFloat(e.target.value))}
-                      className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                      className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-600"
                     />
                   </div>
                 </div>
@@ -1263,26 +1263,26 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
         </div>
 
         {/* Lower Section: Table of Registered Readings */}
-        <div className="border-t border-slate-800 pt-5 space-y-3">
+        <div className="border-t border-slate-200 dark:border-slate-800 pt-5 space-y-3">
           <div className="flex items-center justify-between">
             <div>
-              <h4 className="text-xs font-black text-white uppercase tracking-wider">
+              <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
                 Histórico de Medições Meteorológicas Arquivadas ({weatherReadings.length})
               </h4>
-              <p className="text-[10px] text-slate-400">Dados climatológicos salvos para esta pulverização.</p>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400">Dados climatológicos salvos para esta pulverização.</p>
             </div>
           </div>
 
           {weatherReadings.length === 0 ? (
-            <div className="p-6 bg-slate-950 border border-slate-800 rounded-2xl text-center text-slate-400 text-xs">
+            <div className="p-6 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-center text-slate-500 dark:text-slate-400 text-xs">
               Nenhuma medição arquivada para esta operação. Ajuste os sensores acima e clique em 
-              <strong className="text-emerald-400"> "Registrar Medição" </strong> para coletar dados.
+              <strong className="text-emerald-600 dark:text-emerald-400"> "Registrar Medição" </strong> para coletar dados.
             </div>
           ) : (
-            <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden max-h-56 overflow-y-auto">
+            <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden max-h-56 overflow-y-auto shadow-2xs">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="bg-slate-900 border-b border-slate-800 text-slate-400 font-bold text-[10px] uppercase">
+                  <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold text-[10px] uppercase">
                     <th className="p-3">Horário</th>
                     <th className="p-3">Temp (°C)</th>
                     <th className="p-3">Umidade (%)</th>
@@ -1293,19 +1293,19 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                     <th className="p-3 text-right">Ação</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-slate-700 dark:text-slate-300">
                   {weatherReadings.map((reading, idx) => (
-                    <tr key={idx} className="hover:bg-slate-900/40">
-                      <td className="p-3 font-mono font-bold text-slate-400">{reading.timestamp}</td>
+                    <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-900/40">
+                      <td className="p-3 font-mono font-bold text-slate-900 dark:text-slate-400">{reading.timestamp}</td>
                       <td className="p-3 font-mono">{reading.temperatureC.toFixed(1).replace('.', ',')} °C</td>
                       <td className="p-3 font-mono">{reading.relativeHumidityPct}%</td>
                       <td className="p-3 font-mono">{reading.windSpeedKmh.toFixed(1).replace('.', ',')} km/h</td>
-                      <td className="p-3 font-mono font-bold text-emerald-400">{reading.deltaT.toFixed(1).replace('.', ',')} °C</td>
+                      <td className="p-3 font-mono font-bold text-emerald-600 dark:text-emerald-400">{reading.deltaT.toFixed(1).replace('.', ',')} °C</td>
                       <td className="p-3 text-center">
                         <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${
                           reading.isAutomatic 
-                            ? 'bg-cyan-950 text-cyan-400 border border-cyan-900/60' 
-                            : 'bg-slate-900 text-slate-400 border border-slate-800'
+                            ? 'bg-cyan-100 text-cyan-800 dark:bg-cyan-950 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-900/60' 
+                            : 'bg-slate-100 text-slate-700 dark:bg-slate-900 dark:text-slate-400 border border-slate-200 dark:border-slate-800'
                         }`}>
                           {reading.isAutomatic ? 'Auto' : 'Manual'}
                         </span>
@@ -1313,8 +1313,8 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                       <td className="p-3 text-center">
                         <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
                           reading.isSafeForSpraying 
-                            ? 'bg-emerald-950 text-emerald-400 border border-emerald-900' 
-                            : 'bg-rose-950 text-rose-400 border border-rose-900'
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900' 
+                            : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-400 border border-rose-200 dark:border-rose-900'
                         }`}>
                           {reading.isSafeForSpraying ? 'Seguro' : 'Alerta'}
                         </span>
@@ -1323,7 +1323,7 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                         <button
                           type="button"
                           onClick={() => onRemoveWeatherReading(idx)}
-                          className="p-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 rounded-lg cursor-pointer"
+                          className="p-1.5 text-rose-600 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg cursor-pointer"
                           title="Remover Registro"
                         >
                           <Trash2 className="w-4 h-4" />
