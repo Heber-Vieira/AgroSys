@@ -4,6 +4,7 @@ import {
   VolumeX, 
   AlertTriangle, 
   CheckCircle, 
+  CheckCircle2,
   Settings, 
   Activity, 
   Clock, 
@@ -23,7 +24,9 @@ import {
   FileText,
   Check,
   Sparkles,
-  ExternalLink
+  ExternalLink,
+  BellOff,
+  Eye
 } from 'lucide-react';
 import { ClimateTelemetry } from '../../types';
 import { 
@@ -68,6 +71,7 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
   const [readingAlertEnabled, setReadingAlertEnabled] = useState<boolean>(true);
   const [showReadingNotification, setShowReadingNotification] = useState<boolean>(false);
   const [recordingMode, setRecordingMode] = useState<'manual' | 'auto'>('manual');
+  const [isAudioSilenced, setIsAudioSilenced] = useState<boolean>(false);
 
   // Active alarms & Alert timing states
   const [isAlarmActive, setIsAlarmActive] = useState<boolean>(false);
@@ -92,6 +96,7 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
 
   const startReadingSound = () => {
     stopReadingSound();
+    setIsAudioSilenced(false);
     const playChirp = () => {
       playSingleBeep(1100, 0.08, soundVolume * 0.7);
       setTimeout(() => {
@@ -305,6 +310,26 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
   const handleStopAlarms = () => {
     setIsAlarmActive(false);
     stopAllAlerts();
+    stopReadingSound();
+    setIsAudioSilenced(true);
+  };
+
+  // Acknowledge alert and dismiss notification
+  const handleAcknowledgeAlert = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    playSingleBeep(1200, 0.08, 0.25);
+    setShowReadingNotification(false);
+    stopReadingSound();
+    stopAllAlerts();
+    setIsAlarmActive(false);
+  };
+
+  // Silence alert audio without immediately dismissing window
+  const handleSilenceAlert = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    stopReadingSound();
+    stopAllAlerts();
+    setIsAudioSilenced(true);
   };
 
   return (
@@ -325,54 +350,105 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
               openTelemetryDetails();
             }
           }}
-          className="fixed top-6 right-6 max-w-md w-[calc(100vw-3rem)] bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-2 border-cyan-500/70 hover:border-cyan-400 hover:shadow-[0_12px_45px_rgba(6,182,212,0.35)] rounded-2xl p-4 text-slate-900 dark:text-white flex items-center justify-between gap-4 animate-in slide-in-from-top-8 sm:slide-in-from-right-8 duration-300 z-50 shadow-2xl cursor-pointer group transition-all transform hover:-translate-y-0.5 active:translate-y-0 select-none"
+          className="fixed top-6 right-6 max-w-lg w-[calc(100vw-3rem)] bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-2 border-cyan-500/70 hover:border-cyan-400 hover:shadow-[0_12px_45px_rgba(6,182,212,0.35)] rounded-2xl p-4 text-slate-900 dark:text-white flex flex-col gap-3 animate-in slide-in-from-top-8 sm:slide-in-from-right-8 duration-300 z-50 shadow-2xl cursor-pointer group transition-all transform hover:-translate-y-0.5 active:translate-y-0 select-none"
           title="Clique para abrir as informações completas da telemetria climática"
         >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-cyan-500/15 dark:bg-cyan-500/20 group-hover:bg-cyan-500/30 flex items-center justify-center font-bold text-cyan-600 dark:text-cyan-400 animate-bounce shrink-0 border border-cyan-400/40 transition-colors shadow-2xs">
-              <Clock className="w-5 h-5 text-cyan-600 dark:text-cyan-400 animate-pulse" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black text-cyan-700 dark:text-cyan-400 uppercase tracking-widest block font-mono">TELEMETRIA ATUALIZADA</span>
-                <span className="text-[9px] bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border border-cyan-400/40 px-1.5 py-0.5 rounded-full font-bold inline-flex items-center gap-1 group-hover:bg-cyan-500/30 transition-colors">
-                  <Sparkles className="w-2.5 h-2.5 text-cyan-600 dark:text-cyan-300" />
-                  Abrir Informações
-                </span>
+          {/* Header & Main Info */}
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-full bg-cyan-500/15 dark:bg-cyan-500/20 group-hover:bg-cyan-500/30 flex items-center justify-center font-bold text-cyan-600 dark:text-cyan-400 animate-bounce shrink-0 border border-cyan-400/40 transition-colors shadow-2xs mt-0.5">
+                <Clock className="w-5 h-5 text-cyan-600 dark:text-cyan-400 animate-pulse" />
               </div>
-              <h4 className="text-xs sm:text-sm font-black uppercase text-slate-900 dark:text-white leading-tight mt-0.5 group-hover:text-cyan-600 dark:group-hover:text-cyan-200 transition-colors">
-                Nova Leitura Climática Executada!
-              </h4>
-              <p className="text-[10px] text-slate-600 dark:text-slate-300 mt-0.5">
-                Os sensores avaliaram as condições atuais de temperatura, umidade, ventos e Delta T em tempo real.
-              </p>
-              <div className="mt-1 flex items-center gap-2 text-[9px] text-cyan-700 dark:text-cyan-400 font-semibold font-mono">
-                <span>🌡️ {formatDecimal(temperature, 1)}°C</span>
-                <span>•</span>
-                <span>💧 {humidity}%</span>
-                <span>•</span>
-                <span>💨 {formatDecimal(windSpeed, 1)} km/h</span>
-                <span>•</span>
-                <span className="text-emerald-600 dark:text-emerald-400">ΔT {formatDecimal(deltaT, 1)}°C</span>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] font-black text-cyan-700 dark:text-cyan-400 uppercase tracking-widest block font-mono">
+                    TELEMETRIA ATUALIZADA
+                  </span>
+                  {isAudioSilenced ? (
+                    <span className="text-[9px] bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-400/40 px-1.5 py-0.2 rounded-full font-bold inline-flex items-center gap-1">
+                      <VolumeX className="w-2.5 h-2.5 text-amber-600" />
+                      Silenciado
+                    </span>
+                  ) : (
+                    <span className="text-[9px] bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border border-cyan-400/40 px-1.5 py-0.2 rounded-full font-bold inline-flex items-center gap-1">
+                      <Sparkles className="w-2.5 h-2.5 text-cyan-600" />
+                      Nova Leitura
+                    </span>
+                  )}
+                </div>
+                <h4 className="text-xs sm:text-sm font-black uppercase text-slate-900 dark:text-white leading-tight mt-0.5 group-hover:text-cyan-600 dark:group-hover:text-cyan-200 transition-colors">
+                  Nova Leitura Climática Executada!
+                </h4>
+                <p className="text-[10px] text-slate-600 dark:text-slate-300 mt-0.5 leading-snug">
+                  Sensores avaliaram temperatura, umidade, ventos e Delta T em tempo real.
+                </p>
+                
+                {/* Metrics Pill List */}
+                <div className="mt-1.5 flex items-center gap-2 text-[10px] text-cyan-700 dark:text-cyan-400 font-bold font-mono flex-wrap">
+                  <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">🌡️ {formatDecimal(temperature, 1)}°C</span>
+                  <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">💧 {humidity}%</span>
+                  <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">💨 {formatDecimal(windSpeed, 1)} km/h</span>
+                  <span className="px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800">ΔT {formatDecimal(deltaT, 1)}°C</span>
+                </div>
               </div>
             </div>
-          </div>
-          <div className="flex flex-col items-end gap-1.5 shrink-0">
+
+            {/* Quick Close Button */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                playSingleBeep(1200, 0.05, 0.2);
-                setShowReadingNotification(false);
-                stopReadingSound();
+                handleAcknowledgeAlert(e);
               }}
-              className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-700 text-[10px] font-bold rounded-lg cursor-pointer transition-colors"
+              className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors cursor-pointer shrink-0"
               title="Fechar notificação"
             >
-              Fechar
+              <X className="w-4 h-4" />
             </button>
-            <span className="text-[9px] text-cyan-600 dark:text-cyan-300 font-bold group-hover:underline flex items-center gap-0.5">
-              Ver Dados ➜
-            </span>
+          </div>
+
+          {/* Action Bar: Reconhecer, Silenciar & Ver Detalhes */}
+          <div className="pt-2 border-t border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5">
+              {/* Reconhecer Alerta */}
+              <button
+                type="button"
+                onClick={handleAcknowledgeAlert}
+                className="px-3 py-1.5 rounded-xl font-black text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                title="Reconhecer a leitura, desativar alarmes e fechar a notificação"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Reconhecer</span>
+              </button>
+
+              {/* Silenciar Alerta */}
+              <button
+                type="button"
+                onClick={handleSilenceAlert}
+                disabled={isAudioSilenced}
+                className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
+                  isAudioSilenced
+                    ? 'bg-slate-100 text-slate-400 dark:bg-slate-900 dark:text-slate-500 border border-slate-200 dark:border-slate-800 cursor-default'
+                    : 'bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/60 dark:hover:bg-amber-900/60 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800 active:scale-95 shadow-2xs'
+                }`}
+                title="Silenciar o áudio e alertas sonoros da leitura"
+              >
+                <VolumeX className="w-3.5 h-3.5" />
+                <span>{isAudioSilenced ? 'Silenciado' : 'Silenciar'}</span>
+              </button>
+            </div>
+
+            {/* Ver Dados */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                openTelemetryDetails();
+              }}
+              className="px-2.5 py-1.5 rounded-xl font-bold text-xs text-cyan-700 dark:text-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-800 transition-colors flex items-center gap-1 cursor-pointer"
+            >
+              <Eye className="w-3.5 h-3.5" />
+              <span>Ver Dados ➜</span>
+            </button>
           </div>
         </div>
       )}
