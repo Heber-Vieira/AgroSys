@@ -58,6 +58,7 @@ import { FleetDronesView } from './FleetDronesView';
 import { AdminBrandingStudio } from './AdminBrandingStudio';
 import { formatBRL, formatDecimal, parseInputNumber } from '../utils/formatters';
 import { PRESET_COMPANIES } from '../data/themeTokensData';
+import { isMasterUser } from '../utils/userPermissions';
 
 interface AdminManagementHubViewProps {
   currentUser: UserProfile;
@@ -118,7 +119,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
   themeMode = 'light',
   setThemeMode = () => {},
 }) => {
-  const isMaster = currentUser.role === 'MASTER' || currentUser.isMaster === true;
+  const isMaster = isMasterUser(currentUser);
   const isCompanyAdmin = currentUser.role === 'ADMIN';
   const hasAdminAccess = isMaster || isCompanyAdmin;
 
@@ -647,19 +648,31 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
 
   // Filtered lists
   const filteredUsers = users.filter(u => {
-    // If not master, enforce tenant isolation strictly
+    const userIsMasterProfile = isMasterUser(u);
+
+    // RULE: Master users DO NOT appear on specific company registration lists.
+    // They only appear in Global Multi-Company ('ALL').
+    if (selectedCompanyFilter !== 'ALL' && userIsMasterProfile) {
+      return false;
+    }
+
+    // If not master, enforce tenant isolation strictly and exclude Master users
     if (!isMaster) {
+      if (userIsMasterProfile) {
+        return false;
+      }
       const userTenant = u.companyId || 'ciclodrone';
       const currentTenant = currentUser.companyId || theme?.tenantId || 'ciclodrone';
-      if (userTenant !== currentTenant && !u.isMaster && u.role !== 'MASTER') {
+      if (userTenant !== currentTenant) {
         return false;
       }
     } else if (selectedCompanyFilter !== 'ALL') {
-      const userTenant = u.companyId || (u.isMaster || u.role === 'MASTER' ? 'ALL' : 'ciclodrone');
-      if (userTenant !== selectedCompanyFilter && userTenant !== 'ALL') {
+      const userTenant = u.companyId || 'ciclodrone';
+      if (userTenant !== selectedCompanyFilter) {
         return false;
       }
     }
+
     return (
       u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -882,7 +895,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
                 🌐 Todas as Empresas ({users.length})
               </button>
               {PRESET_COMPANIES.map(comp => {
-                const compCount = users.filter(u => u.companyId === comp.id).length;
+                const compCount = users.filter(u => !isMasterUser(u) && (u.companyId || 'ciclodrone') === comp.id).length;
                 return (
                   <button
                     key={comp.id}

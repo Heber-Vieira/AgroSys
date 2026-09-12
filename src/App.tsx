@@ -397,7 +397,7 @@ export default function App() {
   const users = useMemo(() => 
     isGlobalView 
       ? allUsers 
-      : allUsers.filter(u => u.role === 'ADMIN' || u.role === 'MASTER' || u.isMaster || (u.companyId || 'ciclodrone') === activeTenantId), 
+      : allUsers.filter(u => !isMasterUser(u) && (u.companyId || 'ciclodrone') === activeTenantId), 
     [allUsers, activeTenantId, isGlobalView]
   );
 
@@ -809,6 +809,7 @@ export default function App() {
           onLoginSuccess={(user) => {
             setCurrentUser(user);
             setIsAuthenticated(true);
+            setCurrentView('hub');
           }}
           availableUsers={allUsers}
           setUsers={setAllUsers}
@@ -828,9 +829,15 @@ export default function App() {
       setTheme={setTheme}
       currentUser={currentUser}
       availableUsers={users}
-      onSelectUser={setCurrentUser}
+      onSelectUser={(u) => {
+        setCurrentUser(u);
+        setCurrentView('hub');
+      }}
       onUpdateUserPhoto={handleUpdateUserPhoto}
-      onLogout={() => setIsAuthenticated(false)}
+      onLogout={() => {
+        setIsAuthenticated(false);
+        setCurrentView('hub');
+      }}
       onStartTour={() => setCurrentView('virtual-tour')}
       onStartLiveTour={startLiveTour}
       onOpenHelp={() => setShowHelpModal(true)}
