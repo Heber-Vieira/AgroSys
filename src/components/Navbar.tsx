@@ -10,7 +10,8 @@ import {
   LogOut,
   UserCheck,
   Building2,
-  Menu
+  Menu,
+  Workflow
 } from 'lucide-react';
 import { ThemeMode, WhiteLabelTheme, AppViewMode, UserProfile, RegisteredCompany } from '../types';
 import { PRESET_COMPANIES } from '../data/themeTokensData';
@@ -167,6 +168,20 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Controls: Essential tools, Company Switcher, Theme & User */}
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Direct Shortcut to Spray Workflow Guide */}
+            <button
+              onClick={() => setCurrentView('spray-workflow')}
+              title="Abrir Esteira Operacional & Passo a Passo de Pulverização (10 Etapas)"
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                currentView === 'spray-workflow'
+                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                  : 'bg-white/90 dark:bg-emerald-950/80 text-emerald-900 dark:text-emerald-100 hover:bg-emerald-100/70 border-emerald-200/80 dark:border-emerald-800/80 shadow-2xs'
+              }`}
+            >
+              <Workflow className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span className="hidden sm:inline">Passo a Passo</span>
+            </button>
+
             {/* Offline/Online Simulator Indicator */}
             <button
               onClick={() => setIsOfflineSimulated(!isOfflineSimulated)}

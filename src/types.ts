@@ -538,5 +538,6 @@ export type AppViewMode =
   | 'virtual-tour'
   | 'help'
   | 'branding'
-  | 'admin-management';
+  | 'admin-management'
+  | 'spray-workflow';
 

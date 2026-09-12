@@ -29,8 +29,10 @@ import { LoginView } from './components/LoginView';
 import { SprayReportModal } from './components/SprayReportModal';
 import { QuotationsView } from './components/QuotationsView';
 import { HomeHubView } from './components/HomeHubView';
+import { SprayWorkflowGuideView } from './components/SprayWorkflowGuideView';
 import { DraggableHelpButton } from './components/DraggableHelpButton';
 import { AgroSysToastContainer } from './components/common/AgroSysToastContainer';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { HelpCircle, ArrowLeft, ArrowRight } from 'lucide-react';
 
 import { 
@@ -836,6 +838,30 @@ export default function App() {
             onOpenReportModal={handleOpenReportModal}
             onStartLiveTour={startLiveTour}
           />
+        )}
+
+        {/* Integrated End-to-End Spraying Process Workflow Guide */}
+        {currentView === 'spray-workflow' && (
+          <ErrorBoundary 
+            fallbackTitle="Guia Passo a Passo de Pulverização" 
+            onReset={() => setCurrentView('hub')}
+          >
+            <SprayWorkflowGuideView
+              currentUser={currentUser}
+              theme={theme}
+              orders={orders}
+              plots={plots}
+              drones={drones}
+              quotations={quotations}
+              financials={financials}
+              onNavigate={(view) => setCurrentView(view as AppViewMode)}
+              onOpenNewOS={() => {
+                setCurrentView('orders');
+                setShowNewOSModal(true);
+              }}
+              onOpenReportModal={handleOpenReportModal}
+            />
+          </ErrorBoundary>
         )}
 
         {/* Operational Modules */}
