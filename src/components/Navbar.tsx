@@ -309,43 +309,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">Trocar</span>
                     </button>
 
-                    {/* Switch User Role */}
-                    {availableUsers && availableUsers.length > 0 && onSelectUser && (
-                      <div>
-                        <div className="text-[10px] font-black uppercase tracking-wider text-emerald-800/80 dark:text-emerald-400/80 px-1 mb-1.5 flex items-center gap-1">
-                          <UserCheck className="w-3 h-3" />
-                          <span>Alternar Perfil ({theme.companyName})</span>
-                        </div>
-                        <div className="space-y-1 max-h-48 overflow-y-auto pr-0.5">
-                          {availableUsers.map((u) => {
-                            const isCurrent = u.id === currentUser.id;
-                            return (
-                              <button
-                                key={u.id}
-                                onClick={() => {
-                                  onSelectUser(u);
-                                  setIsUserMenuOpen(false);
-                                }}
-                                className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs transition-colors text-left cursor-pointer ${
-                                  isCurrent
-                                    ? 'bg-emerald-100/90 dark:bg-emerald-900/90 font-black text-emerald-950 dark:text-emerald-100 border border-emerald-300 dark:border-emerald-700'
-                                    : 'hover:bg-emerald-50 dark:hover:bg-emerald-950/60 text-emerald-900 dark:text-emerald-200'
-                                }`}
-                              >
-                                <UserAvatar user={u} size="xs" />
-                                <div className="min-w-0 flex-1">
-                                  <div className="text-[11px] font-bold truncate">{u.name}</div>
-                                  <div className="text-[9px] text-emerald-700/80 dark:text-emerald-400/80 truncate">{u.roleLabel}</div>
-                                </div>
-                                {isCurrent && (
-                                  <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
+
 
                     {/* Logout */}
                     {onLogout && (

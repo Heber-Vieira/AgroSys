@@ -45,7 +45,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
   const [authMode, setAuthMode] = useState<'LOGIN' | 'REGISTER'>('LOGIN');
 
   // Login State
-  const [emailInput, setEmailInput] = useState<string>('rafael.silveira@agrosys.agr.br');
+  const [emailInput, setEmailInput] = useState<string>('heber.vieira.hv@gmail.com');
   const [passwordInput, setPasswordInput] = useState<string>('••••••••');
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -529,38 +529,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
               </form>
             )}
 
-            {/* Quick Access Switcher (Existing User Types in System) */}
-            {authMode === 'LOGIN' && userList.length > 0 && (
-              <div className="pt-4 border-t border-slate-100 space-y-3">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-extrabold text-slate-400 uppercase tracking-wider text-[10px]">
-                    ACESSO RÁPIDO AOS PERFIS DO SISTEMA
-                  </span>
-                  <span className="text-[10px] text-emerald-600 font-bold">Sem cadastro na tela</span>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {userList.slice(0, 4).map((user) => (
-                    <button
-                      key={user.id}
-                      type="button"
-                      onClick={() => handleQuickLogin(user)}
-                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-                        selectedQuickUserId === user.id || emailInput === user.email
-                          ? 'border-emerald-600 bg-emerald-50/80 shadow-xs'
-                          : 'border-slate-200 hover:border-slate-300 bg-slate-50/60'
-                      }`}
-                    >
-                      <div className="font-extrabold text-xs text-slate-800 truncate">
-                        {user.name.split(' ')[0]} {user.name.split(' ')[1] || ''}
-                      </div>
-                      <span className={`inline-block mt-1 px-1.5 py-0.5 rounded text-[9px] font-black border uppercase tracking-wider ${getRoleBadgeColor(user.role)}`}>
-                        {user.role}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+
           </div>
 
           {/* Footer Info */}

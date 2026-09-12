@@ -146,20 +146,24 @@ export default function App() {
   const activeTenantId = theme.tenantId || 'ciclodrone';
 
   // Master Application State collections (Persisted to LocalStorage)
-  const [allUsers, setAllUsers] = useState<UserProfile[]>(() => 
-    loadAndMergeWithMock('agrodrone_users_fleet', USER_PROFILES)
-  );
+  const [allUsers, setAllUsers] = useState<UserProfile[]>(() => {
+    const loaded = loadAndMergeWithMock('agrodrone_users_fleet', USER_PROFILES);
+    const allowedEmails = new Set(['heber.vieira.hv@gmail.com', 'thalesfelipe1@hotmail.com']);
+    const filtered = loaded.filter(u => allowedEmails.has(u.email.toLowerCase()) || (u.id && u.id.startsWith('user-1')));
+    return filtered.length > 0 ? filtered : USER_PROFILES;
+  });
 
   const [currentUser, setCurrentUser] = useState<UserProfile>(() => {
     const savedUser = localStorage.getItem('agrodrone_current_user');
     if (savedUser) {
       try {
         const parsed = JSON.parse(savedUser);
-        if (parsed && parsed.id) return parsed;
+        if (parsed && (parsed.email === 'heber.vieira.hv@gmail.com' || parsed.email === 'thalesfelipe1@hotmail.com')) {
+          return parsed;
+        }
       } catch (e) {}
     }
-    // Default to admin or first user of active company, with ultimate fallback to static USER_PROFILES[0]
-    return allUsers.find(u => u.companyId === activeTenantId && u.role === 'ADMIN') || allUsers[0] || USER_PROFILES[0];
+    return USER_PROFILES[0];
   });
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
