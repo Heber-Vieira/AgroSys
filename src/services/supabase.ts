@@ -16,7 +16,26 @@ export async function signInWithSupabase(email: string, password: string) {
     if (error) throw error;
     return { user: data.user, session: data.session, error: null };
   } catch (err: any) {
-    return { user: null, session: null, error: err.message || 'Falha ao autenticar no Supabase' };
+    return { user: null, session: null, error: err.message || 'Falha ao autenticar no Supabase Auth' };
+  }
+}
+
+export async function signUpWithSupabase(email: string, password: string, name?: string, role?: string) {
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          name: name || email.split('@')[0],
+          role: role || 'ADMIN',
+        }
+      }
+    });
+    if (error) throw error;
+    return { user: data.user, session: data.session, error: null };
+  } catch (err: any) {
+    return { user: null, session: null, error: err.message || 'Falha ao cadastrar usuário no Supabase Auth' };
   }
 }
 

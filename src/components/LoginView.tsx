@@ -17,7 +17,7 @@ import {
   Sprout,
   UserPlus
 } from 'lucide-react';
-import { signInWithSupabase } from '../services/supabase';
+import { signInWithSupabase, signUpWithSupabase } from '../services/supabase';
 import { UserAvatar } from './UserAvatar';
 import { BrandLogo } from './BrandLogo';
 
@@ -69,7 +69,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
     }
   };
 
-  // Submit Credentials Login (Supports Supabase Auth & Local Fallback)
+  // Submit Credentials Login via Supabase Auth
   const handleSubmitLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
@@ -77,14 +77,14 @@ export const LoginView: React.FC<LoginViewProps> = ({
     setIsLoading(true);
 
     try {
-      // 1. Try Supabase Auth
+      // 1. Try Supabase Auth Login
       const { user: supabaseUser, error: supabaseError } = await signInWithSupabase(
         emailInput.trim(),
         passwordInput
       );
 
       if (supabaseUser) {
-        setSuccessMsg('Autenticado via Supabase! Entrando no sistema...');
+        setSuccessMsg('Autenticado com sucesso via Supabase Auth!');
         // Match user profile or construct from Supabase user
         const matchedProfile = userList.find(
           u => u.email.toLowerCase() === supabaseUser.email?.toLowerCase()
@@ -92,9 +92,9 @@ export const LoginView: React.FC<LoginViewProps> = ({
           id: supabaseUser.id,
           name: supabaseUser.user_metadata?.name || emailInput.split('@')[0],
           email: supabaseUser.email || emailInput,
-          role: 'ADMIN' as UserRole,
+          role: (supabaseUser.user_metadata?.role as UserRole) || 'ADMIN',
           roleLabel: 'Administrador Geral',
-          badge: 'Super Admin Supabase',
+          badge: 'Autenticado via Supabase Auth',
           status: 'ACTIVE',
         };
 
@@ -104,7 +104,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
         return;
       }
 
-      // 2. Local Fallback for Demo & Registered Profiles in System
+      // 2. Local Fallback for Registered System Users
       const localMatched = userList.find(
         u => u.email.toLowerCase() === emailInput.trim().toLowerCase()
       );
@@ -119,80 +119,92 @@ export const LoginView: React.FC<LoginViewProps> = ({
         setTimeout(() => {
           handleAuthComplete(localMatched);
         }, 600);
-      } else if (userList.length > 0) {
-        // Fallback to first profile if demo email used
-        const defaultUser = userList[0];
-        setSuccessMsg(`Autenticado com sucesso! Entrando...`);
-        setTimeout(() => {
-          handleAuthComplete(defaultUser);
-        }, 600);
       } else {
-        setErrorMsg('Usuário não encontrado. Verifique seu e-mail ou crie um cadastro.');
+        setErrorMsg('Usuário não encontrado no Supabase Auth. Verifique seu e-mail ou crie uma conta.');
       }
     } catch (err: any) {
-      setErrorMsg('Falha na autenticação: ' + (err.message || 'Erro inesperado'));
+      setErrorMsg('Falha na autenticação do Supabase: ' + (err.message || 'Erro inesperado'));
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Submit New User Registration
-  const handleRegisterSubmit = (e: React.FormEvent) => {
+  // Submit New User Registration via Supabase Auth
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
+    setIsLoading(true);
 
     if (!regName.trim() || !regEmail.trim()) {
       setErrorMsg('Por favor, preencha o nome completo e o e-mail.');
+      setIsLoading(false);
       return;
     }
     if (!regPassword) {
       setErrorMsg('Por favor, cadastre uma senha de acesso.');
+      setIsLoading(false);
       return;
     }
     if (regPassword.length < 6) {
       setErrorMsg('A senha de acesso deve possuir pelo menos 6 caracteres.');
+      setIsLoading(false);
       return;
     }
     if (regPassword !== regConfirmPassword) {
       setErrorMsg('A confirmação de senha não confere com a senha digitada.');
+      setIsLoading(false);
       return;
     }
 
-    const roleLabels: Record<UserRole, string> = {
-      ADMIN: 'Administrador Geral',
-      USER: 'Usuário / Produtor Rural',
-      PILOT: 'Piloto de Drone Remoto',
-      ASSISTANT: 'Auxiliar de Pulverização',
-    };
-
-    const newUser: UserProfile = {
-      id: `user-${Date.now()}`,
-      name: regName.trim(),
-      email: regEmail.trim(),
-      role: regRole,
-      roleLabel: roleLabels[regRole],
-      badge: roleLabels[regRole],
-      password: regPassword,
-      status: 'ACTIVE',
-      hiredDate: new Date().toISOString().split('T')[0],
-    };
-
-    if (setUsers) {
-      setUsers(prev => [newUser, ...prev]);
-    }
-
     try {
-      const updatedList = [newUser, ...userList];
-      localStorage.setItem('agrodrone_users_fleet', JSON.stringify(updatedList));
-    } catch (e) {
-      console.warn('Erro ao persistir novo usuário:', e);
-    }
+      // Register in Supabase Auth
+      const { user: supabaseUser, error: supabaseError } = await signUpWithSupabase(
+        regEmail.trim(),
+        regPassword,
+        regName.trim(),
+        regRole
+      );
 
-    setSuccessMsg(`Conta criada com sucesso! Entrando no sistema como ${newUser.name}...`);
-    setTimeout(() => {
-      handleAuthComplete(newUser);
-    }, 700);
+      const roleLabels: Record<UserRole, string> = {
+        ADMIN: 'Administrador Geral',
+        USER: 'Usuário / Produtor Rural',
+        PILOT: 'Piloto de Drone Remoto',
+        ASSISTANT: 'Auxiliar de Pulverização',
+      };
+
+      const newUser: UserProfile = {
+        id: supabaseUser?.id || `user-${Date.now()}`,
+        name: regName.trim(),
+        email: regEmail.trim(),
+        role: regRole,
+        roleLabel: roleLabels[regRole],
+        badge: roleLabels[regRole],
+        password: regPassword,
+        status: 'ACTIVE',
+        hiredDate: new Date().toISOString().split('T')[0],
+      };
+
+      if (setUsers) {
+        setUsers(prev => [newUser, ...prev]);
+      }
+
+      try {
+        const updatedList = [newUser, ...userList];
+        localStorage.setItem('agrodrone_users_fleet', JSON.stringify(updatedList));
+      } catch (e) {
+        console.warn('Erro ao persistir novo usuário:', e);
+      }
+
+      setSuccessMsg(`Conta registrada no Supabase Auth! Entrando como ${newUser.name}...`);
+      setTimeout(() => {
+        handleAuthComplete(newUser);
+      }, 700);
+    } catch (err: any) {
+      setErrorMsg('Erro ao cadastrar usuário no Supabase Auth: ' + (err.message || 'Erro inesperado'));
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Quick Access Login Selection
