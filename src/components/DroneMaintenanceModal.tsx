@@ -252,7 +252,7 @@ export const DroneMaintenanceModal: React.FC<DroneMaintenanceModalProps> = ({
       message: 'Tem certeza que deseja excluir este registro de manutenção? Esta ação não pode ser desfeita.',
       confirmLabel: 'Sim, Excluir',
       cancelLabel: 'Cancelar',
-      isDanger: true,
+      isDestructive: true,
       onConfirm: () => {
         if (setLogs) {
           setLogs(prev => prev.filter(l => l.id !== logId));

@@ -250,7 +250,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
       message: 'Tem certeza que deseja desmarcar e cancelar este agendamento?',
       confirmLabel: 'Sim, Cancelar',
       cancelLabel: 'Manter Agendamento',
-      isDanger: true,
+      isDestructive: true,
       onConfirm: () => {
         setOrders(prev => prev.filter(o => o.id !== orderId));
         playSuccessChime();

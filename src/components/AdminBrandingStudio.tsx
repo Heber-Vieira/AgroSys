@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Palette, 
   Upload, 
@@ -30,7 +30,7 @@ import {
   ExternalLink,
   ShieldCheck
 } from 'lucide-react';
-import { ThemeMode, WhiteLabelTheme, UserProfile } from '../types';
+import { ThemeMode, WhiteLabelTheme, UserProfile, RegisteredCompany } from '../types';
 import { 
   generateToneScale, 
   extractPaletteFromImage, 
@@ -47,6 +47,7 @@ import {
   setStoredConfiguredLogoIconId,
   getCompanyTheme 
 } from '../services/brandingLogoStorage';
+import { getStoredRegisteredCompanies, COMPANIES_UPDATED_EVENT } from '../services/companyStorage';
 
 interface AdminBrandingStudioProps {
   theme: WhiteLabelTheme;
@@ -73,8 +74,22 @@ export const AdminBrandingStudio: React.FC<AdminBrandingStudioProps> = ({
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [activeCodeTab, setActiveCodeTab] = useState<'css' | 'json' | 'tailwind'>('css');
   const [activeSubTab, setActiveSubTab] = useState<'palette' | 'logo' | 'typography' | 'company' | 'preview'>('palette');
+  const [registeredCompanies, setRegisteredCompanies] = useState<RegisteredCompany[]>(() => getStoredRegisteredCompanies());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const jsonInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<RegisteredCompany[]>;
+      if (customEvent.detail && Array.isArray(customEvent.detail)) {
+        setRegisteredCompanies(customEvent.detail);
+      } else {
+        setRegisteredCompanies(getStoredRegisteredCompanies());
+      }
+    };
+    window.addEventListener(COMPANIES_UPDATED_EVENT, handleUpdated);
+    return () => window.removeEventListener(COMPANIES_UPDATED_EVENT, handleUpdated);
+  }, []);
 
   const primaryScale = generateToneScale(theme.primaryColor);
   const secondaryScale = generateToneScale(theme.secondaryColor);
@@ -749,7 +764,7 @@ module.exports = {
                   onChange={(e) => handleApplyPresetTheme(e.target.value)}
                   className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-700 text-xs font-black text-emerald-950 dark:text-white cursor-pointer"
                 >
-                  {PRESET_COMPANIES.map(p => (
+                  {registeredCompanies.map(p => (
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
                 </select>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { BrazilCityAutocomplete } from './common/BrazilCityAutocomplete';
 import { 
   UserProfile, 
@@ -12,7 +12,8 @@ import {
   DroneMaintenanceLog,
   WhiteLabelTheme,
   ThemeMode,
-  DroneBatteryAsset
+  DroneBatteryAsset,
+  RegisteredCompany
 } from '../types';
 import { showToast as showAgroToast, showConfirm } from '../services/notificationService';
 import { 
@@ -49,7 +50,9 @@ import {
   Upload,
   Eye,
   EyeOff,
-  Zap
+  Zap,
+  Globe,
+  Tag
 } from 'lucide-react';
 import { DronePhoto, DroneBadge, DronePhotoUploadModal, PRESET_DRONE_PHOTOS, getDronePhotoUrl } from './DronePhotoBadge';
 import { UserAvatar, UserPhotoUploadModal, saveStoredUserPhoto, PRESET_AVATARS, getUserPhotoUrl } from './UserAvatar';
@@ -57,9 +60,24 @@ import { PricingMatrixView } from './PricingMatrixView';
 import { FleetDronesView } from './FleetDronesView';
 import { AdminBrandingStudio } from './AdminBrandingStudio';
 import { formatBRL, formatDecimal, parseInputNumber } from '../utils/formatters';
-import { PRESET_COMPANIES } from '../data/themeTokensData';
+import { PRESET_COMPANIES, PRESET_LOGOS } from '../data/themeTokensData';
 import { isMasterUser } from '../utils/userPermissions';
-import { getCompanyTheme } from '../services/brandingLogoStorage';
+import { BrandLogo } from './BrandLogo';
+import { 
+  getCompanyTheme, 
+  getStoredConfiguredLogoUrl, 
+  setStoredConfiguredLogoUrl, 
+  getStoredConfiguredLogoIconId, 
+  setStoredConfiguredLogoIconId 
+} from '../services/brandingLogoStorage';
+import { 
+  getStoredRegisteredCompanies, 
+  saveStoredRegisteredCompanies, 
+  addRegisteredCompany, 
+  updateRegisteredCompany, 
+  deleteRegisteredCompany, 
+  COMPANIES_UPDATED_EVENT 
+} from '../services/companyStorage';
 
 interface AdminManagementHubViewProps {
   currentUser: UserProfile;
@@ -90,7 +108,7 @@ interface AdminManagementHubViewProps {
   setThemeMode?: (mode: ThemeMode) => void;
 }
 
-type AdminTab = 'users' | 'drones' | 'clients' | 'compensation' | 'pricing' | 'fleet' | 'branding';
+type AdminTab = 'users' | 'drones' | 'clients' | 'compensation' | 'pricing' | 'fleet' | 'branding' | 'companies';
 
 export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
   currentUser,
@@ -116,7 +134,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
   maintenanceLogs = [],
   setMaintenanceLogs = () => {},
   theme,
-  setTheme = () => {},
+  setTheme = (_val: React.SetStateAction<WhiteLabelTheme>) => {},
   themeMode = 'light',
   setThemeMode = () => {},
 }) => {
@@ -130,6 +148,43 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
     return (theme?.tenantId && theme.tenantId !== 'ALL') ? theme.tenantId : 'ALL';
   });
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Dynamic Registered Companies Management State
+  const [registeredCompanies, setRegisteredCompanies] = useState<RegisteredCompany[]>(() => getStoredRegisteredCompanies());
+  const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
+  const [editingCompany, setEditingCompany] = useState<RegisteredCompany | null>(null);
+  const [companyDeleteConfirmId, setCompanyDeleteConfirmId] = useState<string | null>(null);
+  const [companyFormData, setCompanyFormData] = useState<Partial<RegisteredCompany>>({
+    name: '',
+    tradeName: '',
+    cnpj: '',
+    stateRegistration: '',
+    registryCreaMapa: 'MAPA/SDA Registro • ART CREA',
+    phone: '',
+    email: '',
+    cityState: '',
+    tagline: 'Operações Aéreas e Pulverização de Precisão',
+    primaryColor: '#0284c7',
+    secondaryColor: '#0f766e',
+    accentColor: '#f59e0b',
+    cropFocus: 'Soja, Milho, Cana-de-açúcar',
+    description: '',
+    status: 'ACTIVE'
+  });
+
+  // Subscribe to dynamic company updates
+  useEffect(() => {
+    const handleCompaniesUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<RegisteredCompany[]>;
+      if (customEvent.detail && Array.isArray(customEvent.detail)) {
+        setRegisteredCompanies(customEvent.detail);
+      } else {
+        setRegisteredCompanies(getStoredRegisteredCompanies());
+      }
+    };
+    window.addEventListener(COMPANIES_UPDATED_EVENT, handleCompaniesUpdated);
+    return () => window.removeEventListener(COMPANIES_UPDATED_EVENT, handleCompaniesUpdated);
+  }, []);
 
   useEffect(() => {
     if (theme?.tenantId) {
@@ -213,6 +268,108 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
     setToastMessage(msg);
     showAgroToast(msg, type);
     setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  // Company Management Handlers (Master Privilege)
+  const handleOpenNewCompany = () => {
+    setEditingCompany(null);
+    setCompanyFormData({
+      name: '',
+      tradeName: '',
+      cnpj: '',
+      stateRegistration: '',
+      registryCreaMapa: 'MAPA/SDA Registro • ART CREA',
+      phone: '',
+      email: '',
+      cityState: '',
+      tagline: 'Operações Aéreas e Pulverização de Precisão',
+      primaryColor: '#0284c7',
+      secondaryColor: '#0f766e',
+      accentColor: '#f59e0b',
+      cropFocus: 'Soja, Milho, Cana-de-açúcar',
+      description: '',
+      status: 'ACTIVE',
+      logoUrl: undefined,
+      logoIconId: undefined,
+    });
+    setIsCompanyModalOpen(true);
+  };
+
+  const handleEditCompany = (company: RegisteredCompany) => {
+    setEditingCompany(company);
+    const logoUrl = getStoredConfiguredLogoUrl(company.id);
+    const logoIconId = getStoredConfiguredLogoIconId(company.id);
+    setCompanyFormData({ 
+      ...company,
+      logoUrl,
+      logoIconId,
+    });
+    setIsCompanyModalOpen(true);
+  };
+
+  const handleSaveCompany = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!companyFormData.name || !companyFormData.name.trim()) {
+      showToast('O Nome / Razão Social da empresa é obrigatório.', 'error');
+      return;
+    }
+    if (!companyFormData.cnpj || !companyFormData.cnpj.trim()) {
+      showToast('O CNPJ da empresa é obrigatório.', 'error');
+      return;
+    }
+
+    let savedCompanyId = editingCompany ? editingCompany.id : '';
+
+    if (editingCompany) {
+      const updatedList = updateRegisteredCompany({
+        ...editingCompany,
+        ...companyFormData,
+        name: companyFormData.name.trim(),
+        tradeName: companyFormData.tradeName?.trim() || companyFormData.name.trim(),
+        cnpj: companyFormData.cnpj.trim(),
+      } as RegisteredCompany);
+      setRegisteredCompanies(updatedList);
+      savedCompanyId = editingCompany.id;
+      showToast(`Empresa "${companyFormData.name}" atualizada com sucesso!`);
+    } else {
+      const added = addRegisteredCompany(companyFormData as any);
+      savedCompanyId = added.id;
+      setRegisteredCompanies(getStoredRegisteredCompanies());
+      showToast(`Nova empresa "${added.name}" cadastrada com sucesso no AgroSys!`);
+    }
+
+    // Save individualized company logo URL / Icon ID
+    if (savedCompanyId) {
+      setStoredConfiguredLogoUrl(savedCompanyId, companyFormData.logoUrl);
+      setStoredConfiguredLogoIconId(savedCompanyId, companyFormData.logoIconId);
+
+      // If active tenant, update active theme immediately so Navbar updates live
+      if (theme?.tenantId === savedCompanyId && setTheme) {
+        setTheme(getCompanyTheme(savedCompanyId));
+      }
+    }
+
+    setIsCompanyModalOpen(false);
+  };
+
+  const handleDeleteCompany = (comp: RegisteredCompany) => {
+    if (registeredCompanies.length <= 1) {
+      showToast('Não é possível excluir a única empresa cadastrada no sistema.', 'error');
+      return;
+    }
+    const result = deleteRegisteredCompany(comp.id);
+    if (result.success) {
+      setRegisteredCompanies(result.updatedList);
+      showToast(`Empresa "${comp.name}" excluída com sucesso!`, 'info');
+      // If currently active company was deleted, switch to fallback
+      if (theme?.tenantId === comp.id) {
+        const fallbackTheme = getCompanyTheme('ciclodrone');
+        setTheme(fallbackTheme);
+      }
+    } else {
+      showToast('Falha ao excluir a empresa.', 'error');
+    }
+    setCompanyDeleteConfirmId(null);
   };
 
   // RBAC Check: Only MASTER or ADMIN has permission
@@ -461,7 +618,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
       message: `Tem certeza que deseja remover o usuário ${name}?`,
       confirmLabel: 'Sim, Remover',
       cancelLabel: 'Cancelar',
-      isDanger: true,
+      isDestructive: true,
       onConfirm: () => {
         setUsers(prev => prev.filter(u => u.id !== id));
         showToast(`Usuário "${name}" removido.`);
@@ -484,7 +641,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
       serialNumber: `AGR-SN-${Math.floor(100000 + Math.random() * 900000)}`,
       anacPrefix: `PP-AGR-${String(drones.length + 1).padStart(2, '0')}`,
       deceaRegistration: `SARPAS-${Math.floor(10000 + Math.random() * 90000)}-BR`,
-      tankCapacityLiters: 20,
+      tankCapacityL: 20,
       maxPayloadKg: 25,
       totalFlightHours: 0,
       batteryStatusPct: 100,
@@ -514,7 +671,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
       setDrones(prev => prev.map(d => d.id === editingDrone.id ? {
         ...d,
         ...droneFormData,
-        tankCapacityLiters: Number(droneFormData.tankCapacityLiters) || 20,
+        tankCapacityL: Number(droneFormData.tankCapacityL) || 20,
         maxPayloadKg: Number(droneFormData.maxPayloadKg) || 25,
         totalFlightHours: Number(droneFormData.totalFlightHours) || 0,
         batteryStatusPct: Number(droneFormData.batteryStatusPct) || 100,
@@ -530,7 +687,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
         serialNumber: droneFormData.serialNumber || `AGR-SN-${Date.now()}`,
         anacPrefix: droneFormData.anacPrefix || 'PP-AGR-XX',
         deceaRegistration: droneFormData.deceaRegistration || 'SARPAS-0000-BR',
-        tankCapacityLiters: Number(droneFormData.tankCapacityLiters) || 40,
+        tankCapacityL: Number(droneFormData.tankCapacityL) || 40,
         maxPayloadKg: Number(droneFormData.maxPayloadKg) || 40,
         totalFlightHours: Number(droneFormData.totalFlightHours) || 0,
         batteryStatusPct: Number(droneFormData.batteryStatusPct) || 100,
@@ -550,7 +707,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
       message: `Deseja remover o drone com prefixo ${prefix} da frota?`,
       confirmLabel: 'Sim, Remover',
       cancelLabel: 'Cancelar',
-      isDanger: true,
+      isDestructive: true,
       onConfirm: () => {
         setDrones(prev => prev.filter(d => d.id !== id));
         showToast(`Drone ${prefix} removido da frota.`);
@@ -627,7 +784,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
       message: `Deseja remover o cliente ${name}?`,
       confirmLabel: 'Sim, Remover',
       cancelLabel: 'Cancelar',
-      isDanger: true,
+      isDestructive: true,
       onConfirm: () => {
         setClients(prev => prev.filter(c => c.id !== id));
         showToast(`Cliente ${name} removido.`);
@@ -741,6 +898,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
                 if (activeTab === 'users') handleOpenNewUser();
                 else if (activeTab === 'drones') handleOpenNewDrone();
                 else if (activeTab === 'clients') handleOpenNewClient();
+                else if (activeTab === 'companies') handleOpenNewCompany();
               }}
               className="px-3 py-1.5 rounded-xl font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs transition-transform active:scale-95 flex items-center gap-1.5 text-xs cursor-pointer"
             >
@@ -749,6 +907,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
                 {activeTab === 'users' && 'Novo Usuário'}
                 {activeTab === 'drones' && 'Novo Drone'}
                 {activeTab === 'clients' && 'Novo Cliente'}
+                {activeTab === 'companies' && 'Nova Empresa'}
                 {activeTab === 'compensation' && 'Recalcular'}
               </span>
             </button>
@@ -759,6 +918,22 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
       {/* Navigation Sub-tabs */}
       <div className="flex flex-wrap items-center justify-start sm:justify-center gap-1.5 bg-white dark:bg-slate-800/90 p-1.5 rounded-xl border border-slate-200/80 dark:border-slate-700 shadow-2xs overflow-x-auto">
         <div className="flex items-center flex-wrap gap-1 justify-start sm:justify-center">
+          {/* Master Company Management Tab */}
+          {isMaster && (
+            <button
+              onClick={() => { setActiveTab('companies'); setSearchQuery(''); }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === 'companies'
+                  ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-2xs font-black ring-1 ring-amber-300'
+                  : 'text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40'
+              }`}
+              title="Super Master: Cadastre, edite e exclua empresas no sistema AgroSys"
+            >
+              <Building2 className="w-3.5 h-3.5 text-amber-900 dark:text-amber-300" />
+              <span>🏢 Empresas ({registeredCompanies.length})</span>
+            </button>
+          )}
+
           <button
             onClick={() => { setActiveTab('users'); setSearchQuery(''); }}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
@@ -918,7 +1093,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
               >
                 🌐 Todas as Empresas ({users.length})
               </button>
-              {PRESET_COMPANIES.map(comp => {
+              {registeredCompanies.map(comp => {
                 const compCount = users.filter(u => !isMasterUser(u) && (u.companyId || 'ciclodrone') === comp.id).length;
                 return (
                   <button
@@ -953,7 +1128,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
                 ASSISTANT: 'bg-amber-100/90 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border-amber-300/80',
               };
 
-              const compPreset = PRESET_COMPANIES.find(p => p.id === u.companyId);
+              const compPreset = registeredCompanies.find(p => p.id === u.companyId) || PRESET_COMPANIES.find(p => p.id === u.companyId);
               const companyName = u.isMaster || u.role === 'MASTER' ? 'Multi-Empresa Global' : (compPreset?.name || theme?.companyName || 'Ciclodrone');
 
               return (
@@ -1750,6 +1925,192 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
         />
       )}
 
+      {/* ========================================================================= */}
+      {/* TAB: GESTÃO & CADASTRO DE EMPRESAS (MASTER PRIVILEGE) */}
+      {/* ========================================================================= */}
+      {activeTab === 'companies' && (
+        <div className="space-y-4">
+          {/* Header Card */}
+          <div className="bg-white dark:bg-slate-800/95 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl p-4 sm:p-5 shadow-2xs">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-900 dark:text-amber-200 border border-amber-400/40 flex items-center gap-1 shadow-2xs">
+                    👑 Gestão Master Multi-Empresas
+                  </span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400 font-bold">
+                    {registeredCompanies.length} Unidades Cadastradas
+                  </span>
+                </div>
+                <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">
+                  Cadastro & Gestão de Empresas Aeroagrícolas
+                </h2>
+                <p className="text-xs text-slate-600 dark:text-slate-300 max-w-3xl leading-relaxed">
+                  Cadastre novas empresas e parceiros de pulverização aérea, defina paletas de identidade visual, dados cadastrais (CNPJ, IE, CREA/MAPA), canais de atendimento e gerencie o ciclo de vida e exclusão de unidades no AgroSys.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2.5 shrink-0">
+                <button
+                  onClick={handleOpenNewCompany}
+                  className="px-4 py-2.5 rounded-xl font-extrabold text-xs bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 shadow-md transition-transform active:scale-95 flex items-center gap-2 cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Cadastrar Nova Empresa</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Company Cards Minimalist High-Density Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3">
+            {registeredCompanies
+              .filter(c => 
+                c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (c.tradeName && c.tradeName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                c.cnpj.includes(searchQuery) ||
+                (c.cityState && c.cityState.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                (c.cropFocus && c.cropFocus.toLowerCase().includes(searchQuery.toLowerCase()))
+              )
+              .map(comp => {
+                const isActiveTenant = theme?.tenantId === comp.id;
+                const compLogoUrl = getStoredConfiguredLogoUrl(comp.id);
+                const compTheme = getCompanyTheme(comp.id);
+
+                return (
+                  <div
+                    key={comp.id}
+                    className={`p-3 rounded-2xl bg-white dark:bg-slate-800/95 border transition-all flex flex-col justify-between shadow-2xs hover:shadow-md ${
+                      isActiveTenant
+                        ? 'border-amber-400 dark:border-amber-500/80 ring-2 ring-amber-400/20 bg-gradient-to-b from-amber-50/25 via-white to-white dark:from-amber-950/20 dark:via-slate-800 dark:to-slate-800'
+                        : 'border-slate-200/80 dark:border-slate-700/80 hover:border-amber-300 dark:hover:border-amber-600/50'
+                    }`}
+                  >
+                    <div>
+                      {/* Compact Header */}
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          {/* Logo Thumbnail Container */}
+                          <div className="shrink-0 flex items-center">
+                            <BrandLogo theme={compTheme} size="sm" showBackground={true} className="shadow-2xs" />
+                          </div>
+                          <div className="min-w-0">
+                            <h3 className="text-xs font-black text-slate-900 dark:text-white truncate leading-tight">
+                              {comp.name}
+                            </h3>
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                              {comp.tradeName || comp.name}
+                            </p>
+                          </div>
+                        </div>
+
+                        {isActiveTenant ? (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-amber-500 text-slate-950 shadow-2xs shrink-0">
+                            👑 ATIVA
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300 shrink-0">
+                            {comp.status === 'INACTIVE' ? 'Inativa' : 'Cadastrada'}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Minimalist Micro Badges Grid */}
+                      <div className="space-y-1 my-2 text-[11px]">
+                        <div className="flex items-center justify-between gap-1 text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/60 px-2 py-1 rounded-lg border border-slate-100 dark:border-slate-800">
+                          <span className="text-[10px] text-slate-400 font-medium">CNPJ:</span>
+                          <span className="font-mono font-bold text-[10px]">{comp.cnpj}</span>
+                        </div>
+                        
+                        <div className="flex items-center justify-between gap-1 text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/60 px-2 py-1 rounded-lg border border-slate-100 dark:border-slate-800">
+                          <span className="text-[10px] text-slate-400 font-medium flex items-center gap-1">
+                            <MapPin className="w-2.5 h-2.5 text-slate-400" /> Sede:
+                          </span>
+                          <span className="font-bold text-[10px] truncate max-w-[130px]">{comp.cityState || 'Brasil'}</span>
+                        </div>
+
+                        {comp.registryCreaMapa && (
+                          <div className="flex items-center justify-between gap-1 text-emerald-800 dark:text-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-lg border border-emerald-200/50 dark:border-emerald-900/40">
+                            <span className="text-[9px] font-semibold truncate" title={comp.registryCreaMapa}>
+                              📜 {comp.registryCreaMapa}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Micro Color Dots & Crops */}
+                      <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800/80 text-[10px]">
+                        <div className="flex items-center gap-1" title="Paleta da Marca">
+                          <div className="w-3 h-3 rounded-full border border-white shadow-2xs" style={{ backgroundColor: comp.primaryColor }} />
+                          <div className="w-3 h-3 rounded-full border border-white shadow-2xs" style={{ backgroundColor: comp.secondaryColor }} />
+                          <div className="w-3 h-3 rounded-full border border-white shadow-2xs" style={{ backgroundColor: comp.accentColor }} />
+                        </div>
+
+                        <span className="text-slate-500 dark:text-slate-400 truncate max-w-[120px] font-medium" title={comp.cropFocus}>
+                          🌱 {comp.cropFocus || 'Grãos'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Compact Actions Row */}
+                    <div className="pt-2 mt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-1">
+                      <button
+                        onClick={() => {
+                          if (setTheme) {
+                            const compTheme = getCompanyTheme(comp.id);
+                            setTheme(compTheme);
+                            showToast(`Empresa "${comp.name}" ativada no AgroSys!`);
+                          }
+                        }}
+                        className={`px-2 py-1 rounded-lg text-[11px] font-extrabold transition-all cursor-pointer flex items-center gap-1 ${
+                          isActiveTenant
+                            ? 'bg-amber-500/20 text-amber-900 dark:text-amber-200 border border-amber-400/40'
+                            : 'bg-slate-100 hover:bg-amber-50 dark:bg-slate-700 dark:hover:bg-amber-950/40 text-slate-700 dark:text-slate-200'
+                        }`}
+                        title="Ativar esta empresa na sessão atual"
+                      >
+                        <Building2 className="w-3 h-3" />
+                        <span>{isActiveTenant ? 'Ativa' : 'Ativar'}</span>
+                      </button>
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => {
+                            if (setTheme) {
+                              setTheme(getCompanyTheme(comp.id));
+                            }
+                            setActiveTab('branding');
+                          }}
+                          className="p-1 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 border border-slate-200/80 dark:border-slate-700 cursor-pointer"
+                          title="Estúdio Visual & Marca"
+                        >
+                          <Palette className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                        </button>
+
+                        <button
+                          onClick={() => handleEditCompany(comp)}
+                          className="p-1 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-purple-50 dark:hover:bg-purple-950/40 border border-slate-200/80 dark:border-slate-700 cursor-pointer"
+                          title="Editar Cadastro & Logotipo"
+                        >
+                          <Edit3 className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+                        </button>
+
+                        <button
+                          onClick={() => setCompanyDeleteConfirmId(comp.id)}
+                          className="p-1 rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-rose-200/60 dark:border-rose-900/40 cursor-pointer"
+                          title="Excluir Empresa"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
+
       {activeTab === 'branding' && theme && (
         <AdminBrandingStudio
           currentUser={currentUser}
@@ -1771,6 +2132,451 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
       {activeTab === 'help' && (
         <div className="p-6 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
            <p className="text-sm text-slate-600 dark:text-slate-300">Conteúdo de Ajuda & Manuais</p>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: CADASTRAR / EDITAR EMPRESA COM CONFIGURAÇÃO DE LOGOTIPO */}
+      {/* ========================================================================= */}
+      {isCompanyModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+          <div className="relative w-full max-w-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl p-5 sm:p-7 my-auto max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-700 dark:text-amber-300">
+                  <Building2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+                    {editingCompany ? `Editar Empresa: ${editingCompany.name}` : 'Cadastrar Nova Empresa Aeroagrícola'}
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Defina razão social, CNPJ, certificados regulatórios, logotipo e cores de identidade visual.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsCompanyModalOpen(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveCompany} className="space-y-4 pt-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {/* Dedicated Logo Configuration Block */}
+                <div className="sm:col-span-2 p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                      <Camera className="w-4 h-4 text-amber-500" />
+                      Logotipo da Empresa (Personalizado por Unidade)
+                    </span>
+                    <span className="text-[10px] text-slate-400">
+                      Upload de imagem (PNG/SVG/JPG) ou escolha de ícone vetorial
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center gap-4">
+                    {/* Live Preview Box */}
+                    <div 
+                      className="w-20 h-20 rounded-2xl flex items-center justify-center p-2 border-2 shadow-xs shrink-0 overflow-hidden relative group"
+                      style={{ 
+                        backgroundColor: companyFormData.primaryColor || '#0284c7',
+                        borderColor: `${companyFormData.primaryColor || '#0284c7'}60`
+                      }}
+                    >
+                      {companyFormData.logoUrl ? (
+                        <img src={companyFormData.logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                      ) : (
+                        <BrandLogo 
+                          theme={{
+                            primaryColor: companyFormData.primaryColor || '#0284c7',
+                            secondaryColor: companyFormData.secondaryColor || '#0f766e',
+                            accentColor: companyFormData.accentColor || '#f59e0b',
+                            logoIconId: companyFormData.logoIconId,
+                          } as any} 
+                          size="md" 
+                          showText={false} 
+                          className="w-full h-full text-white" 
+                        />
+                      )}
+                    </div>
+
+                    {/* Actions & Preset Icons */}
+                    <div className="space-y-2 w-full">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <label className="px-3 py-1.5 rounded-xl font-extrabold text-xs bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-2xs transition-transform active:scale-95 flex items-center gap-1.5 cursor-pointer">
+                          <Upload className="w-3.5 h-3.5" />
+                          <span>Fazer Upload de Logotipo</span>
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              const reader = new FileReader();
+                              reader.onload = (event) => {
+                                const base64 = event.target?.result as string;
+                                if (base64) {
+                                  setCompanyFormData(prev => ({
+                                    ...prev,
+                                    logoUrl: base64,
+                                    logoIconId: undefined,
+                                  }));
+                                }
+                              };
+                              reader.readAsDataURL(file);
+                            }} 
+                          />
+                        </label>
+
+                        {(companyFormData.logoUrl || companyFormData.logoIconId) && (
+                          <button
+                            type="button"
+                            onClick={() => setCompanyFormData(prev => ({ ...prev, logoUrl: undefined, logoIconId: undefined }))}
+                            className="px-2.5 py-1.5 rounded-xl font-bold text-xs text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 border border-rose-200/60 dark:border-rose-900/40 cursor-pointer flex items-center gap-1"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Restaurar Logo Padrão</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Vector Preset Badges */}
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 block mb-1">
+                          Ou escolha um Ícone Vetorial Predefinido:
+                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {PRESET_LOGOS.map(logoBadge => {
+                            const isSelected = companyFormData.logoIconId === logoBadge.id && !companyFormData.logoUrl;
+                            return (
+                              <button
+                                key={logoBadge.id}
+                                type="button"
+                                onClick={() => setCompanyFormData(prev => ({ ...prev, logoIconId: logoBadge.id, logoUrl: undefined }))}
+                                className={`p-1.5 rounded-xl border text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                                  isSelected
+                                    ? 'border-amber-500 bg-amber-500/20 text-amber-950 dark:text-amber-100 ring-1 ring-amber-400'
+                                    : 'border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-amber-50/50'
+                                }`}
+                                title={logoBadge.name}
+                              >
+                                <svg className="w-3.5 h-3.5 fill-current" viewBox={logoBadge.viewBox || '0 0 24 24'}>
+                                  <path d={logoBadge.svgPath} />
+                                </svg>
+                                <span className="text-[10px] hidden xs:inline">{logoBadge.name.split(' ')[0]}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Nome Fantasia */}
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Nome Fantasia da Empresa *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={companyFormData.name || ''}
+                    onChange={(e) => setCompanyFormData({ ...companyFormData, name: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    placeholder="Ex: Ciclodrone, AeroAgro..."
+                  />
+                </div>
+
+                {/* Razão Social */}
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Razão Social Completa *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={companyFormData.tradeName || ''}
+                    onChange={(e) => setCompanyFormData({ ...companyFormData, tradeName: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    placeholder="Ex: Ciclodrone Aviação Agrícola Ltda"
+                  />
+                </div>
+
+                {/* CNPJ */}
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    CNPJ *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={companyFormData.cnpj || ''}
+                    onChange={(e) => setCompanyFormData({ ...companyFormData, cnpj: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    placeholder="00.000.000/0001-00"
+                  />
+                </div>
+
+                {/* Inscrição Estadual */}
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Inscrição Estadual (IE)
+                  </label>
+                  <input
+                    type="text"
+                    value={companyFormData.stateRegistration || ''}
+                    onChange={(e) => setCompanyFormData({ ...companyFormData, stateRegistration: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-slate-900 dark:text-white"
+                    placeholder="Ex: 582.910.440.118 ou ISENTO"
+                  />
+                </div>
+
+                {/* Registro MAPA / CREA */}
+                <div className="sm:col-span-2">
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Certificação Regulamentar MAPA/SDA e ART CREA
+                  </label>
+                  <input
+                    type="text"
+                    value={companyFormData.registryCreaMapa || ''}
+                    onChange={(e) => setCompanyFormData({ ...companyFormData, registryCreaMapa: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-semibold text-emerald-700 dark:text-emerald-400"
+                    placeholder="Ex: MAPA/SDA nº 24.890/2026 • ART CREA-SP 2026-1044"
+                  />
+                </div>
+
+                {/* Telefone */}
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Telefone / WhatsApp Comercial
+                  </label>
+                  <input
+                    type="text"
+                    value={companyFormData.phone || ''}
+                    onChange={(e) => setCompanyFormData({ ...companyFormData, phone: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                    placeholder="(16) 99781-4400"
+                  />
+                </div>
+
+                {/* E-mail */}
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    E-mail Corporativo
+                  </label>
+                  <input
+                    type="email"
+                    value={companyFormData.email || ''}
+                    onChange={(e) => setCompanyFormData({ ...companyFormData, email: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                    placeholder="contato@empresa.com.br"
+                  />
+                </div>
+
+                {/* Localização com Autocomplete */}
+                <div className="sm:col-span-2">
+                  <BrazilCityAutocomplete
+                    label="Município e UF da Sede Operacional (IBGE)"
+                    value={companyFormData.cityState || ''}
+                    onChange={(cityStateStr) => setCompanyFormData({ ...companyFormData, cityState: cityStateStr })}
+                    placeholder="Digite e selecione a cidade (ex: Ribeirão Preto - SP)..."
+                    helperText="Base operacional utilizada para cálculo de previsão de tempo e coordenadas padrão."
+                  />
+                </div>
+
+                {/* Slogan */}
+                <div className="sm:col-span-2">
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Slogan / Subtítulo Institucional
+                  </label>
+                  <input
+                    type="text"
+                    value={companyFormData.tagline || ''}
+                    onChange={(e) => setCompanyFormData({ ...companyFormData, tagline: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-medium"
+                    placeholder="Ex: Pulverização de Alta Precisão e Gestão Inteligente de Lavouras"
+                  />
+                </div>
+
+                {/* Culturas Principais */}
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Culturas de Foco Operacional
+                  </label>
+                  <input
+                    type="text"
+                    value={companyFormData.cropFocus || ''}
+                    onChange={(e) => setCompanyFormData({ ...companyFormData, cropFocus: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                    placeholder="Ex: Soja, Milho, Cana-de-açúcar, Café, Citros"
+                  />
+                </div>
+
+                {/* Status */}
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Status da Unidade
+                  </label>
+                  <select
+                    value={companyFormData.status || 'ACTIVE'}
+                    onChange={(e) => setCompanyFormData({ ...companyFormData, status: e.target.value as any })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white cursor-pointer"
+                  >
+                    <option value="ACTIVE">🟢 Ativa (Operando)</option>
+                    <option value="INACTIVE">🟡 Inativa (Bloqueada)</option>
+                  </select>
+                </div>
+
+                {/* Cores da Identidade Visual */}
+                <div className="sm:col-span-2 p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                      <Palette className="w-4 h-4 text-amber-500" />
+                      Paleta de Cores da Marca (White-Label)
+                    </span>
+                    <span className="text-[10px] text-slate-400">
+                      Personalize as cores primária, secundária e destaque
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                        Cor Primária
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={companyFormData.primaryColor || '#0284c7'}
+                          onChange={(e) => setCompanyFormData({ ...companyFormData, primaryColor: e.target.value })}
+                          className="w-8 h-8 rounded-lg border border-slate-300 cursor-pointer p-0.5 shrink-0"
+                        />
+                        <input
+                          type="text"
+                          value={companyFormData.primaryColor || '#0284c7'}
+                          onChange={(e) => setCompanyFormData({ ...companyFormData, primaryColor: e.target.value })}
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-xs font-bold uppercase"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                        Cor Secundária
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={companyFormData.secondaryColor || '#0f766e'}
+                          onChange={(e) => setCompanyFormData({ ...companyFormData, secondaryColor: e.target.value })}
+                          className="w-8 h-8 rounded-lg border border-slate-300 cursor-pointer p-0.5 shrink-0"
+                        />
+                        <input
+                          type="text"
+                          value={companyFormData.secondaryColor || '#0f766e'}
+                          onChange={(e) => setCompanyFormData({ ...companyFormData, secondaryColor: e.target.value })}
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-xs font-bold uppercase"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                        Cor de Destaque (Accent)
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={companyFormData.accentColor || '#f59e0b'}
+                          onChange={(e) => setCompanyFormData({ ...companyFormData, accentColor: e.target.value })}
+                          className="w-8 h-8 rounded-lg border border-slate-300 cursor-pointer p-0.5 shrink-0"
+                        />
+                        <input
+                          type="text"
+                          value={companyFormData.accentColor || '#f59e0b'}
+                          onChange={(e) => setCompanyFormData({ ...companyFormData, accentColor: e.target.value })}
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-xs font-bold uppercase"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsCompanyModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl text-xs font-black bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 shadow-md cursor-pointer"
+                >
+                  {editingCompany ? 'Salvar Alterações da Empresa' : 'Cadastrar Empresa no AgroSys'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: EXCLUIR EMPRESA (CONFIRMAÇÃO SEGURA MASTER) */}
+      {/* ========================================================================= */}
+      {companyDeleteConfirmId && (
+        <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="relative w-full max-w-md bg-white dark:bg-slate-900 border-2 border-rose-300 dark:border-rose-900/80 rounded-3xl shadow-2xl p-6 text-center space-y-4 animate-in fade-in zoom-in-95">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-rose-100 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900 flex items-center justify-center text-rose-600 dark:text-rose-400 shadow-inner">
+              <AlertTriangle className="w-7 h-7" />
+            </div>
+
+            <div className="space-y-1.5">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-300 dark:border-rose-800">
+                Ação Crítica Master
+              </span>
+              <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+                Excluir Empresa Definitivamente?
+              </h3>
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                Você está prestes a excluir a empresa{' '}
+                <strong className="text-slate-900 dark:text-white">
+                  "{registeredCompanies.find(c => c.id === companyDeleteConfirmId)?.name}"
+                </strong>{' '}
+                do sistema AgroSys. Esta ação removerá os parâmetros de identidade visual e isolamento de tenant desta unidade.
+              </p>
+            </div>
+
+            <div className="pt-2 flex items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => setCompanyDeleteConfirmId(null)}
+                className="px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const comp = registeredCompanies.find(c => c.id === companyDeleteConfirmId);
+                  if (comp) {
+                    handleDeleteCompany(comp);
+                  }
+                }}
+                className="px-5 py-2.5 rounded-xl text-xs font-black bg-rose-600 hover:bg-rose-700 text-white shadow-lg cursor-pointer flex items-center gap-1.5"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Sim, Excluir Empresa</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -1916,7 +2722,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
                       onChange={(e) => setUserFormData({ ...userFormData, companyId: e.target.value })}
                       className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer"
                     >
-                      {PRESET_COMPANIES.map(comp => (
+                      {registeredCompanies.map(comp => (
                         <option key={comp.id} value={comp.id}>
                           🏢 {comp.name}
                         </option>
@@ -1926,7 +2732,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
                     <div className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
                       <div className="flex items-center gap-1.5 truncate">
                         <Building2 className="w-3.5 h-3.5 text-purple-600 shrink-0" />
-                        <span className="truncate">{PRESET_COMPANIES.find(p => p.id === (currentUser.companyId || theme?.tenantId))?.name || theme?.companyName || 'Empresa Local'}</span>
+                        <span className="truncate">{registeredCompanies.find(p => p.id === (currentUser.companyId || theme?.tenantId))?.name || theme?.companyName || 'Empresa Local'}</span>
                       </div>
                       <span className="text-[10px] text-slate-400 font-medium shrink-0">(Sua Empresa)</span>
                     </div>

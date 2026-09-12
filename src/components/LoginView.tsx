@@ -22,6 +22,7 @@ import { PRESET_COMPANIES } from '../data/themeTokensData';
 import { isMasterUser } from '../utils/userPermissions';
 import { UserAvatar } from './UserAvatar';
 import { BrandLogo } from './BrandLogo';
+import { getStoredRegisteredCompanies } from '../services/companyStorage';
 
 interface LoginViewProps {
   users?: UserProfile[];
@@ -370,7 +371,8 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 </span>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
                   {userList.filter(u => u.role === 'ADMIN' && !isMasterUser(u)).map((user) => {
-                    const compName = PRESET_COMPANIES.find(p => p.id === user.companyId)?.name || 'Empresa';
+                    const allComps = getStoredRegisteredCompanies();
+                    const compName = allComps.find(p => p.id === user.companyId)?.name || PRESET_COMPANIES.find(p => p.id === user.companyId)?.name || 'Empresa';
                     return (
                       <button
                         key={user.id}

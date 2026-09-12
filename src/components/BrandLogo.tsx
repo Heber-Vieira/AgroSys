@@ -21,21 +21,21 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
 }) => {
   const t = theme || ({} as WhiteLabelTheme);
   const sizeClasses = {
-    xs: 'w-7 h-7 text-xs rounded-lg',
-    sm: 'w-9 h-9 text-sm rounded-xl',
-    md: 'w-11 h-11 sm:w-12 sm:h-12 text-base rounded-2xl',
-    lg: 'w-14 h-14 sm:w-16 sm:h-16 text-lg rounded-2xl',
-    xl: 'w-20 h-20 text-xl rounded-3xl',
-    '2xl': 'w-24 h-24 text-2xl rounded-3xl',
+    xs: 'h-8 min-w-[32px] text-xs rounded-xl px-1.5',
+    sm: 'h-10 sm:h-11 min-w-[40px] text-sm rounded-xl px-2',
+    md: 'h-12 sm:h-13 min-w-[48px] text-base rounded-2xl px-2.5',
+    lg: 'h-16 sm:h-18 min-w-[64px] text-lg rounded-2xl px-3.5',
+    xl: 'h-24 sm:h-28 min-w-[96px] text-xl rounded-3xl px-5',
+    '2xl': 'h-32 sm:h-36 min-w-[128px] text-2xl rounded-3xl px-6',
   };
 
   const iconSizes = {
-    xs: 'w-4 h-4',
-    sm: 'w-5 h-5',
-    md: 'w-6 h-6 sm:w-7 sm:h-7',
-    lg: 'w-8 h-8 sm:w-9 sm:h-9',
-    xl: 'w-11 h-11',
-    '2xl': 'w-14 h-14',
+    xs: 'w-4.5 h-4.5',
+    sm: 'w-6 h-6',
+    md: 'w-7 h-7 sm:w-8 sm:h-8',
+    lg: 'w-9 h-9 sm:w-10 sm:h-10',
+    xl: 'w-13 h-13',
+    '2xl': 'w-16 h-16',
   };
 
   const tenantId = t.tenantId;
@@ -59,18 +59,19 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
       }
     : { color: t.primaryColor || '#059669' };
 
-  // 1. If custom uploaded image logo exists
+  // 1. If custom uploaded image logo exists (High visibility glass emblem with aspect ratio expansion)
   if (effectiveLogoUrl) {
     return (
       <div 
-        className={`relative flex items-center justify-center overflow-hidden transition-all duration-200 border border-emerald-400/30 dark:border-emerald-500/40 shadow-md ${sizeClasses[size]} ${
-          showBackground ? 'bg-white dark:bg-[#072a1e] p-1.5 ring-2 ring-emerald-500/20' : ''
+        className={`relative flex items-center justify-center overflow-hidden transition-all duration-300 border border-emerald-400/50 dark:border-emerald-500/60 shadow-md max-w-[260px] sm:max-w-[320px] ${sizeClasses[size]} ${
+          showBackground ? 'bg-white dark:bg-[#031911] p-1.5 ring-2 ring-emerald-500/30 hover:ring-emerald-400' : ''
         } ${className}`}
+        title={t.companyName || 'Logotipo da Empresa'}
       >
         <img
           src={effectiveLogoUrl}
           alt={t.companyName || 'Logo'}
-          className="w-full h-full object-contain filter drop-shadow-xs"
+          className="w-auto h-full max-w-full object-contain filter drop-shadow-sm transition-transform duration-300 hover:scale-[1.03]"
           onError={(e) => {
             // Fallback if image fails to load
             (e.target as HTMLElement).style.display = 'none';
@@ -84,14 +85,15 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   if (selectedPresetLogo) {
     return (
       <div
-        className={`relative flex items-center justify-center text-white font-black transition-all duration-200 shadow-md ring-2 ring-white/20 border border-white/30 ${sizeClasses[size]} ${className}`}
+        className={`relative flex items-center justify-center text-white font-black transition-all duration-300 shadow-md ring-2 ring-white/30 border border-white/40 ${sizeClasses[size]} ${className}`}
         style={bgStyle}
+        title={t.companyName || 'Logotipo da Empresa'}
       >
         {/* Subtle interior glare */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/25 rounded-[inherit] pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-white/30 rounded-[inherit] pointer-events-none" />
         
         <svg
-          className={`${iconSizes[size]} fill-current drop-shadow-xs relative z-10 ${iconClassName}`}
+          className={`${iconSizes[size]} fill-current drop-shadow-md relative z-10 ${iconClassName}`}
           viewBox={selectedPresetLogo.viewBox || "0 0 24 24"}
         >
           <path d={selectedPresetLogo.svgPath} />
@@ -103,13 +105,14 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   // 3. Default plane / drone icon
   return (
     <div
-      className={`relative flex items-center justify-center text-white font-black transition-all duration-200 shadow-md ring-2 ring-white/20 border border-white/30 ${sizeClasses[size]} ${className}`}
+      className={`relative flex items-center justify-center text-white font-black transition-all duration-300 shadow-md ring-2 ring-white/30 border border-white/40 ${sizeClasses[size]} ${className}`}
       style={bgStyle}
+      title={t.companyName || 'AgroSys'}
     >
       {/* Subtle interior glare */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/25 rounded-[inherit] pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-white/30 rounded-[inherit] pointer-events-none" />
       
-      <Plane className={`${iconSizes[size]} -rotate-45 drop-shadow-xs relative z-10 ${iconClassName}`} />
+      <Plane className={`${iconSizes[size]} -rotate-45 drop-shadow-md relative z-10 ${iconClassName}`} />
     </div>
   );
 };

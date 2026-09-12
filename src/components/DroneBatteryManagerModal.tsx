@@ -298,7 +298,7 @@ export const DroneBatteryManagerModal: React.FC<DroneBatteryManagerModalProps> =
       message: `Tem certeza que deseja remover a bateria "${battery.serialNumber}" (${battery.modelName}) vinculada ao drone ${currentDrone?.anacPrefix}? Esta ação não pode ser desfeita.`,
       confirmLabel: 'Sim, Excluir',
       cancelLabel: 'Cancelar',
-      isDanger: true,
+      isDestructive: true,
       onConfirm: () => {
         setBatteries(prev => prev.filter(b => b.id !== battery.id));
         showToast(`Bateria "${battery.serialNumber}" removida com sucesso.`, 'info', 'Bateria Removida');

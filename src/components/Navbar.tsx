@@ -12,12 +12,13 @@ import {
   Building2,
   Menu
 } from 'lucide-react';
-import { ThemeMode, WhiteLabelTheme, AppViewMode, UserProfile } from '../types';
+import { ThemeMode, WhiteLabelTheme, AppViewMode, UserProfile, RegisteredCompany } from '../types';
 import { PRESET_COMPANIES } from '../data/themeTokensData';
 import { isMasterUser } from '../utils/userPermissions';
 import { BrandLogo } from './BrandLogo';
 import { UserAvatar, UserPhotoUploadModal, saveStoredUserPhoto } from './UserAvatar';
 import { getCompanyTheme } from '../services/brandingLogoStorage';
+import { getStoredRegisteredCompanies, COMPANIES_UPDATED_EVENT } from '../services/companyStorage';
 
 export type { AppViewMode };
 
@@ -56,8 +57,23 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [isOfflineSimulated, setIsOfflineSimulated] = useState<boolean>(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState<boolean>(false);
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState<boolean>(false);
+  const [registeredCompanies, setRegisteredCompanies] = useState<RegisteredCompany[]>(() => getStoredRegisteredCompanies());
 
   const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Synchronize dynamic registered companies on storage updates
+  useEffect(() => {
+    const handleCompaniesUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<RegisteredCompany[]>;
+      if (customEvent.detail && Array.isArray(customEvent.detail)) {
+        setRegisteredCompanies(customEvent.detail);
+      } else {
+        setRegisteredCompanies(getStoredRegisteredCompanies());
+      }
+    };
+    window.addEventListener(COMPANIES_UPDATED_EVENT, handleCompaniesUpdated);
+    return () => window.removeEventListener(COMPANIES_UPDATED_EVENT, handleCompaniesUpdated);
+  }, []);
 
   // Close user dropdown when clicking outside
   useEffect(() => {
@@ -112,21 +128,16 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <div 
               onClick={() => setCurrentView('hub')}
-              className="flex items-center gap-2 cursor-pointer select-none group py-0.5 min-w-0"
+              className="flex items-center gap-2.5 sm:gap-3.5 cursor-pointer select-none group py-0.5 min-w-0"
               title="Ir para a Página Inicial (Hub de Módulos)"
             >
-              {/* Logo container */}
-              <div className="relative flex-shrink-0">
-                <div 
-                  className="absolute -inset-1 rounded-2xl opacity-40 group-hover:opacity-80 blur-xs transition-opacity duration-300"
-                  style={{
-                    background: `linear-gradient(135deg, ${theme.primaryColor || '#0284c7'}, ${theme.secondaryColor || '#0f766e'})`
-                  }}
-                />
+              {/* High-visibility Brand Emblem Frame */}
+              <div className="relative flex-shrink-0 flex items-center">
                 <BrandLogo 
                   theme={theme} 
-                  size="md" 
-                  className="relative z-10 group-hover:scale-105 transition-all duration-200 shadow-md ring-2 ring-white/40 dark:ring-emerald-400/30 w-7 h-7 sm:w-8 sm:h-8" 
+                  size="sm" 
+                  showBackground={true}
+                  className="shadow-md hover:shadow-lg transition-all duration-300 group-hover:scale-105" 
                 />
               </div>
 
@@ -199,7 +210,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <option value="ALL" className="bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 font-black">
                         🌐 Visão Global (Todas)
                       </option>
-                      {PRESET_COMPANIES.map(comp => (
+                      {registeredCompanies.map(comp => (
                         <option key={comp.id} value={comp.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-bold">
                           🏢 {comp.name}
                         </option>

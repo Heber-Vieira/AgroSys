@@ -5,8 +5,9 @@
  * If a company has not configured a custom logo, the system adopts the default logo.
  */
 
-import { WhiteLabelTheme } from '../types';
+import { RegisteredCompany, WhiteLabelTheme } from '../types';
 import { PRESET_COMPANIES } from '../data/themeTokensData';
+import { getStoredRegisteredCompanies } from './companyStorage';
 
 export function getStoredConfiguredLogoUrl(companyId?: string): string | undefined {
   try {
@@ -70,7 +71,18 @@ export function setStoredConfiguredLogoIconId(companyId: string, iconId?: string
  * are undefined so the system automatically falls back to the default AgroSys logo.
  */
 export function getCompanyTheme(companyId: string = 'ciclodrone'): WhiteLabelTheme {
+  const allCompanies = getStoredRegisteredCompanies();
+  const registered = allCompanies.find(c => c.id === companyId);
   const preset = PRESET_COMPANIES.find(p => p.id === companyId) || PRESET_COMPANIES[0];
+
+  const primaryColor = registered?.primaryColor || preset?.primary || '#0284c7';
+  const secondaryColor = registered?.secondaryColor || preset?.secondary || '#0f766e';
+  const accentColor = registered?.accentColor || preset?.accent || '#f59e0b';
+  const companyName = registered?.name || preset?.name || 'AgroSys';
+  const tagline = registered?.tagline || preset?.tagline || 'Pulverização Agrícola de Alta Precisão';
+  const contactPhone = registered?.phone || preset?.contactPhone || '(16) 99781-4400';
+  const contactEmail = registered?.email || preset?.contactEmail || 'contato@agrosys.agr.br';
+  const registryCreaMapa = registered?.registryCreaMapa || preset?.registryCreaMapa || '';
   
   // Isolated logo retrieval strictly for this specific company
   const companyLogoUrl = getStoredConfiguredLogoUrl(companyId);
@@ -86,19 +98,19 @@ export function getCompanyTheme(companyId: string = 'ciclodrone'): WhiteLabelThe
   } catch (e) {}
 
   return {
-    tenantId: preset.id,
-    companyName: customOverrides.companyName || preset.name,
-    tagline: customOverrides.tagline || preset.tagline,
-    primaryColor: customOverrides.primaryColor || preset.primary,
-    secondaryColor: customOverrides.secondaryColor || preset.secondary,
-    accentColor: customOverrides.accentColor || preset.accent,
-    surfaceLight: customOverrides.surfaceLight || preset.surfaceLight || '#FFFFFF',
-    surfaceDark: customOverrides.surfaceDark || preset.surfaceDark || '#081320',
+    tenantId: companyId,
+    companyName: customOverrides.companyName || companyName,
+    tagline: customOverrides.tagline || tagline,
+    primaryColor: customOverrides.primaryColor || primaryColor,
+    secondaryColor: customOverrides.secondaryColor || secondaryColor,
+    accentColor: customOverrides.accentColor || accentColor,
+    surfaceLight: customOverrides.surfaceLight || registered?.surfaceLight || preset?.surfaceLight || '#FFFFFF',
+    surfaceDark: customOverrides.surfaceDark || registered?.surfaceDark || preset?.surfaceDark || '#081320',
     borderRadius: customOverrides.borderRadius || '0.875rem',
     fontFamily: customOverrides.fontFamily || 'Plus Jakarta Sans',
-    contactPhone: customOverrides.contactPhone || preset.contactPhone || '(16) 99781-4400',
-    contactEmail: customOverrides.contactEmail || preset.contactEmail || 'contato@agrosys.agr.br',
-    registryCreaMapa: customOverrides.registryCreaMapa || preset.registryCreaMapa || '',
+    contactPhone: customOverrides.contactPhone || contactPhone,
+    contactEmail: customOverrides.contactEmail || contactEmail,
+    registryCreaMapa: customOverrides.registryCreaMapa || registryCreaMapa,
     brandStyle: 'modern',
     density: 'comfortable',
     // Strictly individualized logo: undefined if not configured by the company admin
