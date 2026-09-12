@@ -1,11 +1,17 @@
 import React from 'react';
 import { Plane } from 'lucide-react';
-import { WhiteLabelTheme } from '../types';
+import { WhiteLabelTheme, ThemeMode } from '../types';
 import { PRESET_LOGOS } from '../data/themeTokensData';
-import { getStoredConfiguredLogoUrl, getStoredConfiguredLogoIconId } from '../services/brandingLogoStorage';
+import { 
+  getStoredConfiguredLogoUrl, 
+  getStoredConfiguredLogoDarkUrl,
+  getStoredConfiguredLogoIconId,
+  getStoredLogoAdaptiveMode
+} from '../services/brandingLogoStorage';
 
 interface BrandLogoProps {
   theme: WhiteLabelTheme;
+  themeMode?: ThemeMode;
   className?: string;
   iconClassName?: string;
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
@@ -14,6 +20,7 @@ interface BrandLogoProps {
 
 export const BrandLogo: React.FC<BrandLogoProps> = ({
   theme,
+  themeMode = 'light',
   className = '',
   iconClassName = '',
   size = 'md',
@@ -44,6 +51,14 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   const effectiveLogoUrl = (tenantId && tenantId !== 'ALL') 
     ? (getStoredConfiguredLogoUrl(tenantId) || (t.tenantId === tenantId ? t.logoUrl : undefined))
     : undefined;
+
+  const effectiveLogoDarkUrl = (tenantId && tenantId !== 'ALL') 
+    ? (getStoredConfiguredLogoDarkUrl(tenantId) || (t.tenantId === tenantId ? t.logoDarkUrl : undefined))
+    : undefined;
+
+  const effectiveAdaptiveMode = (tenantId && tenantId !== 'ALL')
+    ? (getStoredLogoAdaptiveMode(tenantId) || (t.tenantId === tenantId ? t.logoAdaptiveMode : 'auto'))
+    : 'auto';
     
   const effectiveLogoIconId = (tenantId && tenantId !== 'ALL')
     ? (getStoredConfiguredLogoIconId(tenantId) || (t.tenantId === tenantId ? t.logoIconId : undefined))
@@ -53,25 +68,48 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
     ? PRESET_LOGOS.find(l => l.id === effectiveLogoIconId)
     : null;
 
+  // Determine active logo image URL based on current themeMode
+  const activeLogoUrl = (themeMode === 'dark' && effectiveLogoDarkUrl)
+    ? effectiveLogoDarkUrl
+    : effectiveLogoUrl;
+
   const bgStyle = showBackground
     ? {
         background: `linear-gradient(135deg, ${t.primaryColor || '#059669'}, ${t.secondaryColor || t.primaryColor || '#0f766e'})`,
       }
     : { color: t.primaryColor || '#059669' };
 
-  // 1. If custom uploaded image logo exists (High visibility glass emblem with aspect ratio expansion)
-  if (effectiveLogoUrl) {
+  // 1. If custom uploaded image logo exists
+  if (activeLogoUrl) {
+    // Mode specific container & visual shield filter logic
+    const mode = effectiveAdaptiveMode || 'auto';
+    let filterClass = 'filter drop-shadow-xs transition-all duration-300 hover:scale-[1.03]';
+    let containerShieldClass = showBackground 
+      ? 'bg-white/95 dark:bg-slate-900/90 border border-emerald-400/60 dark:border-emerald-500/60 shadow-md backdrop-blur-md p-1.5 ring-2 ring-emerald-500/30 hover:ring-emerald-400'
+      : '';
+
+    if (mode === 'glass' || (mode === 'auto' && !effectiveLogoDarkUrl)) {
+      // High contrast glass matte shield pill for single uploaded logos in dark mode
+      containerShieldClass = showBackground
+        ? 'bg-white dark:bg-[#042017]/95 border border-emerald-300 dark:border-emerald-500/60 shadow-md backdrop-blur-md p-1.5 ring-2 ring-emerald-500/30 hover:ring-emerald-400'
+        : '';
+    } else if (mode === 'halo' && themeMode === 'dark' && !effectiveLogoDarkUrl) {
+      filterClass = 'filter drop-shadow-[0_0_8px_rgba(255,255,255,0.75)] transition-all duration-300 hover:scale-[1.03]';
+    } else if (mode === 'invert' && themeMode === 'dark' && !effectiveLogoDarkUrl) {
+      filterClass = 'filter invert brightness-125 contrast-125 transition-all duration-300 hover:scale-[1.03]';
+    } else if (mode === 'raw') {
+      containerShieldClass = showBackground ? 'bg-transparent p-0' : '';
+    }
+
     return (
       <div 
-        className={`relative flex items-center justify-center overflow-hidden transition-all duration-300 border border-emerald-400/50 dark:border-emerald-500/60 shadow-md max-w-[260px] sm:max-w-[320px] ${sizeClasses[size]} ${
-          showBackground ? 'bg-white dark:bg-[#031911] p-1.5 ring-2 ring-emerald-500/30 hover:ring-emerald-400' : ''
-        } ${className}`}
+        className={`relative flex items-center justify-center overflow-hidden transition-all duration-300 max-w-[260px] sm:max-w-[320px] ${sizeClasses[size]} ${containerShieldClass} ${className}`}
         title={t.companyName || 'Logotipo da Empresa'}
       >
         <img
-          src={effectiveLogoUrl}
+          src={activeLogoUrl}
           alt={t.companyName || 'Logo'}
-          className="w-auto h-full max-w-full object-contain filter drop-shadow-sm transition-transform duration-300 hover:scale-[1.03]"
+          className={`w-auto h-full max-w-full object-contain ${filterClass}`}
           onError={(e) => {
             // Fallback if image fails to load
             (e.target as HTMLElement).style.display = 'none';

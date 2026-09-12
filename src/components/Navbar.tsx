@@ -135,6 +135,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <div className="relative flex-shrink-0 flex items-center">
                 <BrandLogo 
                   theme={theme} 
+                  themeMode={themeMode}
                   size="sm" 
                   showBackground={true}
                   className="shadow-md hover:shadow-lg transition-all duration-300 group-hover:scale-105" 

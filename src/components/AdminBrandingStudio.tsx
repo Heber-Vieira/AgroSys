@@ -43,6 +43,10 @@ import { saveTenantBrandingToSupabase } from '../services/supabase';
 import { 
   getStoredConfiguredLogoUrl, 
   setStoredConfiguredLogoUrl, 
+  getStoredConfiguredLogoDarkUrl,
+  setStoredConfiguredLogoDarkUrl,
+  getStoredLogoAdaptiveMode,
+  setStoredLogoAdaptiveMode,
   getStoredConfiguredLogoIconId, 
   setStoredConfiguredLogoIconId,
   getCompanyTheme 
@@ -76,6 +80,7 @@ export const AdminBrandingStudio: React.FC<AdminBrandingStudioProps> = ({
   const [activeSubTab, setActiveSubTab] = useState<'palette' | 'logo' | 'typography' | 'company' | 'preview'>('palette');
   const [registeredCompanies, setRegisteredCompanies] = useState<RegisteredCompany[]>(() => getStoredRegisteredCompanies());
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const darkFileInputRef = useRef<HTMLInputElement>(null);
   const jsonInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -155,7 +160,7 @@ export const AdminBrandingStudio: React.FC<AdminBrandingStudioProps> = ({
         logoIconId: undefined,
       };
       setTheme(updatedTheme);
-      showToast(`Logotipo exclusivo de "${theme.companyName}" configurado com sucesso!`);
+      showToast(`Logotipo Modo Claro de "${theme.companyName}" configurado com sucesso!`);
       const res = await saveTenantBrandingToSupabase(updatedTheme);
       if (res.success) {
         showToast('Logotipo sincronizado na nuvem e no aplicativo!');
@@ -168,6 +173,64 @@ export const AdminBrandingStudio: React.FC<AdminBrandingStudioProps> = ({
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleLogoDarkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsSaving(true);
+      const extracted = await extractPaletteFromImage(file);
+      const tenantId = targetTenantId;
+
+      setStoredConfiguredLogoDarkUrl(tenantId, extracted.dataUrl);
+
+      const updatedTheme: WhiteLabelTheme = {
+        ...theme,
+        tenantId,
+        logoDarkUrl: extracted.dataUrl,
+      };
+      setTheme(updatedTheme);
+      showToast(`Logotipo Modo Escuro de "${theme.companyName}" configurado!`);
+      const res = await saveTenantBrandingToSupabase(updatedTheme);
+      if (res.success) {
+        showToast('Variante para tema escuro sincronizada com sucesso!');
+      }
+    } catch (err) {
+      console.error('Falha ao processar logotipo escuro:', err);
+      showToast('Erro ao ler a imagem do logotipo escuro.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleRemoveDarkLogo = async () => {
+    const tenantId = targetTenantId;
+    setStoredConfiguredLogoDarkUrl(tenantId, null);
+
+    const updatedTheme: WhiteLabelTheme = {
+      ...theme,
+      tenantId,
+      logoDarkUrl: undefined,
+    };
+    setTheme(updatedTheme);
+    showToast('Logotipo de modo escuro removido.');
+    await saveTenantBrandingToSupabase(updatedTheme);
+  };
+
+  const handleSelectAdaptiveMode = async (mode: 'auto' | 'glass' | 'halo' | 'invert' | 'raw') => {
+    const tenantId = targetTenantId;
+    setStoredLogoAdaptiveMode(tenantId, mode);
+
+    const updatedTheme: WhiteLabelTheme = {
+      ...theme,
+      tenantId,
+      logoAdaptiveMode: mode,
+    };
+    setTheme(updatedTheme);
+    showToast(`Modo adaptativo de visibilidade "${mode.toUpperCase()}" aplicado!`);
+    await saveTenantBrandingToSupabase(updatedTheme);
   };
 
   const handleSelectPresetLogo = async (logoId: string) => {
@@ -773,61 +836,158 @@ module.exports = {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Upload Box */}
-            <div className="bg-emerald-50/70 dark:bg-[#072a1e]/90 border border-emerald-200/80 dark:border-emerald-800/80 rounded-3xl p-6 shadow-xs space-y-4">
-              <h3 className="text-base font-bold text-emerald-950 dark:text-emerald-50 flex items-center gap-2">
-                <Upload className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                Upload do Logotipo da Empresa
-              </h3>
-              <p className="text-xs text-emerald-800/80 dark:text-emerald-300/80">
-                Envie o logotipo oficial de <strong>{theme.companyName}</strong> em formato <strong>.PNG</strong> com fundo transparente, <strong>.SVG</strong> ou <strong>.JPG</strong>.
-              </p>
-
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-emerald-300 dark:border-emerald-700 hover:border-emerald-500 rounded-2xl p-6 text-center cursor-pointer transition-colors bg-emerald-100/40 dark:bg-emerald-950/40 group"
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/png,image/svg+xml,image/jpeg,image/webp"
-                  onChange={handleLogoUpload}
-                  className="hidden"
-                />
-                <div className="w-12 h-12 mx-auto mb-3 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
-                  <Upload className="w-6 h-6" />
-                </div>
-                <p className="text-xs font-bold text-emerald-950 dark:text-emerald-200">
-                  Clique para selecionar imagem do logotipo
-                </p>
-                <p className="text-[10px] text-emerald-700/70 dark:text-emerald-400 mt-1">
-                  Exibição exclusiva nas páginas e relatórios de {theme.companyName}
+            {/* Upload Box: Dual Variant (Light Mode & Dark Mode) */}
+            <div className="bg-emerald-50/70 dark:bg-[#072a1e]/90 border border-emerald-200/80 dark:border-emerald-800/80 rounded-3xl p-6 shadow-xs space-y-5">
+              <div>
+                <h3 className="text-base font-bold text-emerald-950 dark:text-emerald-50 flex items-center gap-2">
+                  <Upload className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  Gerenciador de Logotipos Multi-Tema
+                </h3>
+                <p className="text-xs text-emerald-800/80 dark:text-emerald-300/80 mt-1">
+                  Configure logotipos dedicados para o tema claro e escuro, ou ative o sistema adaptativo de visibilidade.
                 </p>
               </div>
 
+              {/* 1. Logotipo Modo Claro */}
+              <div className="space-y-2">
+                <span className="text-xs font-bold text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5">
+                  ☀️ Logotipo para Tema Claro (Principal)
+                </span>
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-emerald-300 dark:border-emerald-700 hover:border-emerald-500 rounded-2xl p-4 text-center cursor-pointer transition-colors bg-white/70 dark:bg-emerald-950/40 group"
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png,image/svg+xml,image/jpeg,image/webp"
+                    onChange={handleLogoUpload}
+                    className="hidden"
+                  />
+                  <div className="flex items-center justify-center gap-3">
+                    {theme.logoUrl ? (
+                      <img src={theme.logoUrl} alt="Logo Light" className="w-10 h-10 object-contain rounded-lg bg-white p-1 shadow-2xs border border-emerald-200" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600">
+                        <Upload className="w-5 h-5" />
+                      </div>
+                    )}
+                    <div className="text-left">
+                      <p className="text-xs font-bold text-emerald-950 dark:text-emerald-200">
+                        {theme.logoUrl ? 'Substituir Logo Claro' : 'Enviar Logo Modo Claro'}
+                      </p>
+                      <p className="text-[10px] text-emerald-700/70 dark:text-emerald-400">
+                        Ideal em PNG transparente com elementos escuros/coloridos
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Logotipo Modo Escuro */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5">
+                    🌙 Logotipo para Tema Escuro (Variante Nocturna)
+                  </span>
+                  {theme.logoDarkUrl && (
+                    <button
+                      onClick={handleRemoveDarkLogo}
+                      className="text-[10px] text-rose-600 font-bold hover:underline"
+                    >
+                      Remover
+                    </button>
+                  )}
+                </div>
+                <div
+                  onClick={() => darkFileInputRef.current?.click()}
+                  className="border-2 border-dashed border-emerald-300 dark:border-emerald-700 hover:border-emerald-500 rounded-2xl p-4 text-center cursor-pointer transition-colors bg-slate-900/90 text-white group"
+                >
+                  <input
+                    ref={darkFileInputRef}
+                    type="file"
+                    accept="image/png,image/svg+xml,image/jpeg,image/webp"
+                    onChange={handleLogoDarkUpload}
+                    className="hidden"
+                  />
+                  <div className="flex items-center justify-center gap-3">
+                    {theme.logoDarkUrl ? (
+                      <img src={theme.logoDarkUrl} alt="Logo Dark" className="w-10 h-10 object-contain rounded-lg bg-slate-950 p-1 shadow-2xs border border-emerald-500/40" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                        <Upload className="w-5 h-5" />
+                      </div>
+                    )}
+                    <div className="text-left">
+                      <p className="text-xs font-bold text-white">
+                        {theme.logoDarkUrl ? 'Substituir Logo Escuro' : 'Enviar Logo Modo Escuro'}
+                      </p>
+                      <p className="text-[10px] text-emerald-300/70">
+                        Logotipo branco ou claro otimizado para fundos escuros
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Estratégia Adaptativa de Legibilidade */}
+              <div className="pt-2 border-t border-emerald-200/60 dark:border-emerald-800/60 space-y-2">
+                <span className="text-xs font-bold text-emerald-950 dark:text-emerald-200 block">
+                  ⚙️ Estratégia Adaptativa para Imagens Únicas
+                </span>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: 'auto', name: 'Auto Glass Matte', desc: 'Cápsula elegante de alto contraste' },
+                    { id: 'halo', name: 'Halo Luminoso', desc: 'Brilho de silhueta no escuro' },
+                    { id: 'invert', name: 'Inversão Smart', desc: 'Inverte tom escuro para branco' },
+                    { id: 'raw', name: 'Transparente', desc: 'Sem fundo ou efeito adicional' },
+                  ].map((m) => {
+                    const isSel = (theme.logoAdaptiveMode || 'auto') === m.id;
+                    return (
+                      <button
+                        key={m.id}
+                        onClick={() => handleSelectAdaptiveMode(m.id as any)}
+                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                          isSel 
+                            ? 'bg-emerald-600 text-white border-emerald-500 shadow-xs'
+                            : 'bg-white dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800 text-emerald-950 dark:text-emerald-200 hover:border-emerald-400'
+                        }`}
+                      >
+                        <span className="text-[11px] font-bold block">{m.name}</span>
+                        <span className={`text-[9px] block ${isSel ? 'text-emerald-100' : 'text-emerald-700/70 dark:text-emerald-400'}`}>
+                          {m.desc}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Status do Logotipo Atual */}
-              {theme.logoUrl ? (
-                <div className="p-3.5 rounded-2xl bg-emerald-100/60 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <img src={theme.logoUrl} alt="Logo Carregado" className="w-10 h-10 object-contain rounded-lg bg-white p-1 shadow-2xs border border-emerald-200" />
+              {(theme.logoUrl || theme.logoDarkUrl) ? (
+                <div className="p-3 rounded-2xl bg-emerald-100/60 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <BrandLogo theme={theme} themeMode={themeMode} size="xs" />
                     <div>
-                      <span className="text-xs font-bold text-emerald-950 dark:text-white block">Logotipo Personalizado Ativo</span>
-                      <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold">● Exclusivo de {theme.companyName}</span>
+                      <span className="text-xs font-bold text-emerald-950 dark:text-white block">Logotipo Ativo</span>
+                      <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold">
+                        {theme.logoDarkUrl ? '● Variante dupla (Claro + Escuro)' : '● Variante única com proteção adaptativa'}
+                      </span>
                     </div>
                   </div>
                   <button
                     onClick={handleRemoveCustomLogo}
-                    className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-950/60 rounded-xl transition-colors cursor-pointer border border-rose-200 dark:border-rose-900"
-                    title="Remover logotipo personalizado e adotar o padrão"
+                    className="flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-950/60 rounded-xl transition-colors cursor-pointer border border-rose-200 dark:border-rose-900"
+                    title="Remover logotipos personalizados e adotar o padrão"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Voltar ao Padrão</span>
+                    <Trash2 className="w-3 h-3" />
+                    <span>Resetar</span>
                   </button>
                 </div>
               ) : theme.logoIconId ? (
-                <div className="p-3.5 rounded-2xl bg-emerald-100/60 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <BrandLogo theme={theme} size="sm" />
+                <div className="p-3 rounded-2xl bg-emerald-100/60 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <BrandLogo theme={theme} size="xs" />
                     <div>
                       <span className="text-xs font-bold text-emerald-950 dark:text-white block">Brasão Vetorial Ativo</span>
                       <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold">● Modelo da biblioteca</span>
@@ -835,23 +995,23 @@ module.exports = {
                   </div>
                   <button
                     onClick={handleRemoveCustomLogo}
-                    className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-950/60 rounded-xl transition-colors cursor-pointer border border-rose-200 dark:border-rose-900"
+                    className="flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-950/60 rounded-xl transition-colors cursor-pointer border border-rose-200 dark:border-rose-900"
                     title="Remover brasão vetorial e adotar o padrão"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Voltar ao Padrão</span>
+                    <Trash2 className="w-3 h-3" />
+                    <span>Resetar</span>
                   </button>
                 </div>
               ) : (
-                <div className="p-3.5 rounded-2xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <BrandLogo theme={theme} size="sm" />
+                <div className="p-3 rounded-2xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <BrandLogo theme={theme} size="xs" />
                     <div>
                       <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">Logotipo Padrão Ativo</span>
-                      <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Nenhum logotipo customizado. O sistema adota o padrão AgroSys.</span>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Usando o brasão nativo AgroSys.</span>
                     </div>
                   </div>
-                  <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                  <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
                     Padrão
                   </span>
                 </div>
@@ -877,7 +1037,7 @@ module.exports = {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-2">
                 {PRESET_LOGOS.map((logo) => {
-                  const isSelected = !theme.logoUrl && theme.logoIconId === logo.id;
+                  const isSelected = !theme.logoUrl && !theme.logoDarkUrl && theme.logoIconId === logo.id;
                   return (
                     <div
                       key={logo.id}
@@ -916,51 +1076,64 @@ module.exports = {
             </div>
           </div>
 
-          {/* Logo Context Preview Mockup */}
+          {/* Logo Context Preview Mockup: Dual Theme Side-by-Side */}
           <div className="bg-emerald-50/70 dark:bg-[#072a1e]/90 border border-emerald-200/80 dark:border-emerald-800/80 rounded-3xl p-6 shadow-xs space-y-4">
-            <h3 className="text-base font-bold text-emerald-950 dark:text-emerald-50 flex items-center gap-2">
-              <Eye className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              Pré-visualização do Logotipo em Aplicações Reais
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Header Navbar Mockup */}
-              <div className="p-4 rounded-2xl bg-emerald-100/60 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 space-y-2">
-                <span className="text-[10px] font-bold text-emerald-800 dark:text-emerald-400 uppercase">1. Barra Superior (Navbar)</span>
-                <div className="p-3 bg-white dark:bg-emerald-900/40 rounded-xl shadow-xs border border-emerald-200 dark:border-emerald-700 flex items-center gap-3">
-                  <BrandLogo theme={theme} size="sm" />
-                  <div className="overflow-hidden">
-                    <span className="text-xs font-black text-emerald-950 dark:text-white block truncate">{theme.companyName}</span>
-                    <span className="text-[10px] text-emerald-700 dark:text-emerald-400 block truncate">{theme.tagline}</span>
-                  </div>
-                </div>
-              </div>
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-emerald-950 dark:text-emerald-50 flex items-center gap-2">
+                <Eye className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                Pré-visualização Simultânea de Alto Contraste (Modo Claro vs Modo Escuro)
+              </h3>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-200 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-200">
+                Live Contrast Engine
+              </span>
+            </div>
 
-              {/* PDF Report Header Mockup */}
-              <div className="p-4 rounded-2xl bg-emerald-100/60 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 space-y-2">
-                <span className="text-[10px] font-bold text-emerald-800 dark:text-emerald-400 uppercase">2. Cabeçalho de Relatório / OS</span>
-                <div className="p-3 bg-white text-slate-900 rounded-xl shadow-xs border border-emerald-200 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <BrandLogo theme={theme} size="sm" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Light Mode Preview Box */}
+              <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    ☀️ Exibição em Modo Claro (Light Mode)
+                  </span>
+                  <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                    Fundo Claro
+                  </span>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <BrandLogo theme={theme} themeMode="light" size="sm" />
                     <div>
-                      <span className="text-[11px] font-black block">{theme.companyName}</span>
-                      <span className="text-[9px] text-slate-500 block">Laudo de Pulverização</span>
+                      <span className="text-xs font-black text-slate-900 block">{theme.companyName}</span>
+                      <span className="text-[10px] text-slate-500 block truncate">{theme.tagline}</span>
                     </div>
                   </div>
-                  <span className="text-[9px] font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                    ART CONCLUÍDA
+                  <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded">
+                    100% Contraste
                   </span>
                 </div>
               </div>
 
-              {/* Mobile App Icon Mockup */}
-              <div className="p-4 rounded-2xl bg-emerald-100/60 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 space-y-2">
-                <span className="text-[10px] font-bold text-emerald-800 dark:text-emerald-400 uppercase">3. Ícone do Aplicativo Móvel</span>
-                <div className="flex items-center gap-3 p-3 bg-white dark:bg-emerald-900/40 rounded-xl shadow-xs border border-emerald-200 dark:border-emerald-700">
-                  <BrandLogo theme={theme} size="lg" className="rounded-2xl shadow-md" />
-                  <div>
-                    <span className="text-xs font-black text-emerald-950 dark:text-white block">{theme.companyName}</span>
-                    <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold">App Piloto & Campo</span>
+              {/* Dark Mode Preview Box */}
+              <div className="p-4 rounded-2xl bg-slate-950 text-white border border-slate-800 shadow-md space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
+                    🌙 Exibição em Modo Escuro (Dark Mode)
+                  </span>
+                  <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
+                    Fundo Escuro
+                  </span>
+                </div>
+                <div className="p-3 bg-[#031911] rounded-xl border border-emerald-900/80 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <BrandLogo theme={theme} themeMode="dark" size="sm" />
+                    <div>
+                      <span className="text-xs font-black text-white block">{theme.companyName}</span>
+                      <span className="text-[10px] text-emerald-400 block truncate">{theme.tagline}</span>
+                    </div>
                   </div>
+                  <span className="text-[9px] font-bold text-emerald-300 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">
+                    {theme.logoDarkUrl ? 'Logo Dark Ativo' : 'Cápsula Adaptativa'}
+                  </span>
                 </div>
               </div>
             </div>

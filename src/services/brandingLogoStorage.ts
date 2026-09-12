@@ -41,6 +41,66 @@ export function setStoredConfiguredLogoUrl(companyId: string, url?: string | nul
   }
 }
 
+export function getStoredConfiguredLogoDarkUrl(companyId?: string): string | undefined {
+  try {
+    if (!companyId || companyId === 'ALL') return undefined;
+    const key = `agrosys_company_logo_dark_url_${companyId}`;
+    const saved = localStorage.getItem(key);
+    if (saved && saved.trim().length > 0) {
+      return saved;
+    }
+  } catch (e) {
+    console.warn(`Erro ao ler logo escuro configurado para ${companyId}:`, e);
+  }
+  return undefined;
+}
+
+export function setStoredConfiguredLogoDarkUrl(companyId: string, url?: string | null): void {
+  try {
+    if (!companyId || companyId === 'ALL') return;
+    const key = `agrosys_company_logo_dark_url_${companyId}`;
+    if (typeof url === 'string') {
+      if (url.trim().length > 0) {
+        localStorage.setItem(key, url);
+      } else {
+        localStorage.removeItem(key);
+      }
+    } else if (url === null) {
+      localStorage.removeItem(key);
+    }
+  } catch (e) {
+    console.warn(`Erro ao salvar logo escuro configurado para ${companyId}:`, e);
+  }
+}
+
+export function getStoredLogoAdaptiveMode(companyId?: string): 'auto' | 'glass' | 'halo' | 'invert' | 'raw' | undefined {
+  try {
+    if (!companyId || companyId === 'ALL') return undefined;
+    const key = `agrosys_company_logo_adaptive_mode_${companyId}`;
+    const saved = localStorage.getItem(key);
+    if (saved && ['auto', 'glass', 'halo', 'invert', 'raw'].includes(saved)) {
+      return saved as 'auto' | 'glass' | 'halo' | 'invert' | 'raw';
+    }
+  } catch (e) {
+    console.warn(`Erro ao ler modo adaptativo de logo para ${companyId}:`, e);
+  }
+  return undefined;
+}
+
+export function setStoredLogoAdaptiveMode(companyId: string, mode?: string | null): void {
+  try {
+    if (!companyId || companyId === 'ALL') return;
+    const key = `agrosys_company_logo_adaptive_mode_${companyId}`;
+    if (typeof mode === 'string' && mode.trim().length > 0) {
+      localStorage.setItem(key, mode);
+    } else {
+      localStorage.removeItem(key);
+    }
+  } catch (e) {
+    console.warn(`Erro ao salvar modo adaptativo de logo para ${companyId}:`, e);
+  }
+}
+
 export function getStoredConfiguredLogoIconId(companyId?: string): string | undefined {
   try {
     if (!companyId || companyId === 'ALL') return undefined;
@@ -94,7 +154,9 @@ export function getCompanyTheme(companyId: string = 'ciclodrone'): WhiteLabelThe
   
   // Isolated logo retrieval strictly for this specific company across all storage layers
   const companyLogoUrl = getStoredConfiguredLogoUrl(companyId) || registered?.logoUrl;
+  const companyLogoDarkUrl = getStoredConfiguredLogoDarkUrl(companyId) || registered?.logoDarkUrl;
   const companyLogoIconId = getStoredConfiguredLogoIconId(companyId) || registered?.logoIconId;
+  const companyAdaptiveMode = getStoredLogoAdaptiveMode(companyId) || registered?.logoAdaptiveMode || 'auto';
 
   // Optional custom palette or customizations saved specifically for this company
   let customOverrides: Partial<WhiteLabelTheme> = {};
@@ -106,7 +168,9 @@ export function getCompanyTheme(companyId: string = 'ciclodrone'): WhiteLabelThe
   } catch (e) {}
 
   const finalLogoUrl = companyLogoUrl || customOverrides.logoUrl;
+  const finalLogoDarkUrl = companyLogoDarkUrl || customOverrides.logoDarkUrl;
   const finalLogoIconId = companyLogoIconId || customOverrides.logoIconId;
+  const finalAdaptiveMode = customOverrides.logoAdaptiveMode || companyAdaptiveMode;
 
   return {
     tenantId: companyId,
@@ -126,7 +190,9 @@ export function getCompanyTheme(companyId: string = 'ciclodrone'): WhiteLabelThe
     density: 'comfortable',
     // Strictly individualized logo: undefined if not configured by the company admin
     logoUrl: finalLogoUrl,
+    logoDarkUrl: finalLogoDarkUrl,
     logoIconId: finalLogoIconId,
+    logoAdaptiveMode: finalAdaptiveMode,
   };
 }
 

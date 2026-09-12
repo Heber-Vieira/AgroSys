@@ -23,7 +23,9 @@ export interface RegisteredCompany {
   createdAt?: string;
   status?: 'ACTIVE' | 'INACTIVE';
   logoUrl?: string;
+  logoDarkUrl?: string; // Logo exclusivo para tema escuro (opcional)
   logoIconId?: string;
+  logoAdaptiveMode?: 'auto' | 'glass' | 'halo' | 'invert' | 'raw';
 }
 
 export interface UserProfile {
@@ -87,7 +89,9 @@ export interface WhiteLabelTheme {
   companyName: string;
   tagline: string;
   logoUrl?: string;
+  logoDarkUrl?: string; // Logo dedicado para modo escuro
   logoIconId?: string; // Built-in SVG logo ID
+  logoAdaptiveMode?: 'auto' | 'glass' | 'halo' | 'invert' | 'raw';
   primaryColor: string; // Hex e.g. #059669
   secondaryColor: string; // Hex e.g. #0f766e
   accentColor: string; // Hex e.g. #f59e0b
