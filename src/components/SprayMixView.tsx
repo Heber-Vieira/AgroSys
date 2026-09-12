@@ -1278,7 +1278,7 @@ export const SprayMixView: React.FC<SprayMixViewProps> = ({
       {activeStepTab === 'calculator' && (
         <div className="space-y-3 sm:space-y-4">
           {/* CONSOLIDATED OPERATIONAL SUMMARY (CLEAN, MODERN, ZERO DUPLICATION) */}
-          <div className="bg-gradient-to-br from-emerald-950 via-[#072c1e] to-teal-950 text-white rounded-2xl p-3.5 sm:p-4 shadow-md border border-emerald-500/30 space-y-3 relative overflow-hidden">
+          <div className="bg-gradient-to-br from-emerald-100 via-white to-teal-50 dark:from-emerald-950 dark:via-[#072c1e] dark:to-teal-950 text-emerald-950 dark:text-white rounded-2xl p-3.5 sm:p-4 shadow-md border border-emerald-300 dark:border-emerald-500/30 space-y-3 relative overflow-hidden transition-colors">
             {/* Subtle atmospheric glow */}
             <div className="absolute -top-16 -right-16 w-56 h-56 bg-cyan-400/10 rounded-full blur-2xl pointer-events-none" />
 
@@ -1286,32 +1286,32 @@ export const SprayMixView: React.FC<SprayMixViewProps> = ({
             <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-400 text-emerald-950 flex items-center gap-1.5 uppercase tracking-wider shadow-2xs">
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-500 dark:bg-emerald-400 text-white dark:text-emerald-950 flex items-center gap-1.5 uppercase tracking-wider shadow-2xs">
                     <Scale className="w-3.5 h-3.5 fill-current" />
                     Volume Total da Calda Preparada
                   </span>
-                  <span className="text-[11px] font-semibold text-emerald-200/90">
+                  <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-200/90">
                     {String(totalHectares).replace('.', ',')} ha @ {String(sprayRateLHa).replace('.', ',')} L/ha
                   </span>
                 </div>
                 <div className="flex items-baseline gap-2 pt-0.5">
-                  <span className="text-3xl sm:text-4xl font-black font-mono tracking-tight text-white">
-                    {totalGrossSprayVolume.toFixed(1).replace('.', ',')} <span className="text-lg font-bold text-emerald-300">Litros</span>
+                  <span className="text-3xl sm:text-4xl font-black font-mono tracking-tight text-emerald-950 dark:text-white">
+                    {totalGrossSprayVolume.toFixed(1).replace('.', ',')} <span className="text-lg font-bold text-emerald-600 dark:text-emerald-300">Litros</span>
                   </span>
                 </div>
               </div>
 
               {/* Drone & Tank Specs */}
-              <div className="flex items-center gap-3 bg-white/5 border border-white/10 px-4 py-2.5 rounded-2xl backdrop-blur-sm self-start sm:self-auto">
+              <div className="flex items-center gap-3 bg-white/60 dark:bg-white/5 border border-emerald-200 dark:border-white/10 px-4 py-2.5 rounded-2xl backdrop-blur-sm self-start sm:self-auto transition-colors">
                 <DronePhoto
                   modelName={selectedDroneName}
                   size="md"
                   rounded="rounded-xl"
-                  className="border border-white/20 shadow-xs"
+                  className="border border-emerald-300 dark:border-white/20 shadow-xs"
                 />
                 <div>
-                  <div className="text-xs font-bold text-white">{selectedDroneName}</div>
-                  <div className="text-[11px] text-emerald-300 font-mono">
+                  <div className="text-xs font-bold text-emerald-900 dark:text-white">{selectedDroneName}</div>
+                  <div className="text-[11px] text-emerald-700 dark:text-emerald-300 font-mono">
                     Tanque: {tankCapacityL} L • {totalFlightsCount} voos ({hectaresPerTank.toFixed(2).replace('.', ',')} ha/voo)
                   </div>
                 </div>
@@ -1319,18 +1319,18 @@ export const SprayMixView: React.FC<SprayMixViewProps> = ({
             </div>
 
             {/* Proportional Balance Bar (Clean Water vs Chemicals) */}
-            <div className="relative space-y-1.5 bg-black/20 p-3 rounded-2xl border border-white/10">
+            <div className="relative space-y-1.5 bg-emerald-50/80 dark:bg-black/20 p-3 rounded-2xl border border-emerald-200 dark:border-white/10 transition-colors">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs font-bold gap-1.5">
-                <span className="text-cyan-300 flex items-center gap-1.5">
+                <span className="text-cyan-700 dark:text-cyan-300 flex items-center gap-1.5">
                   <Droplets className="w-3.5 h-3.5 fill-current" />
                   Água Limpa: {totalPureWaterNeededL.toFixed(1).replace('.', ',')} L ({waterPercentage.toFixed(0).replace('.', ',')}%)
                 </span>
-                <span className="text-amber-300 flex items-center gap-1.5">
+                <span className="text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
                   <FlaskConical className="w-3.5 h-3.5" />
                   Insumos & Defensivos: {totalChemicalsVolumeL.toFixed(1).replace('.', ',')} L ({chemicalsPercentage.toFixed(0).replace('.', ',')}%)
                 </span>
               </div>
-              <div className="h-2.5 w-full bg-white/15 rounded-full overflow-hidden flex p-0.5 border border-white/10">
+              <div className="h-2.5 w-full bg-emerald-200/50 dark:bg-white/15 rounded-full overflow-hidden flex p-0.5 border border-emerald-300 dark:border-white/10">
                 <div 
                   style={{ width: `${Math.max(5, waterPercentage)}%` }} 
                   className="h-full bg-gradient-to-r from-blue-400 to-cyan-300 rounded-full transition-all"
@@ -1347,45 +1347,45 @@ export const SprayMixView: React.FC<SprayMixViewProps> = ({
             {/* 4 Essential Non-Redundant Operational Metric Cards */}
             <div className="relative grid grid-cols-2 lg:grid-cols-4 gap-2.5 pt-1">
               {/* Metric 1 */}
-              <div className="bg-white/5 backdrop-blur-sm p-3 rounded-2xl border border-white/10">
-                <span className="text-[10px] text-cyan-200 font-bold uppercase tracking-wider block">💧 Água por Tanque</span>
-                <div className="font-mono text-lg font-black text-white mt-0.5">
-                  {pureWaterPerFullTankL.toFixed(2).replace('.', ',')} <span className="text-xs text-cyan-300">L</span>
+              <div className="bg-white/60 dark:bg-white/5 backdrop-blur-sm p-3 rounded-2xl border border-emerald-200 dark:border-white/10 shadow-2xs dark:shadow-none transition-colors">
+                <span className="text-[10px] text-cyan-700 dark:text-cyan-200 font-bold uppercase tracking-wider block">💧 Água por Tanque</span>
+                <div className="font-mono text-lg font-black text-emerald-950 dark:text-white mt-0.5">
+                  {pureWaterPerFullTankL.toFixed(2).replace('.', ',')} <span className="text-xs text-cyan-600 dark:text-cyan-300">L</span>
                 </div>
-                <p className="text-[10px] text-cyan-100/70 truncate mt-0.5">
+                <p className="text-[10px] text-cyan-800 dark:text-cyan-100/70 truncate mt-0.5">
                   Fundo: {pureWaterPreloadFullTankL.toFixed(1).replace('.', ',')}L • Top-up: {pureWaterTopUpFullTankL.toFixed(2).replace('.', ',')}L
                 </p>
               </div>
 
               {/* Metric 2 */}
-              <div className="bg-white/5 backdrop-blur-sm p-3 rounded-2xl border border-white/10">
-                <span className="text-[10px] text-emerald-200 font-bold uppercase tracking-wider block">📐 Água / Hectare</span>
-                <div className="font-mono text-lg font-black text-white mt-0.5">
-                  {pureWaterPerHa.toFixed(2).replace('.', ',')} <span className="text-xs text-emerald-300">L/ha</span>
+              <div className="bg-white/60 dark:bg-white/5 backdrop-blur-sm p-3 rounded-2xl border border-emerald-200 dark:border-white/10 shadow-2xs dark:shadow-none transition-colors">
+                <span className="text-[10px] text-emerald-700 dark:text-emerald-200 font-bold uppercase tracking-wider block">📐 Água / Hectare</span>
+                <div className="font-mono text-lg font-black text-emerald-950 dark:text-white mt-0.5">
+                  {pureWaterPerHa.toFixed(2).replace('.', ',')} <span className="text-xs text-emerald-600 dark:text-emerald-300">L/ha</span>
                 </div>
-                <p className="text-[10px] text-emerald-100/70 truncate mt-0.5">
+                <p className="text-[10px] text-emerald-800 dark:text-emerald-100/70 truncate mt-0.5">
                   Carreador puro @ taxa {String(sprayRateLHa).replace('.', ',')} L/ha
                 </p>
               </div>
 
               {/* Metric 3 */}
-              <div className="bg-white/5 backdrop-blur-sm p-3 rounded-2xl border border-white/10">
-                <span className="text-[10px] text-emerald-200 font-bold uppercase tracking-wider block">🚁 Operação de Voo</span>
-                <div className="font-mono text-lg font-black text-white mt-0.5">
-                  {totalFlightsCount} <span className="text-xs text-emerald-300">voos</span>
+              <div className="bg-white/60 dark:bg-white/5 backdrop-blur-sm p-3 rounded-2xl border border-emerald-200 dark:border-white/10 shadow-2xs dark:shadow-none transition-colors">
+                <span className="text-[10px] text-emerald-700 dark:text-emerald-200 font-bold uppercase tracking-wider block">🚁 Operação de Voo</span>
+                <div className="font-mono text-lg font-black text-emerald-950 dark:text-white mt-0.5">
+                  {totalFlightsCount} <span className="text-xs text-emerald-600 dark:text-emerald-300">voos</span>
                 </div>
-                <p className="text-[10px] text-emerald-100/70 truncate mt-0.5">
+                <p className="text-[10px] text-emerald-800 dark:text-emerald-100/70 truncate mt-0.5">
                   {fullTanksCount} cheios{hasPartialLastTank ? ` + 1 final (${lastTankVolume.toFixed(1).replace('.', ',')}L)` : ''}
                 </p>
               </div>
 
               {/* Metric 4 */}
-              <div className="bg-white/5 backdrop-blur-sm p-3 rounded-2xl border border-white/10">
-                <span className="text-[10px] text-emerald-200 font-bold uppercase tracking-wider block">💰 Custo dos Insumos</span>
-                <div className="font-mono text-lg font-black text-white mt-0.5">
+              <div className="bg-white/60 dark:bg-white/5 backdrop-blur-sm p-3 rounded-2xl border border-emerald-200 dark:border-white/10 shadow-2xs dark:shadow-none transition-colors">
+                <span className="text-[10px] text-emerald-700 dark:text-emerald-200 font-bold uppercase tracking-wider block">💰 Custo dos Insumos</span>
+                <div className="font-mono text-lg font-black text-emerald-950 dark:text-white mt-0.5">
                   {formatBRL(totalChemicalCost)}
                 </div>
-                <p className="text-[10px] text-emerald-100/70 truncate mt-0.5">
+                <p className="text-[10px] text-emerald-800 dark:text-emerald-100/70 truncate mt-0.5">
                   {formatBRL(costPerHectare)} / hectare
                 </p>
               </div>
