@@ -1063,6 +1063,7 @@ export default function App() {
             onStartTour={() => setCurrentView('virtual-tour')}
             onStartLiveTour={startLiveTour}
             theme={theme}
+            currentView={currentView}
           />
         </div>
       )}
