@@ -22,7 +22,8 @@ import {
   Info,
   AlertTriangle,
   Pencil,
-  Lock
+  Lock,
+  ShieldCheck
 } from 'lucide-react';
 import { 
   UserProfile, 
@@ -30,8 +31,12 @@ import {
   SprayQuotation, 
   ClientProducer, 
   FarmPlot, 
+  AgriculturalDrone, 
   DroneAsset, 
   ServiceOrder,
+  PricingModel,
+  SprayQuotationItem,
+  SprayQuotationProduct,
   QuotationItemService,
   QuotationItemProduct,
   QuotationStatus
@@ -73,6 +78,8 @@ export const QuotationsView: React.FC<QuotationsViewProps> = ({
   const [isCreating, setIsCreating] = useState(false);
   const [editingQuotation, setEditingQuotation] = useState<SprayQuotation | null>(null);
   const [isPreviewing, setIsPreviewing] = useState(false);
+  const [productError, setProductError] = useState<string | null>(null);
+  const [productSuccessMsg, setProductSuccessMsg] = useState<string | null>(null);
 
   // New/Edit form state
   const [formData, setFormData] = useState({
@@ -199,7 +206,6 @@ export const QuotationsView: React.FC<QuotationsViewProps> = ({
   const [newProdUnit, setNewProdUnit] = useState('L/ha');
   const [newProdPrice, setNewProdPrice] = useState<string | number>('50,00');
   const [newProdSupplied, setNewProdSupplied] = useState(true);
-  const [productSuccessMsg, setProductSuccessMsg] = useState<string | null>(null);
 
   // Strict Admin & Master Role Guard
   const hasAccess = currentUser.role === 'ADMIN' || currentUser.role === 'MASTER' || currentUser.isMaster;

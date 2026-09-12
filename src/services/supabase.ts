@@ -94,20 +94,24 @@ export async function saveTenantBrandingToSupabase(theme: WhiteLabelTheme) {
     if (brandingError) {
       console.warn('Persistência em tenant_branding_configs retornou aviso:', brandingError.message);
       // Secondary fallback: update company_name or logo in tenants table
-      await supabase.from('tenants').upsert({
-        id: tenantId,
-        company_name: theme.companyName,
-        trade_name: theme.companyName,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'id' }).catch(() => {});
+      try {
+        await supabase.from('tenants').upsert({
+          id: tenantId,
+          company_name: theme.companyName,
+          trade_name: theme.companyName,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'id' });
+      } catch (e) {}
     }
 
     // Always mirror full JSON payload in app_settings table to guarantee 100% cloud sync
-    await supabase.from('app_settings').upsert({
-      key: `agro_branding_${tenantId}`,
-      value: JSON.stringify(theme),
-      updated_at: new Date().toISOString()
-    }, { onConflict: 'key' }).catch(() => {});
+    try {
+      await supabase.from('app_settings').upsert({
+        key: `agro_branding_${tenantId}`,
+        value: JSON.stringify(theme),
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'key' });
+    } catch (e) {}
 
     return { success: true, data: brandingResult, error: null };
   } catch (err: any) {
@@ -180,17 +184,19 @@ export async function saveUserPhotoToSupabase(idOrEmail: string, photoUrl: strin
     const sanitizedKey = `agro_user_photo_${idOrEmail.toLowerCase().replace(/[^a-z0-9_@-]/g, '_')}`;
 
     // 1. Mirror payload in app_settings table
-    await supabase.from('app_settings').upsert({
-      key: sanitizedKey,
-      value: JSON.stringify({
-        idOrEmail,
-        photoUrl,
-        name: profile?.name || '',
-        email: profile?.email || '',
+    try {
+      await supabase.from('app_settings').upsert({
+        key: sanitizedKey,
+        value: JSON.stringify({
+          idOrEmail,
+          photoUrl,
+          name: profile?.name || '',
+          email: profile?.email || '',
+          updated_at: new Date().toISOString()
+        }),
         updated_at: new Date().toISOString()
-      }),
-      updated_at: new Date().toISOString()
-    }, { onConflict: 'key' }).catch(() => {});
+      }, { onConflict: 'key' });
+    } catch (e) {}
 
     // 2. Try upserting into user_profiles table if available
     const profilePayload = {
@@ -261,6 +267,134 @@ export async function loadUserPhotosFromSupabase(): Promise<Record<string, strin
   } catch (err) {
     console.warn('Não foi possível carregar fotos dos usuários do Supabase:', err);
     return {};
+  }
+}
+
+/**
+ * Persists a registered company to Supabase cloud database.
+ */
+export async function saveCompanyToSupabase(company: any) {
+  try {
+    if (!company || !company.id) return { success: false, error: 'Empresa inválida' };
+
+    // 1. Mirror company payload in app_settings table
+    try {
+      await supabase.from('app_settings').upsert({
+        key: `agro_company_${company.id}`,
+        value: JSON.stringify(company),
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'key' });
+    } catch (e) {}
+
+    // 2. Upsert to tenants table if available
+    try {
+      await supabase.from('tenants').upsert({
+        id: company.id,
+        company_name: company.name,
+        trade_name: company.tradeName || company.name,
+        cnpj: company.cnpj,
+        state_registration: company.stateRegistration || null,
+        phone: company.phone || null,
+        email: company.email || null,
+        city_state: company.cityState || null,
+        tagline: company.tagline || null,
+        primary_color: company.primaryColor || '#0284c7',
+        status: company.status || 'ACTIVE',
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'id' });
+    } catch (e) {}
+
+    return { success: true, error: null };
+  } catch (err: any) {
+    console.error('Erro ao salvar empresa no Supabase:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Deletes or deactivates a company in Supabase cloud database.
+ */
+export async function deleteCompanyFromSupabase(companyId: string) {
+  try {
+    if (!companyId) return { success: false };
+
+    try {
+      await supabase.from('app_settings').delete().eq('key', `agro_company_${companyId}`);
+    } catch (e) {}
+
+    try {
+      await supabase.from('tenants').delete().eq('id', companyId);
+    } catch (e) {}
+
+    return { success: true };
+  } catch (err) {
+    return { success: false };
+  }
+}
+
+/**
+ * Loads registered companies stored in Supabase cloud database.
+ */
+export async function loadCompaniesFromSupabase(): Promise<any[]> {
+  try {
+    const companiesMap = new Map<string, any>();
+
+    const { data: settingsData } = await supabase
+      .from('app_settings')
+      .select('key, value')
+      .like('key', 'agro_company_%');
+
+    if (settingsData && Array.isArray(settingsData)) {
+      settingsData.forEach(item => {
+        try {
+          const parsed = JSON.parse(item.value);
+          if (parsed && parsed.id && parsed.name) {
+            companiesMap.set(parsed.id, parsed);
+          }
+        } catch (e) {}
+      });
+    }
+
+    return Array.from(companiesMap.values());
+  } catch (err) {
+    console.warn('Não foi possível carregar empresas do Supabase:', err);
+    return [];
+  }
+}
+
+/**
+ * Generic helper to back up any module data to Supabase app_settings.
+ */
+export async function saveAppDataToSupabase(key: string, value: any) {
+  try {
+    await supabase.from('app_settings').upsert({
+      key: `agro_data_${key}`,
+      value: JSON.stringify(value),
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'key' });
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Generic helper to retrieve backed up module data from Supabase.
+ */
+export async function loadAppDataFromSupabase<T>(key: string): Promise<T | null> {
+  try {
+    const { data } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', `agro_data_${key}`)
+      .maybeSingle();
+
+    if (data?.value) {
+      return JSON.parse(data.value) as T;
+    }
+    return null;
+  } catch (err) {
+    return null;
   }
 }
 

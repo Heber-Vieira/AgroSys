@@ -196,6 +196,7 @@ export interface BatteryAlertSettings {
   nextAlertTimestamp?: number; // timestamp em ms
   // Campos de compatibilidade com versões anteriores
   intervalMinutes?: number;
+  snoozeMinutes?: number;
 }
 
 export type DroneBatteryStatus = 'READY' | 'CHARGING' | 'STORAGE' | 'ALERT' | 'DISCARDED';
@@ -439,6 +440,10 @@ export interface TourStep {
 }
 
 export type QuotationStatus = 'DRAFT' | 'SENT' | 'APPROVED' | 'REJECTED' | 'CONVERTED';
+
+export type QuotationItemService = SprayQuotationItem;
+export type QuotationItemProduct = SprayQuotationProduct;
+export type DroneAsset = AgriculturalDrone;
 
 export interface SprayQuotationItem {
   id: string;

@@ -65,6 +65,7 @@ export const PRESET_USER_AVATARS = [
 ];
 
 export const PRESET_AVATARS: Record<UserRole, typeof PRESET_USER_AVATARS> = {
+  MASTER: PRESET_USER_AVATARS.filter(a => a.role === 'ADMIN'),
   ADMIN: PRESET_USER_AVATARS.filter(a => a.role === 'ADMIN'),
   PILOT: PRESET_USER_AVATARS.filter(a => a.role === 'PILOT'),
   ASSISTANT: PRESET_USER_AVATARS.filter(a => a.role === 'ASSISTANT'),

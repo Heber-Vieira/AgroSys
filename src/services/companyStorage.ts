@@ -7,6 +7,7 @@
 import { RegisteredCompany, WhiteLabelTheme } from '../types';
 import { INITIAL_REGISTERED_COMPANIES } from '../data/mockAppState';
 import { PRESET_COMPANIES } from '../data/themeTokensData';
+import { saveCompanyToSupabase, deleteCompanyFromSupabase } from './supabase';
 
 export const REGISTERED_COMPANIES_STORAGE_KEY = 'agrosys_registered_companies';
 export const COMPANIES_UPDATED_EVENT = 'agrosys_companies_updated';
@@ -134,6 +135,7 @@ export function addRegisteredCompany(newCompany: Omit<RegisteredCompany, 'id'> &
   // Add to top of list
   const updated = [fullCompany, ...companies.filter(c => c.id !== id)];
   saveStoredRegisteredCompanies(updated);
+  saveCompanyToSupabase(fullCompany).catch(() => {});
   return fullCompany;
 }
 
@@ -144,6 +146,7 @@ export function updateRegisteredCompany(company: RegisteredCompany): RegisteredC
   const companies = getStoredRegisteredCompanies();
   const updated = companies.map(c => (c.id === company.id ? { ...c, ...company } : c));
   saveStoredRegisteredCompanies(updated);
+  saveCompanyToSupabase(company).catch(() => {});
   return updated;
 }
 
@@ -158,6 +161,7 @@ export function deleteRegisteredCompany(companyId: string): { success: boolean; 
 
   const updated = companies.filter(c => c.id !== companyId);
   saveStoredRegisteredCompanies(updated);
+  deleteCompanyFromSupabase(companyId).catch(() => {});
 
   // Clean up any company-specific logos or theme overrides
   try {

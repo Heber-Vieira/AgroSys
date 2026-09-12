@@ -39,6 +39,65 @@ export interface RoleHelpItem {
 }
 
 export const ROLE_HELP_DATA: Record<UserRole, RoleHelpItem> = {
+  MASTER: {
+    id: 'help-master',
+    role: 'MASTER' as UserRole,
+    roleTitle: 'Super Administrador Master Multi-Empresas 👑',
+    roleSubtitle: 'Governança global, cadastro e exclusão de empresas, logotipo e multi-tenancy',
+    badge: '👑 SUPER MASTER - Acesso Global',
+    primaryColor: '#f59e0b',
+    bgColor: 'bg-amber-50 dark:bg-amber-950/40',
+    borderColor: 'border-amber-200 dark:border-amber-800',
+    accentColor: 'text-amber-600 dark:text-amber-400',
+    description: 'Como Super Administrador Master, você tem acesso irrestrito a todas as empresas cadastradas no sistema AgroSys. Você pode cadastrar novas unidades aeroagrícolas, editar marcas e logotipos individuais, alternar entre visões de empresas e gerenciar usuários com governança total.',
+    keyResponsibilities: [
+      'Cadastrar, editar e excluir empresas no ecossistema AgroSys.',
+      'Configurar logotipos e identidades visuais individualizadas por empresa.',
+      'Alternar de forma transparente entre o modo Multi-Empresa Global e a visão de cada empresa.',
+      'Gerenciar administradores gerais, pilotos e operadores de todas as unidades.',
+    ],
+    workflowSteps: [
+      {
+        order: 1,
+        title: 'Seleção de Empresa Ativa',
+        description: 'Utilize o seletor dourado 👑 SUPER MASTER na Navbar para alternar entre empresas ou selecionar a Visão Global.',
+        screen: 'admin-management',
+        actionTip: 'Selecione a empresa para filtrar todas as visualizações ou a Visão Global para ver a consolidação.',
+      },
+      {
+        order: 2,
+        title: 'Gestão Corporativa & Cadastro',
+        description: 'Acesse a aba de Empresas em Gestão & Cadastros para criar, editar ou excluir empresas.',
+        screen: 'admin-management',
+        actionTip: 'Configure o CNPJ, CREA/MAPA e faça o upload do logotipo oficial da empresa.',
+      },
+    ],
+    regulatoryStandards: [
+      {
+        code: 'ISO 27001 Multi-Tenancy',
+        agency: 'AgroSys Governance',
+        description: 'Ao selecionar uma empresa, os dados exibidos pertencem exclusivamente a essa unidade.',
+        ruleDetail: 'Super Master pode transitar entre os ambientes mantendo a integridade e isolamento cadastral.',
+      },
+    ],
+    relevantModules: [
+      {
+        moduleId: 'admin-management',
+        moduleName: 'Gestão Corporativa & Empresas',
+        purpose: 'Cadastro de novas empresas, edição de logotipos e dados cadastrais.',
+        howToUse: 'Alterne a empresa ativa na Navbar ou cadastre novas empresas no Hub.',
+      },
+    ],
+    fieldTips: [
+      'Mantenha o logotipo de cada empresa atualizado para a emissão correta de relatórios e laudos técnicos.',
+    ],
+    faq: [
+      {
+        question: 'O que acontece quando adiciono uma nova empresa?',
+        answer: 'Ela é registrada no banco de dados com isolamento próprio de temas, logotipos, usuários, frota e ordens de serviço.',
+      },
+    ],
+  },
   ADMIN: {
     id: 'help-admin',
     role: 'ADMIN',
