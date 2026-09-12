@@ -81,12 +81,19 @@ export function getStoredRegisteredCompanies(): RegisteredCompany[] {
   return defaultList;
 }
 
+import { saveToDurableStorage, setIDBItem, STORES } from './dbStorageEngine';
+
 /**
  * Persist registered companies to localStorage and notify listeners.
  */
 export function saveStoredRegisteredCompanies(companies: RegisteredCompany[]): void {
   try {
-    localStorage.setItem(REGISTERED_COMPANIES_STORAGE_KEY, JSON.stringify(companies));
+    saveToDurableStorage(REGISTERED_COMPANIES_STORAGE_KEY, companies, STORES.SETTINGS);
+    companies.forEach(comp => {
+      if (comp && comp.id) {
+        setIDBItem(STORES.COMPANIES, comp);
+      }
+    });
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent(COMPANIES_UPDATED_EVENT, { detail: companies }));
     }

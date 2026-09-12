@@ -24,6 +24,13 @@ import {
 import { getStoredRegisteredCompanies, saveStoredRegisteredCompanies } from './companyStorage';
 import { USER_PHOTO_STORAGE_KEY } from '../components/UserAvatar';
 
+import { 
+  restoreDurableStorageToLocalStorage, 
+  saveToDurableStorage, 
+  setIDBItem, 
+  STORES 
+} from './dbStorageEngine';
+
 export const BATTERY_ALERT_STORAGE_KEY = 'agrodrone_battery_alert_config';
 export const WEATHER_ALERT_STORAGE_KEY = 'agrodrone_weather_alert_config';
 
@@ -40,12 +47,13 @@ export const DEFAULT_WEATHER_ALERT_SETTINGS: WeatherAlertSettings = {
 };
 
 /**
- * Persists Battery Alert Settings & Periodicities to both local storage and Supabase Cloud.
+ * Persists Battery Alert Settings & Periodicities to both local storage, IndexedDB, and Supabase Cloud.
  */
 export async function saveBatteryAlertSettingsToCloud(settings: BatteryAlertSettings): Promise<{ success: boolean; error?: string }> {
   try {
-    // 1. Save locally for instantaneous offline performance
-    localStorage.setItem(BATTERY_ALERT_STORAGE_KEY, JSON.stringify(settings));
+    // 1. Save to durable storage (localStorage + IndexedDB)
+    await saveToDurableStorage(BATTERY_ALERT_STORAGE_KEY, settings, STORES.ALARMS);
+    await setIDBItem(STORES.ALARMS, { key: BATTERY_ALERT_STORAGE_KEY, value: settings });
 
     // 2. Persist to Supabase app_settings cloud storage
     const cloudRes = await saveAppDataToSupabase('battery_alert_config', settings);
@@ -57,18 +65,18 @@ export async function saveBatteryAlertSettingsToCloud(settings: BatteryAlertSett
 }
 
 /**
- * Loads Battery Alert Settings from Supabase or local storage fallback.
+ * Loads Battery Alert Settings from Supabase or local durable storage fallback.
  */
 export async function loadBatteryAlertSettingsFromCloud(): Promise<BatteryAlertSettings | null> {
   try {
     // 1. Fetch from cloud database first
     const cloudData = await loadAppDataFromSupabase<BatteryAlertSettings>('battery_alert_config');
     if (cloudData && typeof cloudData.periodValue === 'number') {
-      localStorage.setItem(BATTERY_ALERT_STORAGE_KEY, JSON.stringify(cloudData));
+      await saveToDurableStorage(BATTERY_ALERT_STORAGE_KEY, cloudData, STORES.ALARMS);
       return cloudData;
     }
 
-    // 2. Fallback to local storage if available
+    // 2. Fallback to durable local storage
     const localRaw = localStorage.getItem(BATTERY_ALERT_STORAGE_KEY);
     if (localRaw) {
       return JSON.parse(localRaw) as BatteryAlertSettings;
@@ -80,11 +88,12 @@ export async function loadBatteryAlertSettingsFromCloud(): Promise<BatteryAlertS
 }
 
 /**
- * Persists Weather Alert Station Settings & Periodicities to both local storage and Supabase Cloud.
+ * Persists Weather Alert Station Settings & Periodicities to local storage, IndexedDB, and Supabase Cloud.
  */
 export async function saveWeatherAlertSettingsToCloud(settings: WeatherAlertSettings): Promise<{ success: boolean; error?: string }> {
   try {
-    localStorage.setItem(WEATHER_ALERT_STORAGE_KEY, JSON.stringify(settings));
+    await saveToDurableStorage(WEATHER_ALERT_STORAGE_KEY, settings, STORES.ALARMS);
+    await setIDBItem(STORES.ALARMS, { key: WEATHER_ALERT_STORAGE_KEY, value: settings });
     const cloudRes = await saveAppDataToSupabase('weather_alert_config', settings);
     return cloudRes;
   } catch (err: any) {
@@ -94,13 +103,13 @@ export async function saveWeatherAlertSettingsToCloud(settings: WeatherAlertSett
 }
 
 /**
- * Loads Weather Alert Station Settings from Supabase or local storage fallback.
+ * Loads Weather Alert Station Settings from Supabase or local durable storage fallback.
  */
 export async function loadWeatherAlertSettingsFromCloud(): Promise<WeatherAlertSettings> {
   try {
     const cloudData = await loadAppDataFromSupabase<WeatherAlertSettings>('weather_alert_config');
     if (cloudData && typeof cloudData.periodicitySeconds === 'number') {
-      localStorage.setItem(WEATHER_ALERT_STORAGE_KEY, JSON.stringify(cloudData));
+      await saveToDurableStorage(WEATHER_ALERT_STORAGE_KEY, cloudData, STORES.ALARMS);
       return cloudData;
     }
 
@@ -185,19 +194,36 @@ export interface CloudHydrationResult {
 /**
  * Centralized Global Boot Hydration Routine.
  * Executed on application start to guarantee that all user configurations, logos,
- * and alarm periodicities are restored from Supabase even if the browser cache is 100% empty.
+ * and alarm periodicities are restored from IndexedDB / Supabase even if browser cache is 100% empty.
  */
 export async function hydrateAllCloudData(): Promise<CloudHydrationResult> {
+  // STEP 1: Self-healing restore from durable IndexedDB back into localStorage if cache was cleared
+  try {
+    await restoreDurableStorageToLocalStorage();
+  } catch (e) {
+    console.warn('Falha no auto-restauro do IndexedDB:', e);
+  }
+
   const result: CloudHydrationResult = {
     brandings: {},
-    companies: [],
-    batteryAlertSettings: null,
-    weatherAlertSettings: DEFAULT_WEATHER_ALERT_SETTINGS,
+    companies: getStoredRegisteredCompanies(),
+    batteryAlertSettings: (() => {
+      try {
+        const raw = localStorage.getItem(BATTERY_ALERT_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) { return null; }
+    })(),
+    weatherAlertSettings: (() => {
+      try {
+        const raw = localStorage.getItem(WEATHER_ALERT_STORAGE_KEY);
+        return raw ? { ...DEFAULT_WEATHER_ALERT_SETTINGS, ...JSON.parse(raw) } : DEFAULT_WEATHER_ALERT_SETTINGS;
+      } catch (e) { return DEFAULT_WEATHER_ALERT_SETTINGS; }
+    })(),
     userPhotos: {},
   };
 
   try {
-    // Run concurrent fetches for fast hydration
+    // STEP 2: Fetch Cloud Database Ground Truth
     const [
       cloudBrandings,
       cloudCompanies,
@@ -212,7 +238,7 @@ export async function hydrateAllCloudData(): Promise<CloudHydrationResult> {
       loadUserPhotosFromSupabase(),
     ]);
 
-    // 1. Hydrate Brandings & Logos
+    // 1. Hydrate Brandings & Logos from cloud if available
     if (cloudBrandings && Object.keys(cloudBrandings).length > 0) {
       result.brandings = cloudBrandings;
       Object.entries(cloudBrandings).forEach(([tenantId, theme]) => {
@@ -229,7 +255,7 @@ export async function hydrateAllCloudData(): Promise<CloudHydrationResult> {
           setStoredLogoAdaptiveMode(tenantId, theme.logoAdaptiveMode);
         }
         try {
-          localStorage.setItem(`agrosys_company_theme_${tenantId}`, JSON.stringify(theme));
+          saveToDurableStorage(`agrosys_company_theme_${tenantId}`, theme, STORES.SETTINGS);
         } catch (e) {}
       });
     }
@@ -266,13 +292,13 @@ export async function hydrateAllCloudData(): Promise<CloudHydrationResult> {
     // 3. Hydrate Battery Alert Settings & Periodicities
     if (cloudBatterySettings) {
       result.batteryAlertSettings = cloudBatterySettings;
-      localStorage.setItem(BATTERY_ALERT_STORAGE_KEY, JSON.stringify(cloudBatterySettings));
+      await saveToDurableStorage(BATTERY_ALERT_STORAGE_KEY, cloudBatterySettings, STORES.ALARMS);
     }
 
     // 4. Hydrate Weather Alert Station Settings & Periodicities
     if (cloudWeatherSettings) {
       result.weatherAlertSettings = cloudWeatherSettings;
-      localStorage.setItem(WEATHER_ALERT_STORAGE_KEY, JSON.stringify(cloudWeatherSettings));
+      await saveToDurableStorage(WEATHER_ALERT_STORAGE_KEY, cloudWeatherSettings, STORES.ALARMS);
     }
 
     // 5. Hydrate User Photos
@@ -281,7 +307,8 @@ export async function hydrateAllCloudData(): Promise<CloudHydrationResult> {
       try {
         const rawStored = localStorage.getItem(USER_PHOTO_STORAGE_KEY);
         const currentStored = rawStored ? JSON.parse(rawStored) : {};
-        localStorage.setItem(USER_PHOTO_STORAGE_KEY, JSON.stringify({ ...currentStored, ...cloudPhotos }));
+        const mergedPhotos = { ...currentStored, ...cloudPhotos };
+        await saveToDurableStorage(USER_PHOTO_STORAGE_KEY, mergedPhotos, STORES.SETTINGS);
       } catch (e) {}
     }
   } catch (err) {

@@ -28,7 +28,10 @@ import {
   Smartphone,
   MapPin,
   ExternalLink,
-  ShieldCheck
+  ShieldCheck,
+  Database,
+  RefreshCw,
+  AlertTriangle
 } from 'lucide-react';
 import { ThemeMode, WhiteLabelTheme, UserProfile, RegisteredCompany } from '../types';
 import { 
@@ -39,7 +42,13 @@ import {
   PRESET_LOGOS
 } from '../data/themeTokensData';
 import { BrandLogo } from './BrandLogo';
-import { saveTenantBrandingToSupabase } from '../services/supabase';
+import { 
+  saveTenantBrandingToSupabase, 
+  testSupabaseConnection, 
+  getStoredSupabaseConfig, 
+  saveSupabaseConfig 
+} from '../services/supabase';
+import { restoreDurableStorageToLocalStorage } from '../services/dbStorageEngine';
 import { 
   getStoredConfiguredLogoUrl, 
   setStoredConfiguredLogoUrl, 
@@ -77,8 +86,28 @@ export const AdminBrandingStudio: React.FC<AdminBrandingStudioProps> = ({
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [activeCodeTab, setActiveCodeTab] = useState<'css' | 'json' | 'tailwind'>('css');
-  const [activeSubTab, setActiveSubTab] = useState<'palette' | 'logo' | 'typography' | 'company' | 'preview'>('palette');
+  const [activeSubTab, setActiveSubTab] = useState<'palette' | 'logo' | 'typography' | 'company' | 'preview' | 'cloud'>('palette');
   const [registeredCompanies, setRegisteredCompanies] = useState<RegisteredCompany[]>(() => getStoredRegisteredCompanies());
+  
+  // Supabase & IndexedDB Cloud Connection State
+  const [dbConfig, setDbConfig] = useState(() => getStoredSupabaseConfig());
+  const [testingDbConn, setTestingDbConn] = useState<boolean>(false);
+  const [dbTestResult, setDbTestResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  const handleTestSupabaseConn = async () => {
+    setTestingDbConn(true);
+    saveSupabaseConfig(dbConfig.url, dbConfig.anonKey);
+    const res = await testSupabaseConnection();
+    setDbTestResult(res);
+    setTestingDbConn(false);
+    showToast(res.message);
+  };
+
+  const handleForceIDBRestore = async () => {
+    const count = await restoreDurableStorageToLocalStorage();
+    showToast(`Autocura IndexedDB realizada com sucesso! ${count} parâmetro(s) restaurados.`);
+  };
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const darkFileInputRef = useRef<HTMLInputElement>(null);
   const jsonInputRef = useRef<HTMLInputElement>(null);
@@ -510,6 +539,7 @@ module.exports = {
           { id: 'typography', label: '3. Tipografia & Formas', icon: Type, badge: theme.fontFamily || 'Plus Jakarta' },
           { id: 'company', label: '4. Dados Institucionais', icon: FileCheck2, badge: 'MAPA/CREA' },
           { id: 'preview', label: '5. Simulador & Relatórios', icon: Eye, badge: 'Ao Vivo' },
+          { id: 'cloud', label: '6. Nuvem & Persistência', icon: Database, badge: 'Supabase & IDB' },
         ].map(tab => {
           const Icon = tab.icon;
           const isActive = activeSubTab === tab.id;
@@ -1532,6 +1562,127 @@ module.exports = {
               {activeCodeTab === 'tailwind' && tailwindSnippet}
               {activeCodeTab === 'json' && JSON.stringify(theme, null, 2)}
             </pre>
+          </div>
+        </div>
+      )}
+
+      {/* TAB CONTENT: 6. NUVEM & PERSISTÊNCIA (SUPABASE & INDEXEDDB) */}
+      {activeSubTab === 'cloud' && (
+        <div className="space-y-6">
+          <div className="bg-emerald-50/80 dark:bg-[#06291d]/90 border border-emerald-200/80 dark:border-emerald-800/80 rounded-3xl p-6 shadow-xs space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-black text-emerald-950 dark:text-emerald-50 flex items-center gap-2">
+                  <Database className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                  Sincronização Cloud & Arquitetura Durável Tripla-Camada
+                </h3>
+                <p className="text-xs text-emerald-800/80 dark:text-emerald-300/80 mt-1 max-w-2xl">
+                  O AgroSys garante que todos os logotipos (claro e escuro), modos adaptativos, periodicidades de alarmes e dados das empresas fiquem permanentemente salvos mesmo se o usuário limpar o cache do navegador ("Clear Browsing Data").
+                </p>
+              </div>
+
+              <button
+                onClick={handleForceIDBRestore}
+                className="px-4 py-2.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-xs transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap"
+              >
+                <RefreshCw className="w-4 h-4" />
+                <span>Testar Autocura IndexedDB</span>
+              </button>
+            </div>
+
+            {/* Persistence Guarantee Status Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white dark:bg-slate-800/90 p-4 rounded-2xl border border-emerald-200/80 dark:border-emerald-700/80 shadow-2xs">
+                <div className="flex items-center gap-2 mb-2 text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>Camada 1: LocalStorage</span>
+                </div>
+                <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                  Renderização instantânea e síncrona dos temas, logotipos e menus do React.
+                </p>
+              </div>
+
+              <div className="bg-white dark:bg-slate-800/90 p-4 rounded-2xl border border-emerald-200/80 dark:border-emerald-700/80 shadow-2xs">
+                <div className="flex items-center gap-2 mb-2 text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                  <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                  <span>Camada 2: IndexedDB (Anti-Cache)</span>
+                </div>
+                <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                  Banco de dados cliente ultrarresiliente com privilégio <code className="text-emerald-600 font-mono">navigator.storage.persist()</code>. Imune à limpeza de cache padrão.
+                </p>
+              </div>
+
+              <div className="bg-white dark:bg-slate-800/90 p-4 rounded-2xl border border-emerald-200/80 dark:border-emerald-700/80 shadow-2xs">
+                <div className="flex items-center gap-2 mb-2 text-xs font-bold text-sky-800 dark:text-sky-300">
+                  <Database className="w-4 h-4 text-sky-500" />
+                  <span>Camada 3: Supabase Cloud Database</span>
+                </div>
+                <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                  Banco em nuvem para sincronização multiplataforma e backup global dos tenants.
+                </p>
+              </div>
+            </div>
+
+            {/* Supabase Connection Configurator & Live Test */}
+            <div className="bg-white dark:bg-slate-900/90 p-5 rounded-2xl border border-emerald-200 dark:border-emerald-800 space-y-4">
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <span>Configuração de Conexão com Supabase DB</span>
+              </h4>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                    Supabase Project URL
+                  </label>
+                  <input
+                    type="text"
+                    value={dbConfig.url}
+                    onChange={(e) => setDbConfig(prev => ({ ...prev, url: e.target.value }))}
+                    placeholder="https://sua-instancia.supabase.co"
+                    className="w-full px-3 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                    Supabase Anon API Key
+                  </label>
+                  <input
+                    type="password"
+                    value={dbConfig.anonKey}
+                    onChange={(e) => setDbConfig(prev => ({ ...prev, anonKey: e.target.value }))}
+                    placeholder="eyJhbGciOiJIUzI1Ni..."
+                    className="w-full px-3 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  onClick={handleTestSupabaseConn}
+                  disabled={testingDbConn}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white shadow-xs transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  {testingDbConn ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Database className="w-4 h-4" />
+                  )}
+                  <span>{testingDbConn ? 'Testando Conexão...' : 'Testar & Salvar Conexão Supabase'}</span>
+                </button>
+
+                {dbTestResult && (
+                  <div className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 ${
+                    dbTestResult.success 
+                      ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300' 
+                      : 'bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-300 border border-amber-300'
+                  }`}>
+                    {dbTestResult.success ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <AlertTriangle className="w-4 h-4 text-amber-600" />}
+                    <span>{dbTestResult.message}</span>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}

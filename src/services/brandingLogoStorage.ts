@@ -23,18 +23,23 @@ export function getStoredConfiguredLogoUrl(companyId?: string): string | undefin
   return undefined;
 }
 
+import { saveToDurableStorage, setIDBItem, deleteIDBItem, STORES } from './dbStorageEngine';
+
 export function setStoredConfiguredLogoUrl(companyId: string, url?: string | null): void {
   try {
     if (!companyId || companyId === 'ALL') return;
     const key = `agrosys_company_logo_url_${companyId}`;
     if (typeof url === 'string') {
       if (url.trim().length > 0) {
-        localStorage.setItem(key, url);
+        saveToDurableStorage(key, url, STORES.SETTINGS);
+        setIDBItem(STORES.BRANDINGS, { tenantId: companyId, logoUrl: url });
       } else {
         localStorage.removeItem(key);
+        deleteIDBItem(STORES.SETTINGS, key);
       }
     } else if (url === null) {
       localStorage.removeItem(key);
+      deleteIDBItem(STORES.SETTINGS, key);
     }
   } catch (e) {
     console.warn(`Erro ao salvar logo configurado para ${companyId}:`, e);
@@ -61,12 +66,15 @@ export function setStoredConfiguredLogoDarkUrl(companyId: string, url?: string |
     const key = `agrosys_company_logo_dark_url_${companyId}`;
     if (typeof url === 'string') {
       if (url.trim().length > 0) {
-        localStorage.setItem(key, url);
+        saveToDurableStorage(key, url, STORES.SETTINGS);
+        setIDBItem(STORES.BRANDINGS, { tenantId: companyId, logoDarkUrl: url });
       } else {
         localStorage.removeItem(key);
+        deleteIDBItem(STORES.SETTINGS, key);
       }
     } else if (url === null) {
       localStorage.removeItem(key);
+      deleteIDBItem(STORES.SETTINGS, key);
     }
   } catch (e) {
     console.warn(`Erro ao salvar logo escuro configurado para ${companyId}:`, e);
@@ -92,9 +100,11 @@ export function setStoredLogoAdaptiveMode(companyId: string, mode?: string | nul
     if (!companyId || companyId === 'ALL') return;
     const key = `agrosys_company_logo_adaptive_mode_${companyId}`;
     if (typeof mode === 'string' && mode.trim().length > 0) {
-      localStorage.setItem(key, mode);
+      saveToDurableStorage(key, mode, STORES.SETTINGS);
+      setIDBItem(STORES.BRANDINGS, { tenantId: companyId, logoAdaptiveMode: mode });
     } else {
       localStorage.removeItem(key);
+      deleteIDBItem(STORES.SETTINGS, key);
     }
   } catch (e) {
     console.warn(`Erro ao salvar modo adaptativo de logo para ${companyId}:`, e);
@@ -121,12 +131,15 @@ export function setStoredConfiguredLogoIconId(companyId: string, iconId?: string
     const key = `agrosys_company_logo_icon_${companyId}`;
     if (typeof iconId === 'string') {
       if (iconId.trim().length > 0) {
-        localStorage.setItem(key, iconId);
+        saveToDurableStorage(key, iconId, STORES.SETTINGS);
+        setIDBItem(STORES.BRANDINGS, { tenantId: companyId, logoIconId: iconId });
       } else {
         localStorage.removeItem(key);
+        deleteIDBItem(STORES.SETTINGS, key);
       }
     } else if (iconId === null) {
       localStorage.removeItem(key);
+      deleteIDBItem(STORES.SETTINGS, key);
     }
   } catch (e) {
     console.warn(`Erro ao salvar logo icon id para ${companyId}:`, e);

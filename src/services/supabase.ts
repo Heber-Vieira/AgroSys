@@ -1,11 +1,85 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { WhiteLabelTheme, UserProfile } from '../types';
 
 const env = (import.meta as any).env || {};
-const SUPABASE_URL = env.VITE_SUPABASE_URL || 'https://ioqdflvonlajalonxctd.supabase.co';
-const SUPABASE_ANON_KEY = env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvcWRmbHZvbmxhamFsb254Y3RkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwODY1OTgsImV4cCI6MjEwNDY2MjU5OH0.tJk65svQxF6U_cjYff1QgsEJaegSn8IJ3hnOtYbvkD0';
+const DEFAULT_SUPABASE_URL = env.VITE_SUPABASE_URL || 'https://ioqdflvonlajalonxctd.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvcWRmbHZvbmxhamFsb254Y3RkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwODY1OTgsImV4cCI6MjEwNDY2MjU5OH0.tJk65svQxF6U_cjYff1QgsEJaegSn8IJ3hnOtYbvkD0';
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+export const SUPABASE_CONFIG_STORAGE_KEY = 'agrosys_supabase_config';
+
+export function getStoredSupabaseConfig(): { url: string; anonKey: string } {
+  try {
+    const raw = localStorage.getItem(SUPABASE_CONFIG_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.url && parsed.anonKey) {
+        return parsed;
+      }
+    }
+  } catch (e) {}
+  return {
+    url: DEFAULT_SUPABASE_URL,
+    anonKey: DEFAULT_SUPABASE_ANON_KEY,
+  };
+}
+
+const currentConfig = getStoredSupabaseConfig();
+export let supabase: SupabaseClient = createClient(currentConfig.url, currentConfig.anonKey);
+
+export function reconnectSupabase(url?: string, anonKey?: string): SupabaseClient {
+  const newUrl = url || getStoredSupabaseConfig().url;
+  const newKey = anonKey || getStoredSupabaseConfig().anonKey;
+  supabase = createClient(newUrl, newKey);
+  return supabase;
+}
+
+export function saveSupabaseConfig(url: string, anonKey: string): void {
+  try {
+    const config = { url: url.trim(), anonKey: anonKey.trim() };
+    localStorage.setItem(SUPABASE_CONFIG_STORAGE_KEY, JSON.stringify(config));
+    reconnectSupabase(config.url, config.anonKey);
+  } catch (e) {
+    console.warn('Erro ao salvar configurações do Supabase:', e);
+  }
+}
+
+/**
+ * Empirical connection test to Supabase database.
+ */
+export async function testSupabaseConnection(): Promise<{ success: boolean; message: string }> {
+  try {
+    const { data, error } = await supabase
+      .from('app_settings')
+      .select('key', { count: 'exact', head: true });
+
+    if (error) {
+      if (error.code === 'PGRST116' || error.message.includes('404') || error.message.includes('relation')) {
+        return { 
+          success: fontOrTableConnected(error), 
+          message: `Conectado ao Supabase, mas a tabela app_settings ainda não foi criada (${error.message}). A persistência durável local via IndexedDB está ativa.`
+        };
+      }
+      return { 
+        success: false, 
+        message: `Falha na API Key ou credenciais Supabase: ${error.message}. O sistema continuará salvando duravelmente via IndexedDB.` 
+      };
+    }
+
+    return { 
+      success: true, 
+      message: 'Conexão Supabase OK! Sincronização cloud ativada e operacional.' 
+    };
+  } catch (err: any) {
+    return { 
+      success: false, 
+      message: `Erro ao testar conexão Supabase: ${err?.message || err}. Operando em modo ultrarresiliente offline via IndexedDB.` 
+    };
+  }
+}
+
+function fontOrTableConnected(error: any): boolean {
+  return !error.message.includes('Invalid API key') && !error.message.includes('apiKey');
+}
 
 export async function signInWithSupabase(email: string, password: string) {
   try {
