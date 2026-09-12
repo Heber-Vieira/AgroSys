@@ -118,6 +118,17 @@ export interface WeatherForecastData {
  */
 export const POPULAR_AGRO_CITIES: CityLocation[] = [
   {
+    id: 'contagem-mg',
+    name: 'Contagem',
+    state: 'MG',
+    country: 'Brasil',
+    latitude: -19.9317,
+    longitude: -44.0539,
+    elevationMeters: 858,
+    region: 'Região Metropolitana de BH',
+    mainCrops: ['Horticultura', 'Cinturão Verde', 'Pólo Logístico Agro']
+  },
+  {
     id: 'jacarandira-mg',
     name: 'Jacarandira',
     state: 'MG',
@@ -151,127 +162,6 @@ export const POPULAR_AGRO_CITIES: CityLocation[] = [
     mainCrops: ['Milho', 'Horticultura', 'Pecuária Leiteira']
   },
   {
-    id: 'rio-verde-go',
-    name: 'Rio Verde',
-    state: 'GO',
-    country: 'Brasil',
-    latitude: -17.7947,
-    longitude: -50.9192,
-    elevationMeters: 748,
-    region: 'Centro-Oeste',
-    mainCrops: ['Soja', 'Milho', 'Sorgo', 'Algodão']
-  },
-  {
-    id: 'sorriso-mt',
-    name: 'Sorriso',
-    state: 'MT',
-    country: 'Brasil',
-    latitude: -12.5425,
-    longitude: -55.7214,
-    elevationMeters: 365,
-    region: 'Centro-Oeste (Capital do Agronegócio)',
-    mainCrops: ['Soja', 'Milho Safrinha', 'Feijão']
-  },
-  {
-    id: 'luis-eduardo-magalhaes-ba',
-    name: 'Luís Eduardo Magalhães',
-    state: 'BA',
-    country: 'Brasil',
-    latitude: -12.0952,
-    longitude: -45.7958,
-    elevationMeters: 720,
-    region: 'MATOPIBA / Oeste Baiano',
-    mainCrops: ['Algodão', 'Soja', 'Milho']
-  },
-  {
-    id: 'cascavel-pr',
-    name: 'Cascavel',
-    state: 'PR',
-    country: 'Brasil',
-    latitude: -24.9578,
-    longitude: -53.4595,
-    elevationMeters: 781,
-    region: 'Sul / Oeste Paranaense',
-    mainCrops: ['Soja', 'Trigo', 'Milho']
-  },
-  {
-    id: 'primavera-do-leste-mt',
-    name: 'Primavera do Leste',
-    state: 'MT',
-    country: 'Brasil',
-    latitude: -15.5583,
-    longitude: -54.2981,
-    elevationMeters: 636,
-    region: 'Centro-Oeste',
-    mainCrops: ['Algodão', 'Soja', 'Girassol']
-  },
-  {
-    id: 'jatai-go',
-    name: 'Jataí',
-    state: 'GO',
-    country: 'Brasil',
-    latitude: -17.8814,
-    longitude: -51.7144,
-    elevationMeters: 708,
-    region: 'Sudoeste Goiano',
-    mainCrops: ['Soja', 'Milho', 'Cana']
-  },
-  {
-    id: 'cristalina-go',
-    name: 'Cristalina',
-    state: 'GO',
-    country: 'Brasil',
-    latitude: -16.7686,
-    longitude: -47.6139,
-    elevationMeters: 1189,
-    region: 'Leste Goiano (Pivôs Centrais)',
-    mainCrops: ['Batata', 'Alho', 'Cebola', 'Soja']
-  },
-  {
-    id: 'dourados-ms',
-    name: 'Dourados',
-    state: 'MS',
-    country: 'Brasil',
-    latitude: -22.2211,
-    longitude: -54.8056,
-    elevationMeters: 430,
-    region: 'Sul do MS',
-    mainCrops: ['Soja', 'Milho', 'Cana-de-açúcar']
-  },
-  {
-    id: 'campo-novo-do-parecis-mt',
-    name: 'Campo Novo do Parecis',
-    state: 'MT',
-    country: 'Brasil',
-    latitude: -13.6756,
-    longitude: -57.8939,
-    elevationMeters: 572,
-    region: 'Chapadão do Parecis - MT',
-    mainCrops: ['Girassol', 'Pipoca', 'Soja']
-  },
-  {
-    id: 'balsas-ma',
-    name: 'Balsas',
-    state: 'MA',
-    country: 'Brasil',
-    latitude: -7.5322,
-    longitude: -46.0358,
-    elevationMeters: 250,
-    region: 'MATOPIBA / Sul Maranhense',
-    mainCrops: ['Soja', 'Milho', 'Arroz']
-  },
-  {
-    id: 'ribeirao-preto-sp',
-    name: 'Ribeirão Preto',
-    state: 'SP',
-    country: 'Brasil',
-    latitude: -21.1775,
-    longitude: -47.8103,
-    elevationMeters: 546,
-    region: 'Sudeste / Alta Mogiana',
-    mainCrops: ['Cana-de-açúcar', 'Café', 'Citros']
-  },
-  {
     id: 'uberlandia-mg',
     name: 'Uberlândia',
     state: 'MG',
@@ -294,37 +184,70 @@ export const POPULAR_AGRO_CITIES: CityLocation[] = [
     mainCrops: ['Milho', 'Soja', 'Feijão']
   },
   {
-    id: 'cruz-alta-rs',
-    name: 'Cruz Alta',
-    state: 'RS',
+    id: 'unai-mg',
+    name: 'Unaí',
+    state: 'MG',
     country: 'Brasil',
-    latitude: -28.6389,
-    longitude: -53.6064,
-    elevationMeters: 452,
-    region: 'Planalto Médio Gaúcho',
-    mainCrops: ['Soja', 'Trigo', 'Aveia']
+    latitude: -16.3578,
+    longitude: -46.9061,
+    elevationMeters: 640,
+    region: 'Noroeste Mineiro',
+    mainCrops: ['Soja', 'Feijão', 'Milho', 'Algodão']
   },
   {
-    id: 'rondonopolis-mt',
-    name: 'Rondonópolis',
-    state: 'MT',
+    id: 'uberaba-mg',
+    name: 'Uberaba',
+    state: 'MG',
     country: 'Brasil',
-    latitude: -16.4674,
-    longitude: -54.6372,
-    elevationMeters: 227,
-    region: 'Sul Matogrossense',
-    mainCrops: ['Soja', 'Milho', 'Pecuária']
+    latitude: -19.7483,
+    longitude: -47.9319,
+    elevationMeters: 823,
+    region: 'Triângulo Mineiro',
+    mainCrops: ['Cana-de-açúcar', 'Soja', 'Pecuária Zebuína']
   },
   {
-    id: 'sao-desiderio-ba',
-    name: 'São Desidério',
-    state: 'BA',
+    id: 'sao-gotardo-mg',
+    name: 'São Gotardo',
+    state: 'MG',
     country: 'Brasil',
-    latitude: -12.3575,
-    longitude: -44.9739,
-    elevationMeters: 530,
-    region: 'Oeste da Bahia',
-    mainCrops: ['Algodão', 'Soja']
+    latitude: -19.3111,
+    longitude: -46.0489,
+    elevationMeters: 1100,
+    region: 'Alto Paranaíba',
+    mainCrops: ['Hortifrúti', 'Cenoura', 'Batata', 'Café']
+  },
+  {
+    id: 'manhuacu-mg',
+    name: 'Manhuaçu',
+    state: 'MG',
+    country: 'Brasil',
+    latitude: -20.2578,
+    longitude: -42.0336,
+    elevationMeters: 635,
+    region: 'Zona da Mata',
+    mainCrops: ['Café Arábica', 'Milho']
+  },
+  {
+    id: 'varginha-mg',
+    name: 'Varginha',
+    state: 'MG',
+    country: 'Brasil',
+    latitude: -21.5519,
+    longitude: -45.4303,
+    elevationMeters: 920,
+    region: 'Sul de Minas',
+    mainCrops: ['Café Arábica', 'Horticultura']
+  },
+  {
+    id: 'montes-claros-mg',
+    name: 'Montes Claros',
+    state: 'MG',
+    country: 'Brasil',
+    latitude: -16.7281,
+    longitude: -43.8578,
+    elevationMeters: 678,
+    region: 'Norte de Minas',
+    mainCrops: ['Pecuária de Corte', 'Eucalipto', 'Fruticultura']
   }
 ];
 

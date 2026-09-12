@@ -270,7 +270,7 @@ export const WeatherCitySelector: React.FC<WeatherCitySelectorProps> = ({
           <Wheat className="w-3 h-3" />
           <span>Polos Rápidos:</span>
         </span>
-        {POPULAR_AGRO_CITIES.slice(0, 12).map((city) => {
+        {POPULAR_AGRO_CITIES.map((city) => {
           const isSelected = (selectedCity?.name || '') === city.name;
           return (
             <button
