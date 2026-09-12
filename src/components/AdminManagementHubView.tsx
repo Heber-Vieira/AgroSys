@@ -11,7 +11,8 @@ import {
   PricingMatrixRule,
   DroneMaintenanceLog,
   WhiteLabelTheme,
-  ThemeMode
+  ThemeMode,
+  DroneBatteryAsset
 } from '../types';
 import { showToast as showAgroToast, showConfirm } from '../services/notificationService';
 import { 
@@ -47,7 +48,8 @@ import {
   Camera,
   Upload,
   Eye,
-  EyeOff
+  EyeOff,
+  Zap
 } from 'lucide-react';
 import { DronePhoto, DroneBadge, DronePhotoUploadModal, PRESET_DRONE_PHOTOS, getDronePhotoUrl } from './DronePhotoBadge';
 import { UserAvatar, UserPhotoUploadModal, saveStoredUserPhoto, PRESET_AVATARS, getUserPhotoUrl } from './UserAvatar';
@@ -62,6 +64,9 @@ interface AdminManagementHubViewProps {
   setUsers: React.Dispatch<React.SetStateAction<UserProfile[]>>;
   drones: AgriculturalDrone[];
   setDrones: React.Dispatch<React.SetStateAction<AgriculturalDrone[]>>;
+  batteries?: DroneBatteryAsset[];
+  setBatteries?: React.Dispatch<React.SetStateAction<DroneBatteryAsset[]>>;
+  onOpenBatteryManager?: (droneId?: string) => void;
   pilots: CrewPilot[];
   setPilots: React.Dispatch<React.SetStateAction<CrewPilot[]>>;
   assistants: CrewAssistant[];
@@ -90,6 +95,9 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
   setUsers,
   drones,
   setDrones,
+  batteries = [],
+  setBatteries,
+  onOpenBatteryManager,
   pilots,
   setPilots,
   assistants,
@@ -968,18 +976,29 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
       {/* ========================================================================= */}
       {activeTab === 'drones' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <h2 className="text-sm font-black text-slate-800 dark:text-slate-200 flex items-center gap-2">
               <Plane className="w-4 h-4 text-blue-600" />
               Frota de Drones & Certificações ANAC / DECEA
             </h2>
-            <button
-              onClick={handleOpenNewDrone}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 transition-colors flex items-center gap-1.5 cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Cadastrar Novo Drone</span>
-            </button>
+            <div className="flex items-center gap-2">
+              {onOpenBatteryManager && (
+                <button
+                  onClick={() => onOpenBatteryManager()}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                >
+                  <Zap className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                  <span>Banco de Baterias ({batteries.length})</span>
+                </button>
+              )}
+              <button
+                onClick={handleOpenNewDrone}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Cadastrar Novo Drone</span>
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
@@ -990,6 +1009,9 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
                 MAINTENANCE: { label: 'Em Manutenção', color: 'bg-rose-100/90 text-rose-800 dark:bg-rose-950/80 dark:text-rose-300 border-rose-300/80' },
                 CHARGING: { label: 'Carregando Hub', color: 'bg-amber-100/90 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border-amber-300/80' },
               }[d.operationalStatus];
+
+              const dronePacks = batteries.filter(b => b.droneId === d.id);
+              const readyPacks = dronePacks.filter(b => b.status === 'READY');
 
               return (
                 <div
@@ -1049,11 +1071,21 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
                       </div>
                     </div>
 
-                    {/* Status Pill */}
-                    <div className="mb-2">
+                    {/* Status Pill & Battery Badge */}
+                    <div className="mb-2 flex items-center gap-1.5 flex-wrap">
                       <span className={`inline-block text-[9px] font-extrabold px-2 py-0.5 rounded-full border ${statusBadge.color}`}>
                         {statusBadge.label}
                       </span>
+                      {onOpenBatteryManager && (
+                        <button
+                          onClick={() => onOpenBatteryManager(d.id)}
+                          className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/20 transition-all flex items-center gap-1 cursor-pointer"
+                          title="Configurar e gerenciar baterias vinculadas a este drone"
+                        >
+                          <Zap className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
+                          <span>{dronePacks.length} packs ({readyPacks.length} prontos)</span>
+                        </button>
+                      )}
                     </div>
 
                     {/* Quick Specs Chips */}
@@ -1097,18 +1129,28 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
                   {/* Footer */}
                   <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between">
                     <span className="text-[9px] text-slate-400 font-medium">Payload: {d.maxPayloadKg}kg</span>
-                    <button
-                      onClick={() => {
-                        const nextStatuses: AgriculturalDrone['operationalStatus'][] = ['READY', 'FLYING', 'CHARGING', 'MAINTENANCE'];
-                        const currIndex = nextStatuses.indexOf(d.operationalStatus);
-                        const next = nextStatuses[(currIndex + 1) % nextStatuses.length];
-                        setDrones(prev => prev.map(item => item.id === d.id ? { ...item, operationalStatus: next } : item));
-                        showToast(`Status do drone ${d.anacPrefix} alterado.`);
-                      }}
-                      className="text-[10px] font-extrabold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
-                    >
-                      Status →
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {onOpenBatteryManager && (
+                        <button
+                          onClick={() => onOpenBatteryManager(d.id)}
+                          className="text-[10px] font-extrabold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-0.5 cursor-pointer"
+                        >
+                          <Zap className="w-2.5 h-2.5" /> Baterias
+                        </button>
+                      )}
+                      <button
+                        onClick={() => {
+                          const nextStatuses: AgriculturalDrone['operationalStatus'][] = ['READY', 'FLYING', 'CHARGING', 'MAINTENANCE'];
+                          const currIndex = nextStatuses.indexOf(d.operationalStatus);
+                          const next = nextStatuses[(currIndex + 1) % nextStatuses.length];
+                          setDrones(prev => prev.map(item => item.id === d.id ? { ...item, operationalStatus: next } : item));
+                          showToast(`Status do drone ${d.anacPrefix} alterado.`);
+                        }}
+                        className="text-[10px] font-extrabold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                      >
+                        Status →
+                      </button>
+                    </div>
                   </div>
                 </div>
               );

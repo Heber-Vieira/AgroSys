@@ -195,7 +195,29 @@ export interface BatteryAlertSettings {
   nextAlertTimestamp?: number; // timestamp em ms
   // Campos de compatibilidade com versões anteriores
   intervalMinutes?: number;
-  snoozeMinutes?: number;
+export type DroneBatteryStatus = 'READY' | 'CHARGING' | 'STORAGE' | 'ALERT' | 'DISCARDED';
+
+export interface DroneBatteryAsset {
+  id: string;
+  droneId: string; // ID da aeronave vinculada
+  companyId?: string; // Isolamento multi-empresa
+  serialNumber: string; // Serial único da bateria (e.g. "DJI-DB1560-8812A")
+  modelName: string; // Modelo (e.g. "DJI DB1560 Smart Battery (30.000 mAh)")
+  capacityMah: number; // Capacidade nominal em mAh (e.g. 30000)
+  voltageNominalV: number; // Tensão nominal (e.g. 52.22V / 14S)
+  healthPct: number; // Estado de Saúde SoH % (e.g. 96%)
+  cyclesCount: number; // Ciclos totais de carga (e.g. 142)
+  chargePct: number; // Nível atual de carga SoC % (e.g. 95%)
+  cellVoltageDeltaMv: number; // Desbalanço de células em mV (e.g. 12 mV)
+  temperatureC: number; // Temperatura operacional em °C (e.g. 28°C)
+  status: DroneBatteryStatus;
+  purchaseDate?: string; // Data de aquisição (YYYY-MM-DD)
+  warrantyExpiryDate?: string; // Vencimento da garantia (YYYY-MM-DD)
+  lastInspectionDate?: string; // Data da última inspeção (YYYY-MM-DD)
+  qrCodeOrNfcTag?: string; // Identificador QR / RFID / NFC
+  notes?: string;
+  createdAt: string;
+  updatedAt?: string;
 }
 
 export interface AgriculturalDrone {
@@ -222,6 +244,7 @@ export interface AgriculturalDrone {
   cellVoltageDeltaMv?: number; // Desbalanço de tensão entre células e.g. 12 mV
   batteryTemperatureC?: number; // Temperatura operacional e.g. 32°C
   lastBatteryInspectionDate?: string; // Data da última checagem de bateria YYYY-MM-DD
+  batteries?: DroneBatteryAsset[]; // Banco de baterias do drone
 }
 
 export interface CrewPilot {

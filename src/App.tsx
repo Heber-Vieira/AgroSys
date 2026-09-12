@@ -38,16 +38,17 @@ import {
   WhiteLabelTheme, 
   UserProfile, 
   ServiceOrder, 
-  FarmPlot,
+  FarmPlot, 
   AgriculturalDrone,
-  CrewPilot,
-  CrewAssistant,
-  PricingMatrixRule,
-  FinancialEntry,
-  ClientProducer,
-  CompensationPolicy,
-  DroneMaintenanceLog,
-  BatteryAlertSettings,
+  DroneBatteryAsset,
+  CrewPilot, 
+  CrewAssistant, 
+  PricingMatrixRule, 
+  FinancialEntry, 
+  ClientProducer, 
+  CompensationPolicy, 
+  DroneMaintenanceLog, 
+  BatteryAlertSettings, 
   SprayQuotation
 } from './types';
 import { PRESET_COMPANIES, generateToneScale } from './data/themeTokensData';
@@ -61,6 +62,7 @@ import {
   USER_PROFILES, 
   INITIAL_PLOTS, 
   INITIAL_DRONES, 
+  INITIAL_DRONE_BATTERIES,
   INITIAL_PILOTS, 
   INITIAL_ASSISTANTS, 
   INITIAL_ORDERS, 
@@ -73,6 +75,7 @@ import {
   INITIAL_QUOTATIONS
 } from './data/mockAppState';
 import { BatteryAlertOverlay } from './components/BatteryAlertOverlay';
+import { DroneBatteryManagerModal } from './components/DroneBatteryManagerModal';
 import { playBatteryAlertSound } from './utils/batteryAudioAlert';
 import { 
   calculateNextBatteryAlertTimestamp, 
@@ -246,6 +249,15 @@ export default function App() {
     } catch (e) {}
   }, [allDrones]);
 
+  const [allBatteries, setAllBatteries] = useState<DroneBatteryAsset[]>(() => 
+    loadAndMergeWithMock('agrodrone_batteries_fleet', INITIAL_DRONE_BATTERIES)
+  );
+  useEffect(() => {
+    try {
+      localStorage.setItem('agrodrone_batteries_fleet', JSON.stringify(allBatteries));
+    } catch (e) {}
+  }, [allBatteries]);
+
   const [allMaintenanceLogs, setAllMaintenanceLogs] = useState<DroneMaintenanceLog[]>(() => 
     loadAndMergeWithMock('agrodrone_maintenance_logs', INITIAL_MAINTENANCE_LOGS)
   );
@@ -359,6 +371,11 @@ export default function App() {
     [allMaintenanceLogs, activeTenantId]
   );
 
+  const batteries = useMemo(() => 
+    allBatteries.filter(b => (b.companyId || 'ciclodrone') === activeTenantId), 
+    [allBatteries, activeTenantId]
+  );
+
   const pricingRules = useMemo(() => 
     allPricingRules.filter(r => (r.companyId || 'ciclodrone') === activeTenantId), 
     [allPricingRules, activeTenantId]
@@ -398,6 +415,16 @@ export default function App() {
       const resolved = typeof action === 'function' ? (action as any)(currentScoped) : action;
       const tagged = resolved.map((item: AgriculturalDrone) => ({ ...item, companyId: item.companyId || activeTenantId }));
       const otherCompanies = prevAll.filter(d => (d.companyId || 'ciclodrone') !== activeTenantId);
+      return [...otherCompanies, ...tagged];
+    });
+  };
+
+  const setBatteries: React.Dispatch<React.SetStateAction<DroneBatteryAsset[]>> = (action) => {
+    setAllBatteries(prevAll => {
+      const currentScoped = prevAll.filter(b => (b.companyId || 'ciclodrone') === activeTenantId);
+      const resolved = typeof action === 'function' ? (action as any)(currentScoped) : action;
+      const tagged = resolved.map((item: DroneBatteryAsset) => ({ ...item, companyId: item.companyId || activeTenantId }));
+      const otherCompanies = prevAll.filter(b => (b.companyId || 'ciclodrone') !== activeTenantId);
       return [...otherCompanies, ...tagged];
     });
   };
@@ -565,6 +592,15 @@ export default function App() {
   const [showNewOSModal, setShowNewOSModal] = useState<boolean>(false);
   const [showHelpModal, setShowHelpModal] = useState<boolean>(false);
   
+  // Drone Battery Manager Modal State
+  const [isBatteryModalOpen, setIsBatteryModalOpen] = useState<boolean>(false);
+  const [selectedBatteryDroneId, setSelectedBatteryDroneId] = useState<string | undefined>(undefined);
+
+  const handleOpenBatteryManager = (droneId?: string) => {
+    setSelectedBatteryDroneId(droneId);
+    setIsBatteryModalOpen(true);
+  };
+
   // Global Spray Technical Report Modal State
   const [showReportModal, setShowReportModal] = useState<boolean>(false);
   const [reportSelectedOrderId, setReportSelectedOrderId] = useState<string | undefined>(undefined);
@@ -900,6 +936,9 @@ export default function App() {
             currentUser={currentUser}
             drones={drones}
             setDrones={setDrones}
+            batteries={batteries}
+            setBatteries={setBatteries}
+            onOpenBatteryManager={handleOpenBatteryManager}
             pilots={pilots}
             setPilots={setPilots}
             assistants={assistants}
@@ -928,6 +967,9 @@ export default function App() {
             setUsers={setUsers}
             drones={drones}
             setDrones={setDrones}
+            batteries={batteries}
+            setBatteries={setBatteries}
+            onOpenBatteryManager={handleOpenBatteryManager}
             pilots={pilots}
             setPilots={setPilots}
             assistants={assistants}
@@ -1133,6 +1175,19 @@ export default function App() {
         pilots={pilots}
         assistants={assistants}
       />
+
+      {/* GLOBAL DRONE BATTERY MANAGER MODAL */}
+      <DroneBatteryManagerModal
+        isOpen={isBatteryModalOpen}
+        onClose={() => setIsBatteryModalOpen(false)}
+        drones={drones}
+        initialDroneId={selectedBatteryDroneId}
+        batteries={batteries}
+        setBatteries={setBatteries}
+        currentUser={currentUser}
+        theme={theme}
+      />
+
       {/* Global Toast and Notification Container */}
       <AgroSysToastContainer />
     </AppLayout>

@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
-import { UserProfile, AgriculturalDrone, CrewPilot, CrewAssistant, DroneMaintenanceLog, WhiteLabelTheme } from '../types';
+import { 
+  UserProfile, 
+  AgriculturalDrone, 
+  DroneBatteryAsset, 
+  CrewPilot, 
+  CrewAssistant, 
+  DroneMaintenanceLog, 
+  WhiteLabelTheme 
+} from '../types';
 import { 
   Plane, 
   ShieldCheck, 
@@ -12,7 +20,8 @@ import {
   UserCheck,
   Camera,
   FileText,
-  DollarSign
+  DollarSign,
+  Zap
 } from 'lucide-react';
 import { DronePhoto, DroneBadge, DronePhotoUploadModal } from './DronePhotoBadge';
 import { UserAvatar, UserPhotoUploadModal, saveStoredUserPhoto } from './UserAvatar';
@@ -23,6 +32,9 @@ interface FleetDronesViewProps {
   currentUser: UserProfile;
   drones: AgriculturalDrone[];
   setDrones?: React.Dispatch<React.SetStateAction<AgriculturalDrone[]>>;
+  batteries?: DroneBatteryAsset[];
+  setBatteries?: React.Dispatch<React.SetStateAction<DroneBatteryAsset[]>>;
+  onOpenBatteryManager?: (droneId?: string) => void;
   pilots: CrewPilot[];
   setPilots?: React.Dispatch<React.SetStateAction<CrewPilot[]>>;
   assistants: CrewAssistant[];
@@ -38,6 +50,9 @@ export const FleetDronesView: React.FC<FleetDronesViewProps> = ({
   currentUser,
   drones,
   setDrones,
+  batteries = [],
+  setBatteries,
+  onOpenBatteryManager,
   pilots,
   setPilots,
   assistants,
@@ -93,6 +108,17 @@ export const FleetDronesView: React.FC<FleetDronesViewProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5 self-start sm:self-auto">
+          {onOpenBatteryManager && (
+            <button
+              onClick={() => onOpenBatteryManager()}
+              className="px-3 py-1.5 rounded-lg font-black bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 shadow-2xs text-xs flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
+              title="Gerenciar, cadastrar e configurar o banco de baterias de cada drone"
+            >
+              <Zap className="w-3.5 h-3.5 fill-slate-950 text-amber-300" />
+              <span>⚡ Banco de Baterias ({batteries.length})</span>
+            </button>
+          )}
+
           {onOpenBatteryAlerts && (
             <button
               onClick={onOpenBatteryAlerts}
@@ -100,7 +126,7 @@ export const FleetDronesView: React.FC<FleetDronesViewProps> = ({
               title="Abrir painel de checagem e configuração de alertas de bateria"
             >
               <BatteryCharging className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-              <span>⚡ Baterias & Alertas</span>
+              <span>Alertas & Periodicidade</span>
             </button>
           )}
 
@@ -133,7 +159,13 @@ export const FleetDronesView: React.FC<FleetDronesViewProps> = ({
         </h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {drones.map((drone) => (
+          {drones.map((drone) => {
+            const droneBatts = batteries.filter(b => b.droneId === drone.id);
+            const avgSoH = droneBatts.length > 0 
+              ? Math.round(droneBatts.reduce((a, b) => a + (b.healthPct || 0), 0) / droneBatts.length)
+              : (drone.batteryHealthPct || 95);
+
+            return (
             <div
               key={drone.id}
               className="bg-white dark:bg-slate-800/95 border border-slate-200/80 dark:border-slate-700/80 rounded-xl p-3 shadow-2xs space-y-2 flex flex-col justify-between"
@@ -201,11 +233,41 @@ export const FleetDronesView: React.FC<FleetDronesViewProps> = ({
 
                   <div className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-700/80">
                     <span className="text-slate-400 text-[8px] block font-semibold flex items-center justify-between">
-                      <span>Bateria</span>
+                      <span>SoH Médio</span>
                     </span>
-                    <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 font-mono flex items-center gap-0.5">
+                    <span className={`text-xs font-black font-mono flex items-center gap-0.5 ${
+                      avgSoH >= 85 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
+                    }`}>
                       <BatteryCharging className="w-2.5 h-2.5" />
-                      {drone.batteryStatusPct}%
+                      {avgSoH}%
+                    </span>
+                  </div>
+                </div>
+
+                {/* Battery Management Card & Action */}
+                <div className="p-2 rounded-lg bg-amber-50/60 dark:bg-emerald-950/90 border border-amber-200/70 dark:border-emerald-800/80 space-y-1 text-[10px]">
+                  <div className="flex items-center justify-between gap-1">
+                    <div className="flex items-center gap-1 font-bold text-slate-800 dark:text-slate-200 text-[10px]">
+                      <Zap className="w-3 h-3 text-amber-500" />
+                      <span>Banco Baterias:</span>
+                    </div>
+
+                    {onOpenBatteryManager && (
+                      <button
+                        onClick={() => onOpenBatteryManager(drone.id)}
+                        className="px-2 py-0.5 rounded font-black bg-amber-500 hover:bg-amber-400 text-slate-950 text-[9px] transition-colors cursor-pointer flex items-center gap-0.5 shadow-2xs"
+                        title="Configurar, cadastrar, editar ou excluir baterias deste drone"
+                      >
+                        <Zap className="w-2.5 h-2.5 fill-slate-950" />
+                        <span>Gerenciar ({droneBatts.length})</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1 border-t border-amber-200/50 dark:border-slate-800/60 text-[9px]">
+                    <span className="text-slate-500 dark:text-slate-400">Packs Vinculados:</span>
+                    <span className="font-mono font-bold text-emerald-700 dark:text-emerald-300">
+                      {droneBatts.length > 0 ? `${droneBatts.length} Smart Packs` : 'Nenhum pack'}
                     </span>
                   </div>
                 </div>
@@ -249,7 +311,8 @@ export const FleetDronesView: React.FC<FleetDronesViewProps> = ({
                 <span className="font-mono">Cap: {drone.maxPayloadKg}kg</span>
               </div>
             </div>
-          ))}
+          );
+          })}
         </div>
       </div>
 
