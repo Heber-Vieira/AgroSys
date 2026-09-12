@@ -240,19 +240,19 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
 
       {/* 2. INSPECTION MODAL - DETAILED BATTERY TELEMETRY */}
       {isInspectionOpen && (
-        <div className="fixed inset-0 z-50 bg-[#041c14]/80 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="relative w-full max-w-3xl bg-emerald-950 border border-emerald-800 text-white rounded-3xl shadow-2xl p-6 space-y-6 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="relative w-full max-w-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-3xl shadow-2xl p-6 space-y-6 max-h-[90vh] overflow-y-auto">
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-emerald-800/80 pb-4">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800/80 pb-4">
               <div className="flex items-center gap-3">
-                <div className="p-3 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/40">
+                <div className="p-3 rounded-2xl bg-amber-500/20 text-amber-500 dark:text-amber-400 border border-amber-500/40">
                   <BatteryCharging className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-black text-white flex items-center gap-2">
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
                     Inspeção de Saúde das Baterias da Frota
                   </h3>
-                  <p className="text-xs text-emerald-300/80">
+                  <p className="text-xs text-slate-600 dark:text-emerald-300/80">
                     Telemetria das baterias Smart LiPo/LiFePO4 dos drones e diagnóstico de células.
                   </p>
                 </div>
@@ -266,7 +266,7 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                       setIsInspectionOpen(false);
                       setIsSettingsOpen(true);
                     }}
-                    className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-900/80 hover:bg-emerald-800 border border-emerald-700 text-emerald-200 transition-colors flex items-center gap-1.5 cursor-pointer"
+                    className="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-emerald-900/80 hover:bg-slate-200 dark:hover:bg-emerald-800 border border-slate-300 dark:border-emerald-700 text-slate-700 dark:text-emerald-200 transition-colors flex items-center gap-1.5 cursor-pointer"
                   >
                     <Sliders className="w-3.5 h-3.5" />
                     <span>Configurar Periodicidade</span>
@@ -276,7 +276,7 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsInspectionOpen(false)}
-                  className="p-2 rounded-xl hover:bg-emerald-900/80 text-emerald-400 transition-colors cursor-pointer"
+                  className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-emerald-900/80 text-slate-500 dark:text-emerald-400 transition-colors cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -297,21 +297,21 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                     key={drone.id}
                     className={`p-4 rounded-2xl border transition-all ${
                       hasAlert
-                        ? 'bg-amber-950/40 border-amber-500/80 text-amber-100'
-                        : 'bg-emerald-900/40 border-emerald-800 text-emerald-100'
+                        ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-500/80 text-amber-900 dark:text-amber-100'
+                        : 'bg-slate-50 dark:bg-emerald-900/40 border-slate-200 dark:border-emerald-800 text-slate-900 dark:text-emerald-100'
                     }`}
                   >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-emerald-800/60">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-emerald-800/60">
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-black text-emerald-400">
+                          <span className="text-xs font-black text-emerald-700 dark:text-emerald-400">
                             {drone.anacPrefix}
                           </span>
-                          <span className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-950 border border-emerald-800 font-mono text-emerald-300">
+                          <span className="text-[10px] px-2 py-0.5 rounded-md bg-white dark:bg-emerald-950 border border-slate-200 dark:border-emerald-800 font-mono text-slate-700 dark:text-emerald-300">
                             {drone.modelName}
                           </span>
                         </div>
-                        <h4 className="text-sm font-bold mt-0.5 text-white">
+                        <h4 className="text-sm font-bold mt-0.5 text-slate-900 dark:text-white">
                           Serial Bateria: {drone.batterySerial || 'Smart-BATT-01'}
                         </h4>
                       </div>
@@ -322,8 +322,8 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                             <AlertTriangle className="w-3 h-3" /> ATENÇÃO NECESSÁRIA
                           </span>
                         ) : (
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-400" /> BATERIA SAUDÁVEL
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-100 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-500/40 flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> BATERIA SAUDÁVEL
                           </span>
                         )}
                       </div>
@@ -332,15 +332,15 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                     {/* Metrics row */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 text-xs">
                       {/* Health SoH */}
-                      <div className="p-2.5 rounded-xl bg-emerald-950/80 border border-emerald-800">
-                        <span className="text-[10px] text-emerald-400 block font-semibold">Saúde (SoH)</span>
+                      <div className="p-2.5 rounded-xl bg-white dark:bg-emerald-950/80 border border-slate-200 dark:border-emerald-800">
+                        <span className="text-[10px] text-emerald-700 dark:text-emerald-400 block font-semibold">Saúde (SoH)</span>
                         <div className="flex items-center justify-between mt-1">
-                          <span className={`text-sm font-black font-mono ${isLowHealth ? 'text-amber-400' : 'text-emerald-200'}`}>
+                          <span className={`text-sm font-black font-mono ${isLowHealth ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-emerald-200'}`}>
                             {healthPct}%
                           </span>
-                          <div className="w-12 h-2 bg-slate-800 rounded-full overflow-hidden">
+                          <div className="w-12 h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                             <div
-                              className={`h-full ${isLowHealth ? 'bg-amber-400' : 'bg-emerald-400'}`}
+                              className={`h-full ${isLowHealth ? 'bg-amber-500' : 'bg-emerald-500'}`}
                               style={{ width: `${healthPct}%` }}
                             />
                           </div>
@@ -348,25 +348,25 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                       </div>
 
                       {/* Cell Delta */}
-                      <div className="p-2.5 rounded-xl bg-emerald-950/80 border border-emerald-800">
-                        <span className="text-[10px] text-emerald-400 block font-semibold">Desbalanço Células</span>
-                        <span className={`text-sm font-black font-mono mt-1 block ${isHighDelta ? 'text-amber-400 animate-pulse' : 'text-emerald-200'}`}>
+                      <div className="p-2.5 rounded-xl bg-white dark:bg-emerald-950/80 border border-slate-200 dark:border-emerald-800">
+                        <span className="text-[10px] text-emerald-700 dark:text-emerald-400 block font-semibold">Desbalanço Células</span>
+                        <span className={`text-sm font-black font-mono mt-1 block ${isHighDelta ? 'text-amber-600 dark:text-amber-400 animate-pulse' : 'text-slate-900 dark:text-emerald-200'}`}>
                           {cellDelta} mV {isHighDelta && '⚠️'}
                         </span>
                       </div>
 
                       {/* Cycles */}
-                      <div className="p-2.5 rounded-xl bg-emerald-950/80 border border-emerald-800">
-                        <span className="text-[10px] text-emerald-400 block font-semibold">Ciclos de Carga</span>
-                        <span className="text-sm font-black font-mono text-emerald-200 mt-1 block">
+                      <div className="p-2.5 rounded-xl bg-white dark:bg-emerald-950/80 border border-slate-200 dark:border-emerald-800">
+                        <span className="text-[10px] text-emerald-700 dark:text-emerald-400 block font-semibold">Ciclos de Carga</span>
+                        <span className="text-sm font-black font-mono text-slate-900 dark:text-emerald-200 mt-1 block">
                           {drone.batteryCycles ?? 120} ciclos
                         </span>
                       </div>
 
                       {/* Temp & Charge */}
-                      <div className="p-2.5 rounded-xl bg-emerald-950/80 border border-emerald-800">
-                        <span className="text-[10px] text-emerald-400 block font-semibold">Temp. / Carga</span>
-                        <span className="text-sm font-black font-mono text-emerald-200 mt-1 block">
+                      <div className="p-2.5 rounded-xl bg-white dark:bg-emerald-950/80 border border-slate-200 dark:border-emerald-800">
+                        <span className="text-[10px] text-emerald-700 dark:text-emerald-400 block font-semibold">Temp. / Carga</span>
+                        <span className="text-sm font-black font-mono text-slate-900 dark:text-emerald-200 mt-1 block">
                           {drone.batteryTemperatureC ?? 32}°C • {drone.batteryStatusPct}%
                         </span>
                       </div>
@@ -377,8 +377,8 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
             </div>
 
             {/* Footer Action */}
-            <div className="pt-4 border-t border-emerald-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="text-xs text-emerald-300/80">
+            <div className="pt-4 border-t border-slate-200 dark:border-emerald-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="text-xs text-slate-600 dark:text-emerald-300/80">
                 A confirmação registra a inspeção, zera os alertas visuais e reinicia a contagem periódica ({getPeriodLabel(currentPeriodUnit, currentPeriodValue)}).
               </div>
 
@@ -386,7 +386,7 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsInspectionOpen(false)}
-                  className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl font-bold bg-emerald-900 hover:bg-emerald-800 text-emerald-200 text-xs transition-colors cursor-pointer"
+                  className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl font-bold bg-slate-100 hover:bg-slate-200 dark:bg-emerald-900 dark:hover:bg-emerald-800 text-slate-700 dark:text-emerald-200 text-xs transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
@@ -394,9 +394,9 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                 <button
                   type="button"
                   onClick={handleConfirmInspection}
-                  className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl font-black bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md text-xs transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                  className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl font-black bg-emerald-600 hover:bg-emerald-500 text-white shadow-md text-xs transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <CheckCircle2 className="w-4 h-4 text-slate-950" />
+                  <CheckCircle2 className="w-4 h-4 text-white" />
                   <span>Confirmar Inspeção & Resetar Alerta</span>
                 </button>
               </div>
@@ -407,19 +407,19 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
 
       {/* 3. ADMIN SETTINGS MODAL - CONFIGURABLE ONLY IN DAYS AND MONTHS */}
       {isSettingsOpen && (
-        <div className="fixed inset-0 z-50 bg-[#041c14]/85 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="relative w-full max-w-xl bg-emerald-950 border border-emerald-700 text-white rounded-3xl shadow-2xl p-6 space-y-6 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="relative w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-3xl shadow-2xl p-6 space-y-6 max-h-[90vh] overflow-y-auto">
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-emerald-800 pb-4">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-emerald-800 pb-4">
               <div className="flex items-center gap-3">
-                <div className="p-3 rounded-2xl bg-emerald-600/20 text-emerald-400 border border-emerald-500/40">
+                <div className="p-3 rounded-2xl bg-emerald-500/10 dark:bg-emerald-600/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
                   <Sliders className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-black text-white flex items-center gap-2">
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
                     Configuração de Periodicidade de Alertas
                   </h3>
-                  <p className="text-xs text-emerald-300/80">
+                  <p className="text-xs text-slate-600 dark:text-emerald-300/80">
                     Defina o ciclo de checagem obrigatória (Configurável exclusivamente em <strong>Dias</strong> e <strong>Meses</strong>).
                   </p>
                 </div>
@@ -428,7 +428,7 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
               <button
                 type="button"
                 onClick={() => setIsSettingsOpen(false)}
-                className="p-2 rounded-xl hover:bg-emerald-900 text-emerald-400 transition-colors cursor-pointer"
+                className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-emerald-900 text-slate-500 dark:text-emerald-400 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -436,12 +436,12 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
 
             <div className="space-y-5">
               {/* Toggle Master Enable */}
-              <div className="flex items-center justify-between p-4 rounded-2xl bg-emerald-900/50 border border-emerald-800">
+              <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-emerald-900/50 border border-slate-200 dark:border-emerald-800">
                 <div>
-                  <label className="text-sm font-bold text-white block">
+                  <label className="text-sm font-bold text-slate-900 dark:text-white block">
                     Alertas Periódicos de Bateria
                   </label>
-                  <span className="text-xs text-emerald-300/80">
+                  <span className="text-xs text-slate-600 dark:text-emerald-300/80">
                     Emitir lembretes visuais e sonoros para inspeção física e balanceamento de células.
                   </span>
                 </div>
@@ -455,19 +455,19 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
               </div>
 
               {/* CREATIVE PERIODICITY SELECTOR: ONLY DAYS AND MONTHS */}
-              <div className="space-y-3.5 p-4 rounded-2xl bg-emerald-900/30 border border-emerald-800">
+              <div className="space-y-3.5 p-4 rounded-2xl bg-slate-50 dark:bg-emerald-900/30 border border-slate-200 dark:border-emerald-800">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-black uppercase text-emerald-400 tracking-wider flex items-center gap-1.5">
-                    <CalendarDays className="w-4 h-4 text-emerald-400" />
+                  <label className="text-xs font-black uppercase text-emerald-700 dark:text-emerald-400 tracking-wider flex items-center gap-1.5">
+                    <CalendarDays className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                     Unidade de Periodicidade
                   </label>
-                  <span className="text-[11px] font-semibold text-emerald-300/80">
+                  <span className="text-[11px] font-semibold text-slate-500 dark:text-emerald-300/80">
                     Apenas Dias ou Meses
                   </span>
                 </div>
 
                 {/* Segmented Unit Selector (Dias vs Meses) */}
-                <div className="grid grid-cols-2 p-1 bg-emerald-950/90 rounded-2xl border border-emerald-800">
+                <div className="grid grid-cols-2 p-1 bg-slate-200 dark:bg-emerald-950/90 rounded-2xl border border-slate-300 dark:border-emerald-800">
                   <button
                     type="button"
                     onClick={() => {
@@ -479,8 +479,8 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                     }}
                     className={`py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
                       currentPeriodUnit === 'DAYS'
-                        ? 'bg-emerald-500 text-slate-950 shadow-md scale-100'
-                        : 'text-emerald-300 hover:text-white hover:bg-emerald-900/50'
+                        ? 'bg-emerald-600 dark:bg-emerald-500 text-white dark:text-slate-950 shadow-md scale-100'
+                        : 'text-slate-700 dark:text-emerald-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-300/50 dark:hover:bg-emerald-900/50'
                     }`}
                   >
                     <CalendarDays className="w-4 h-4" />
@@ -498,8 +498,8 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                     }}
                     className={`py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
                       currentPeriodUnit === 'MONTHS'
-                        ? 'bg-emerald-500 text-slate-950 shadow-md scale-100'
-                        : 'text-emerald-300 hover:text-white hover:bg-emerald-900/50'
+                        ? 'bg-emerald-600 dark:bg-emerald-500 text-white dark:text-slate-950 shadow-md scale-100'
+                        : 'text-slate-700 dark:text-emerald-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-300/50 dark:hover:bg-emerald-900/50'
                     }`}
                   >
                     <Calendar className="w-4 h-4" />
@@ -510,7 +510,7 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                 {/* Presets based on selected unit */}
                 {currentPeriodUnit === 'DAYS' ? (
                   <div className="space-y-2">
-                    <span className="text-[11px] font-bold text-emerald-300 block">
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-emerald-300 block">
                       Ciclos recomendados em Dias:
                     </span>
                     <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
@@ -529,8 +529,8 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                             }
                             className={`py-2 px-1.5 rounded-xl font-bold text-xs border transition-all cursor-pointer text-center flex flex-col items-center justify-center ${
                               isSelected
-                                ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-md scale-105'
-                                : 'bg-emerald-950/80 text-emerald-300 border-emerald-800 hover:bg-emerald-900'
+                                ? 'bg-emerald-600 dark:bg-emerald-500 text-white dark:text-slate-950 border-emerald-500 shadow-md scale-105'
+                                : 'bg-white dark:bg-emerald-950/80 text-slate-700 dark:text-emerald-300 border-slate-200 dark:border-emerald-800 hover:bg-slate-100 dark:hover:bg-emerald-900'
                             }`}
                             title={preset.desc}
                           >
@@ -542,7 +542,7 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <span className="text-[11px] font-bold text-emerald-300 block">
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-emerald-300 block">
                       Ciclos recomendados em Meses:
                     </span>
                     <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
@@ -561,8 +561,8 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                             }
                             className={`py-2 px-1.5 rounded-xl font-bold text-xs border transition-all cursor-pointer text-center flex flex-col items-center justify-center ${
                               isSelected
-                                ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-md scale-105'
-                                : 'bg-emerald-950/80 text-emerald-300 border-emerald-800 hover:bg-emerald-900'
+                                ? 'bg-emerald-600 dark:bg-emerald-500 text-white dark:text-slate-950 border-emerald-500 shadow-md scale-105'
+                                : 'bg-white dark:bg-emerald-950/80 text-slate-700 dark:text-emerald-300 border-slate-200 dark:border-emerald-800 hover:bg-slate-100 dark:hover:bg-emerald-900'
                             }`}
                             title={preset.desc}
                           >
@@ -575,8 +575,8 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                 )}
 
                 {/* Custom numeric input */}
-                <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-emerald-950/70 border border-emerald-800/80">
-                  <div className="text-xs text-emerald-300">
+                <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-white dark:bg-emerald-950/70 border border-slate-200 dark:border-emerald-800/80">
+                  <div className="text-xs text-slate-700 dark:text-emerald-300">
                     {currentPeriodUnit === 'DAYS'
                       ? 'Ou digite uma quantidade personalizada de dias:'
                       : 'Ou digite uma quantidade personalizada de meses:'}
@@ -594,9 +594,9 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                           periodValue: val,
                         });
                       }}
-                      className="w-20 px-3 py-1.5 rounded-xl bg-emerald-950 border border-emerald-700 text-white font-mono text-xs text-center focus:ring-2 focus:ring-emerald-500 outline-none"
+                      className="w-20 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-emerald-950 border border-slate-300 dark:border-emerald-700 text-slate-900 dark:text-white font-mono text-xs text-center focus:ring-2 focus:ring-emerald-500 outline-none"
                     />
-                    <span className="text-xs font-bold text-emerald-400">
+                    <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
                       {currentPeriodUnit === 'DAYS'
                         ? currentPeriodValue === 1 ? 'dia' : 'dias'
                         : currentPeriodValue === 1 ? 'mês' : 'meses'}
@@ -605,17 +605,17 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                 </div>
 
                 {/* Smart Simulation & Diagnostic Card */}
-                <div className="p-3.5 rounded-xl bg-emerald-950/90 border border-emerald-700/60 space-y-2">
+                <div className="p-3.5 rounded-xl bg-white dark:bg-emerald-950/90 border border-slate-200 dark:border-emerald-700/60 space-y-2">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-emerald-300 flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    <span className="font-bold text-slate-700 dark:text-emerald-300 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
                       Previsão da Próxima Notificação:
                     </span>
-                    <span className="font-mono font-bold text-amber-400 px-2 py-0.5 rounded-md bg-amber-950/80 border border-amber-800">
+                    <span className="font-mono font-bold text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/80 border border-amber-200 dark:border-amber-800">
                       {getEstimatedNextDate(currentPeriodUnit, currentPeriodValue)}
                     </span>
                   </div>
-                  <p className="text-[11px] text-emerald-300/80 leading-relaxed">
+                  <p className="text-[11px] text-slate-600 dark:text-emerald-300/80 leading-relaxed">
                     {currentPeriodUnit === 'DAYS'
                       ? currentPeriodValue <= 15
                         ? '⚡ Ciclo Intensivo de Campo: Ideal para períodos de pulverização diária e alta rotatividade de baterias Smart.'
@@ -628,12 +628,12 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
               </div>
 
               {/* Snooze (Adiar) in Days */}
-              <div className="space-y-2.5 p-4 rounded-2xl bg-emerald-900/30 border border-emerald-800">
-                <label className="text-xs font-black uppercase text-emerald-400 tracking-wider flex items-center gap-1.5">
-                  <Clock className="w-4 h-4 text-emerald-400" />
+              <div className="space-y-2.5 p-4 rounded-2xl bg-slate-50 dark:bg-emerald-900/30 border border-slate-200 dark:border-emerald-800">
+                <label className="text-xs font-black uppercase text-emerald-700 dark:text-emerald-400 tracking-wider flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   Tempo de Adiamento do Alerta (em Dias)
                 </label>
-                <p className="text-xs text-emerald-300/80">
+                <p className="text-xs text-slate-600 dark:text-emerald-300/80">
                   Prazo de tolerância quando o operador clicar no botão "Adiar".
                 </p>
 
@@ -645,8 +645,8 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                       onClick={() => setSettings({ ...settings, snoozeDays: snz.days })}
                       className={`py-2 px-1 rounded-xl text-xs font-bold border transition-all cursor-pointer text-center ${
                         currentSnoozeDays === snz.days
-                          ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-md scale-105'
-                          : 'bg-emerald-950/80 text-emerald-300 border-emerald-800 hover:bg-emerald-900'
+                          ? 'bg-emerald-600 dark:bg-emerald-500 text-white dark:text-slate-950 border-emerald-500 shadow-md scale-105'
+                          : 'bg-white dark:bg-emerald-950/80 text-slate-700 dark:text-emerald-300 border-slate-200 dark:border-emerald-800 hover:bg-slate-100 dark:hover:bg-emerald-900'
                       }`}
                     >
                       {snz.label}
@@ -656,10 +656,10 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
               </div>
 
               {/* Sound Settings */}
-              <div className="space-y-3 p-4 rounded-2xl bg-emerald-900/30 border border-emerald-800">
+              <div className="space-y-3 p-4 rounded-2xl bg-slate-50 dark:bg-emerald-900/30 border border-slate-200 dark:border-emerald-800">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-black uppercase text-emerald-400 tracking-wider flex items-center gap-1.5">
-                    <Volume2 className="w-4 h-4 text-emerald-400" />
+                  <label className="text-xs font-black uppercase text-emerald-700 dark:text-emerald-400 tracking-wider flex items-center gap-1.5">
+                    <Volume2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                     Alerta Sonoro (Acoustic Web Sound)
                   </label>
 
@@ -675,13 +675,13 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                   <div className="space-y-3 pt-2">
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <span className="text-xs text-emerald-300 block mb-1">Tipo de Sinal Sonoro:</span>
+                        <span className="text-xs text-slate-700 dark:text-emerald-300 block mb-1">Tipo de Sinal Sonoro:</span>
                         <select
                           value={settings.soundType}
                           onChange={(e) =>
                             setSettings({ ...settings, soundType: e.target.value as any })
                           }
-                          className="w-full px-3 py-2 rounded-xl bg-emerald-950 border border-emerald-700 text-white text-xs"
+                          className="w-full px-3 py-2 rounded-xl bg-white dark:bg-emerald-950 border border-slate-300 dark:border-emerald-700 text-slate-900 dark:text-white text-xs"
                         >
                           <option value="CHIME">🎵 Chime Harmônico (3 Notas)</option>
                           <option value="BEEP">📟 Beep Duplo Diagnóstico</option>
@@ -691,7 +691,7 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                       </div>
 
                       <div>
-                        <span className="text-xs text-emerald-300 block mb-1">Volume ({Math.round(settings.soundVolume * 100)}%):</span>
+                        <span className="text-xs text-slate-700 dark:text-emerald-300 block mb-1">Volume ({Math.round(settings.soundVolume * 100)}%):</span>
                         <input
                           type="range"
                           min="0.1"
@@ -714,7 +714,7 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                         <span>Testar Som do Alerta</span>
                       </button>
 
-                      <span className="text-[11px] text-emerald-300/80">
+                      <span className="text-[11px] text-slate-500 dark:text-emerald-300/80">
                         Não necessita arquivos externos (Síntese Web Audio)
                       </span>
                     </div>
@@ -723,9 +723,9 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
               </div>
 
               {/* Threshold Settings */}
-              <div className="grid grid-cols-2 gap-3 p-4 rounded-2xl bg-emerald-900/30 border border-emerald-800 text-xs">
+              <div className="grid grid-cols-2 gap-3 p-4 rounded-2xl bg-slate-50 dark:bg-emerald-900/30 border border-slate-200 dark:border-emerald-800 text-xs">
                 <div>
-                  <label className="text-emerald-300 block mb-1 font-semibold">
+                  <label className="text-slate-700 dark:text-emerald-300 block mb-1 font-semibold">
                     Saúde Mínima Tolerada (% SoH):
                   </label>
                   <input
@@ -736,13 +736,13 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                     onChange={(e) =>
                       setSettings({ ...settings, minHealthThresholdPct: parseInt(e.target.value) || 85 })
                     }
-                    className="w-full px-3 py-2 rounded-xl bg-emerald-950 border border-emerald-700 text-white font-mono"
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-emerald-950 border border-slate-300 dark:border-emerald-700 text-slate-900 dark:text-white font-mono"
                   />
-                  <span className="text-[10px] text-emerald-400/80 block mt-1">Alerta se % &lt; limite</span>
+                  <span className="text-[10px] text-emerald-700 dark:text-emerald-400/80 block mt-1">Alerta se % &lt; limite</span>
                 </div>
 
                 <div>
-                  <label className="text-emerald-300 block mb-1 font-semibold">
+                  <label className="text-slate-700 dark:text-emerald-300 block mb-1 font-semibold">
                     Desbalanço Máximo (mV):
                   </label>
                   <input
@@ -753,19 +753,19 @@ export const BatteryAlertOverlay: React.FC<BatteryAlertOverlayProps> = ({
                     onChange={(e) =>
                       setSettings({ ...settings, maxCellDeltaMv: parseInt(e.target.value) || 30 })
                     }
-                    className="w-full px-3 py-2 rounded-xl bg-emerald-950 border border-emerald-700 text-white font-mono"
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-emerald-950 border border-slate-300 dark:border-emerald-700 text-slate-900 dark:text-white font-mono"
                   />
-                  <span className="text-[10px] text-emerald-400/80 block mt-1">Alerta se delta &gt; limite</span>
+                  <span className="text-[10px] text-emerald-700 dark:text-emerald-400/80 block mt-1">Alerta se delta &gt; limite</span>
                 </div>
               </div>
             </div>
 
             {/* Footer */}
-            <div className="pt-4 border-t border-emerald-800 flex justify-end gap-3">
+            <div className="pt-4 border-t border-slate-200 dark:border-emerald-800 flex justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setIsSettingsOpen(false)}
-                className="px-5 py-2.5 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs transition-all hover:scale-105 cursor-pointer shadow-md"
+                className="px-5 py-2.5 rounded-xl font-bold bg-emerald-600 hover:bg-emerald-500 text-white text-xs transition-all hover:scale-105 cursor-pointer shadow-md"
               >
                 Salvar Configurações
               </button>
