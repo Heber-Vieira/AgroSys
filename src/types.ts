@@ -1,4 +1,4 @@
-export type ThemeMode = 'light' | 'dark' | 'field';
+export type ThemeMode = 'light' | 'dark';
 
 export type UserRole = 'MASTER' | 'ADMIN' | 'USER' | 'PILOT' | 'ASSISTANT';
 

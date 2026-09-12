@@ -237,16 +237,13 @@ export const Navbar: React.FC<NavbarProps> = ({
               type="button"
               onClick={() => {
                 if (themeMode === 'light') setThemeMode('dark');
-                else if (themeMode === 'dark') setThemeMode('field');
                 else setThemeMode('light');
               }}
               className="p-1.5 sm:p-2 rounded-xl bg-white/90 dark:bg-emerald-950/80 hover:bg-white dark:hover:bg-emerald-900 border border-emerald-200/80 dark:border-emerald-800/80 text-emerald-900 dark:text-emerald-100 shadow-2xs transition-all hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center min-w-[34px] min-h-[34px]"
               title={
                 themeMode === 'light'
                   ? 'Modo de exibição: Claro (Clique para alternar para Escuro)'
-                  : themeMode === 'dark'
-                  ? 'Modo de exibição: Escuro (Clique para alternar para Sol a Pino)'
-                  : 'Modo de exibição: Sol a Pino (Clique para alternar para Claro)'
+                  : 'Modo de exibição: Escuro (Clique para alternar para Claro)'
               }
               aria-label="Alternar modo de exibição visual"
             >
@@ -255,9 +252,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
               {themeMode === 'dark' && (
                 <Moon className="w-4 h-4 text-cyan-400 transition-transform duration-200" />
-              )}
-              {themeMode === 'field' && (
-                <SunMedium className="w-4 h-4 text-amber-500 transition-transform duration-200" />
               )}
             </button>
 

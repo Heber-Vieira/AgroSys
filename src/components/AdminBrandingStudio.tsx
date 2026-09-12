@@ -1161,7 +1161,6 @@ module.exports = {
                 </p>
               </div>
 
-              {/* Theme Mode Toggle inside Sandbox */}
               <div className="flex items-center gap-1.5 p-1 rounded-xl bg-emerald-100/80 dark:bg-emerald-950/80 border border-emerald-200 dark:border-emerald-700">
                 <button
                   onClick={() => setThemeMode('light')}
@@ -1180,15 +1179,6 @@ module.exports = {
                 >
                   <Moon className="w-3.5 h-3.5 text-blue-400" />
                   <span>Dark Grafite</span>
-                </button>
-                <button
-                  onClick={() => setThemeMode('field')}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
-                    themeMode === 'field' ? 'bg-amber-400 text-black font-black shadow-xs' : 'text-emerald-700 dark:text-emerald-300'
-                  }`}
-                >
-                  <SunMedium className="w-3.5 h-3.5" />
-                  <span>Sol a Pino</span>
                 </button>
               </div>
             </div>

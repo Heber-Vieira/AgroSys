@@ -118,7 +118,7 @@ export default function App() {
   // Theme & White Label with LocalStorage persistence
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     const saved = localStorage.getItem('agrodrone_theme_mode');
-    if (saved === 'dark' || saved === 'field' || saved === 'light') return saved;
+    if (saved === 'dark' || saved === 'light') return saved;
     return 'light';
   });
 
@@ -690,9 +690,6 @@ export default function App() {
     if (themeMode === 'dark') {
       root.classList.add('dark');
       root.setAttribute('data-theme', 'dark');
-    } else if (themeMode === 'field') {
-      root.classList.remove('dark');
-      root.setAttribute('data-theme', 'field');
     } else {
       root.classList.remove('dark');
       root.setAttribute('data-theme', 'light');

@@ -305,17 +305,6 @@ module.exports = {
                 <Moon className="w-3.5 h-3.5 text-blue-400" />
                 Dark Mode (Hangar)
               </button>
-              <button
-                onClick={() => setThemeMode('field')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                  themeMode === 'field'
-                    ? 'bg-amber-400 text-black border-2 border-black font-extrabold shadow-sm'
-                    : 'text-slate-500 hover:text-slate-900'
-                }`}
-              >
-                <SunMedium className="w-3.5 h-3.5" />
-                Modo Sol a Pino (Field)
-              </button>
             </div>
           </div>
 
