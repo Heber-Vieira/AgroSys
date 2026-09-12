@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Calendar, 
   CloudRain, 
@@ -22,6 +22,8 @@ interface SevenDayForecastGridProps {
 }
 
 export const SevenDayForecastGrid: React.FC<SevenDayForecastGridProps> = ({ daily, cityName }) => {
+  const [selectedDays, setSelectedDays] = useState<number>(14);
+
   const getStatusBadge = (status: SprayStatus) => {
     switch (status) {
       case 'IDEAL':
@@ -52,29 +54,58 @@ export const SevenDayForecastGrid: React.FC<SevenDayForecastGridProps> = ({ dail
     }
   };
 
+  const displayedDaily = daily.slice(0, selectedDays);
+
   return (
     <div className="bg-emerald-50/70 dark:bg-[#072a1e]/90 border border-emerald-200/80 dark:border-emerald-800/80 rounded-3xl p-5 sm:p-6 shadow-xs space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-wrap">
         <div>
           <div className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+            <Calendar className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <h2 className="text-base sm:text-lg font-black text-emerald-950 dark:text-white">
-              Previsão de 7 Dias para Planejamento de Lavouras e Ordens de Serviço
+              Previsão Estendida de {selectedDays} Dias para Planejamento de Lavouras e OSs
             </h2>
           </div>
-          <p className="text-xs text-emerald-800/80 dark:text-emerald-300/80 mt-0.5">
-            Visão estendida para programação antecipada de escalas de pilotos, drones e compras de defensivos em {cityName}.
+          <p className="text-xs text-emerald-800/80 dark:text-emerald-300/80 mt-0.5 font-medium">
+            Visão estendida para programação antecipada de escalas de pilotos, drones e logística de calda em {cityName}.
           </p>
         </div>
 
-        <div className="text-xs text-emerald-700/80 dark:text-emerald-300/80 font-semibold bg-white dark:bg-emerald-950 px-3 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800 self-start sm:self-auto shadow-2xs">
-          Previsão ECMWF / GFS Integrada
+        {/* Range Selector Controls */}
+        <div className="flex items-center gap-1 bg-[#041c14] p-1 rounded-xl border border-emerald-800/80 shrink-0">
+          <button
+            onClick={() => setSelectedDays(7)}
+            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              selectedDays === 7 ? 'bg-emerald-600 text-white shadow-2xs' : 'text-emerald-300 hover:text-white'
+            }`}
+            title="Exibir Previsão Semanal de 7 Dias"
+          >
+            7 Dias (Semana)
+          </button>
+          <button
+            onClick={() => setSelectedDays(10)}
+            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              selectedDays === 10 ? 'bg-emerald-600 text-white shadow-2xs' : 'text-emerald-300 hover:text-white'
+            }`}
+            title="Exibir Previsão Decendial EMBRAPA de 10 Dias"
+          >
+            10 Dias (Decêndio)
+          </button>
+          <button
+            onClick={() => setSelectedDays(14)}
+            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              selectedDays === 14 ? 'bg-emerald-600 text-white shadow-2xs' : 'text-emerald-300 hover:text-white'
+            }`}
+            title="Exibir Previsão Quinzena Aeroagrícola de 14 Dias"
+          >
+            14 Dias (Quinzena)
+          </button>
         </div>
       </div>
 
       {/* Grid of Daily Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-3">
-        {daily.map((day, idx) => {
+        {displayedDaily.map((day, idx) => {
           const badge = getStatusBadge(day.dominantSprayStatus);
           const isToday = idx === 0;
           const isHighRainRisk = day.precipitationProbabilityMax >= 50 || day.precipitationSum >= 5.0;
@@ -161,7 +192,7 @@ export const SevenDayForecastGrid: React.FC<SevenDayForecastGridProps> = ({ dail
         <div className="flex items-center gap-2">
           <Info className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
           <span>
-            <strong>Diretriz Técnica de Planejamento:</strong> Priorize lavouras com maior infestação nos dias com mais de 5 horas de janela favorável. Evite aplicações de contato em dias com probabilidade de chuva acima de 40%.
+            <strong>Diretriz Técnica de Planejamento (Quinzena Aeroagrícola):</strong> Priorize lavouras com maior infestação nos dias com mais de 5 horas de janela favorável. Evite aplicações de contato em dias com probabilidade de chuva acima de 40%.
           </span>
         </div>
       </div>

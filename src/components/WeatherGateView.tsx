@@ -299,7 +299,7 @@ export const WeatherGateView: React.FC<WeatherGateViewProps> = ({ currentUser, p
           }`}
         >
           <Calendar className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-          <span>Previsão 7 Dias</span>
+          <span>Previsão 14 Dias (Quinzena)</span>
         </button>
 
         <button

@@ -513,7 +513,7 @@ export async function searchCities(query: string): Promise<CityLocation[]> {
 export async function fetchWeatherForecast(city: CityLocation): Promise<WeatherForecastData> {
   const { latitude, longitude } = city;
   
-  const endpoint = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,rain,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m,dew_point_2m,cloud_cover,uv_index&hourly=temperature_2m,relative_humidity_2m,dew_point_2m,apparent_temperature,precipitation_probability,precipitation,rain,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m,uv_index&daily=weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,precipitation_sum,rain_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant,uv_index_max&timezone=auto&forecast_days=7&wind_speed_unit=kmh&precipitation_unit=mm`;
+  const endpoint = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,rain,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m,dew_point_2m,cloud_cover,uv_index&hourly=temperature_2m,relative_humidity_2m,dew_point_2m,apparent_temperature,precipitation_probability,precipitation,rain,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m,uv_index&daily=weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,precipitation_sum,rain_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant,uv_index_max&timezone=auto&forecast_days=14&wind_speed_unit=kmh&precipitation_unit=mm`;
 
   try {
     const res = await fetch(endpoint, { signal: AbortSignal.timeout(6000) });
@@ -756,9 +756,9 @@ export function generateSimulatedWeather(city: CityLocation): WeatherForecastDat
     assessment: currentAssessment
   };
 
-  // 5. Generate full 168 hours of hourly simulation (7 days) for absolute scheduling precision
+  // 5. Generate full 336 hours of hourly simulation (14 days) for absolute scheduling precision
   const hourly: HourlyForecastItem[] = [];
-  for (let i = 0; i < 168; i++) {
+  for (let i = 0; i < 336; i++) {
     const d = new Date(now.getTime() + i * 3600000);
     const hour = d.getHours();
 
@@ -771,9 +771,9 @@ export function generateSimulatedWeather(city: CityLocation): WeatherForecastDat
     const wind = Math.max(1.0, Math.round((baseWind + Math.max(0, solarFactor) * 5 + (Math.sin(i / 3) * 1.2)) * 10) / 10);
     const gusts = Math.round((wind * 1.35) * 10) / 10;
     
-    // Simulate localized afternoon convective rainfall on day 2 and day 5
+    // Simulate localized afternoon convective rainfall on days 2, 5, 9, and 12
     const dayIndex = Math.floor(i / 24);
-    const isRainyDay = dayIndex === 2 || dayIndex === 5;
+    const isRainyDay = dayIndex === 2 || dayIndex === 5 || dayIndex === 9 || dayIndex === 12;
     const isAfternoon = hour >= 14 && hour <= 18;
     const rain = (isRainyDay && isAfternoon) ? 0.8 : 0;
     const rainProb = (isRainyDay && isAfternoon) ? 65 : (isRainyDay ? 25 : 5);
@@ -807,14 +807,14 @@ export function generateSimulatedWeather(city: CityLocation): WeatherForecastDat
     });
   }
 
-  // 6. Generate 7-day daily forecast matching the hourly statistics precisely
+  // 6. Generate 14-day daily forecast matching the hourly statistics precisely
   const daily: DailyForecastItem[] = [];
   const daysOfWeek = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
   
-  for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+  for (let dayOffset = 0; dayOffset < 14; dayOffset++) {
     const dayDate = new Date(now.getTime() + dayOffset * 86400000);
     const dayName = daysOfWeek[dayDate.getDay()];
-    const isRainyDay = dayOffset === 2 || dayOffset === 5;
+    const isRainyDay = dayOffset === 2 || dayOffset === 5 || dayOffset === 9 || dayOffset === 12;
     
     const rainSum = isRainyDay ? 4.0 : 0;
     const rainProb = isRainyDay ? 65 : 10;
