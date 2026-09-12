@@ -103,35 +103,35 @@ export const ChemicalLeafletLibrary: React.FC<ChemicalLeafletLibraryProps> = ({
   return (
     <div className="space-y-5">
       {/* Banner / Header */}
-      <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-[#063b28] via-[#0b4d35] to-[#072c1e] text-white border border-emerald-600/40 shadow-xl relative overflow-hidden">
+      <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-emerald-100 via-white to-teal-50 dark:from-[#063b28] dark:via-[#0b4d35] dark:to-[#072c1e] text-emerald-950 dark:text-white border border-emerald-300 dark:border-emerald-600/40 shadow-xl relative overflow-hidden transition-colors">
         <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1.5 max-w-2xl">
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-400/20 text-emerald-200 border border-emerald-400/30 text-[11px] font-black uppercase tracking-wider">
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500 text-white dark:bg-emerald-400/20 dark:text-emerald-200 border border-emerald-600 dark:border-emerald-400/30 text-[11px] font-black uppercase tracking-wider">
                 Compêndio Oficial de Defensivos & Bulas MAPA
               </span>
-              <span className="px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-200 border border-amber-400/30 text-[11px] font-bold">
+              <span className="px-2 py-0.5 rounded-full bg-amber-500 text-white dark:bg-amber-400/20 dark:text-amber-200 border border-amber-600 dark:border-amber-400/30 text-[11px] font-bold">
                 Drone UBV / BV Ready
               </span>
             </div>
-            <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2.5">
-              <FileText className="w-6 h-6 text-emerald-300" />
+            <h2 className="text-xl sm:text-2xl font-black text-emerald-950 dark:text-white flex items-center gap-2.5">
+              <FileText className="w-6 h-6 text-emerald-600 dark:text-emerald-300" />
               Bulas Técnicas de Produtos Químicos & Sincronização de Calda
             </h2>
-            <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed">
+            <p className="text-xs sm:text-sm text-emerald-800 dark:text-emerald-100/90 leading-relaxed">
               Consulte a bula completa com registro MAPA, princípios ativos, faixas toxicológicas, doses calibradas para drone, faixas ótimas de pH, carência (PHI), e sincronize os produtos diretamente na ordem WALES de preparo da sua calda.
             </p>
           </div>
 
           <div className="flex items-center gap-2 self-start md:self-auto">
-            <div className="p-3 rounded-2xl bg-black/30 border border-white/10 text-center">
-              <span className="text-[10px] font-bold text-emerald-200 block uppercase">Bulas Cadastradas</span>
-              <strong className="text-xl font-black text-white">{CHEMICAL_LEAFLETS_DATABASE.length}</strong>
+            <div className="p-3 rounded-2xl bg-white/60 dark:bg-black/30 border border-emerald-200 dark:border-white/10 text-center transition-colors">
+              <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-200 block uppercase">Bulas Cadastradas</span>
+              <strong className="text-xl font-black text-emerald-950 dark:text-white">{CHEMICAL_LEAFLETS_DATABASE.length}</strong>
             </div>
-            <div className="p-3 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 text-center">
-              <span className="text-[10px] font-bold text-emerald-200 block uppercase">Na Calda Atual</span>
-              <strong className="text-xl font-black text-emerald-300">{currentProducts.length}</strong>
+            <div className="p-3 rounded-2xl bg-emerald-100/80 dark:bg-emerald-500/20 border border-emerald-300 dark:border-emerald-400/30 text-center transition-colors">
+              <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-200 block uppercase">Na Calda Atual</span>
+              <strong className="text-xl font-black text-emerald-600 dark:text-emerald-300">{currentProducts.length}</strong>
             </div>
           </div>
         </div>
