@@ -17,7 +17,7 @@ import { PRESET_COMPANIES } from '../data/themeTokensData';
 import { isMasterUser } from '../utils/userPermissions';
 import { BrandLogo } from './BrandLogo';
 import { UserAvatar, UserPhotoUploadModal, saveStoredUserPhoto } from './UserAvatar';
-import { getStoredConfiguredLogoUrl, getStoredConfiguredLogoIconId } from '../services/brandingLogoStorage';
+import { getCompanyTheme } from '../services/brandingLogoStorage';
 
 export type { AppViewMode };
 
@@ -94,31 +94,13 @@ export const Navbar: React.FC<NavbarProps> = ({
         primaryColor: '#059669',
         secondaryColor: '#047857',
         accentColor: '#10b981',
+        logoUrl: undefined,
+        logoIconId: undefined,
       }));
       return;
     }
-    const found = PRESET_COMPANIES.find(p => p.id === companyId);
-    if (found) {
-      setTheme(prev => ({
-        ...prev,
-        tenantId: found.id,
-        companyName: found.name,
-        tagline: found.tagline,
-        primaryColor: found.primary,
-        secondaryColor: found.secondary,
-        accentColor: found.accent,
-        surfaceLight: found.surfaceLight || '#FFFFFF',
-        surfaceDark: found.surfaceDark || '#081320',
-        borderRadius: '0.875rem',
-        fontFamily: 'Plus Jakarta Sans',
-        contactPhone: found.contactPhone,
-        contactEmail: found.contactEmail,
-        registryCreaMapa: found.registryCreaMapa,
-        // Garante que o logotipo configurado para a empresa seja 100% mantido
-        logoUrl: prev.logoUrl || getStoredConfiguredLogoUrl(),
-        logoIconId: prev.logoIconId || getStoredConfiguredLogoIconId(),
-      }));
-    }
+    const compTheme = getCompanyTheme(companyId);
+    setTheme(compTheme);
   };
 
   return (

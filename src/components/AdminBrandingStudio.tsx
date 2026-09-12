@@ -40,6 +40,13 @@ import {
 } from '../data/themeTokensData';
 import { BrandLogo } from './BrandLogo';
 import { saveTenantBrandingToSupabase } from '../services/supabase';
+import { 
+  getStoredConfiguredLogoUrl, 
+  setStoredConfiguredLogoUrl, 
+  getStoredConfiguredLogoIconId, 
+  setStoredConfiguredLogoIconId,
+  getCompanyTheme 
+} from '../services/brandingLogoStorage';
 
 interface AdminBrandingStudioProps {
   theme: WhiteLabelTheme;
@@ -77,7 +84,16 @@ export const AdminBrandingStudio: React.FC<AdminBrandingStudioProps> = ({
   const textOnPrimary = evaluateWcagCompliance('#FFFFFF', theme.primaryColor);
   const accentOnWhite = evaluateWcagCompliance(theme.accentColor, '#FFFFFF');
 
-  const isAdmin = currentUser.role === 'ADMIN' || currentUser.role === 'MASTER' || currentUser.isMaster;
+  const isMaster = currentUser.role === 'MASTER' || currentUser.isMaster;
+  const isCompanyAdmin = currentUser.role === 'ADMIN';
+  const isAdmin = isMaster || isCompanyAdmin;
+
+  // The tenant being edited:
+  // If currentUser is ADMIN, strictly bound to their companyId
+  // If currentUser is MASTER, can edit the currently selected tenant or switch
+  const targetTenantId = (isCompanyAdmin && currentUser.companyId)
+    ? currentUser.companyId
+    : (theme.tenantId && theme.tenantId !== 'ALL' ? theme.tenantId : 'ciclodrone');
 
   const showToast = (msg: string = 'Alterações salvas e sincronizadas!') => {
     setToastMessage(msg);
@@ -91,7 +107,7 @@ export const AdminBrandingStudio: React.FC<AdminBrandingStudioProps> = ({
     try {
       const res = await saveTenantBrandingToSupabase(themeToSave);
       if (res.success) {
-        showToast('Logotipo e configurações salvas no banco de dados!');
+        showToast('Logotipo e configurações salvas com sucesso!');
       } else {
         showToast(`Aviso: ${res.error || 'Falha ao gravar no Supabase'}`);
       }
@@ -110,20 +126,26 @@ export const AdminBrandingStudio: React.FC<AdminBrandingStudioProps> = ({
     try {
       setIsSaving(true);
       const extracted = await extractPaletteFromImage(file);
+      const tenantId = targetTenantId;
+
+      setStoredConfiguredLogoUrl(tenantId, extracted.dataUrl);
+      setStoredConfiguredLogoIconId(tenantId, null);
+
       const updatedTheme: WhiteLabelTheme = {
         ...theme,
+        tenantId,
         primaryColor: extracted.primary,
         secondaryColor: extracted.secondary,
         logoUrl: extracted.dataUrl,
         logoIconId: undefined,
       };
       setTheme(updatedTheme);
-      showToast('Logotipo processado! Gravando no banco de dados...');
+      showToast(`Logotipo exclusivo de "${theme.companyName}" configurado com sucesso!`);
       const res = await saveTenantBrandingToSupabase(updatedTheme);
       if (res.success) {
-        showToast('Logotipo e paleta gravados com sucesso no Supabase!');
+        showToast('Logotipo sincronizado na nuvem e no aplicativo!');
       } else {
-        showToast('Logotipo atualizado no app. Aviso de salvamento na nuvem.');
+        showToast('Logotipo salvo localmente para a empresa.');
       }
     } catch (err) {
       console.error('Falha ao processar logotipo:', err);
@@ -134,45 +156,46 @@ export const AdminBrandingStudio: React.FC<AdminBrandingStudioProps> = ({
   };
 
   const handleSelectPresetLogo = async (logoId: string) => {
+    const tenantId = targetTenantId;
+    setStoredConfiguredLogoIconId(tenantId, logoId);
+    setStoredConfiguredLogoUrl(tenantId, null);
+
     const updatedTheme: WhiteLabelTheme = {
       ...theme,
+      tenantId,
       logoIconId: logoId,
       logoUrl: undefined,
     };
     setTheme(updatedTheme);
-    showToast('Brasão vetorial selecionado! Atualizando banco...');
+    showToast(`Brasão vetorial aplicado para "${theme.companyName}"!`);
     await saveTenantBrandingToSupabase(updatedTheme);
   };
 
   const handleRemoveCustomLogo = async () => {
+    const tenantId = targetTenantId;
+    setStoredConfiguredLogoUrl(tenantId, null);
+    setStoredConfiguredLogoIconId(tenantId, null);
+
     const updatedTheme: WhiteLabelTheme = {
       ...theme,
+      tenantId,
       logoUrl: undefined,
       logoIconId: undefined,
     };
     setTheme(updatedTheme);
-    showToast('Logotipo removido. Atualizando banco de dados...');
+    showToast('Logotipo personalizado removido. O sistema adotou o logotipo padrão.');
     await saveTenantBrandingToSupabase(updatedTheme);
   };
 
   const handleApplyPresetTheme = async (presetId: string) => {
-    const found = PRESET_COMPANIES.find(p => p.id === presetId);
-    if (!found) return;
-
-    const updatedTheme: WhiteLabelTheme = {
-      ...theme,
-      tenantId: found.id,
-      companyName: found.name,
-      tagline: found.tagline,
-      primaryColor: found.primary,
-      secondaryColor: found.secondary,
-      accentColor: found.accent,
-      surfaceLight: found.surfaceLight || '#FFFFFF',
-      surfaceDark: found.surfaceDark || '#0f172a',
-    };
-    setTheme(updatedTheme);
-    showToast(`Tema "${found.name}" aplicado! Sincronizando...`);
-    await saveTenantBrandingToSupabase(updatedTheme);
+    if (isCompanyAdmin && currentUser.companyId && presetId !== currentUser.companyId) {
+      showToast('Como administrador, você só pode gerenciar a identidade da sua própria empresa.');
+      return;
+    }
+    const compTheme = getCompanyTheme(presetId);
+    setTheme(compTheme);
+    showToast(`Tema e logotipo da empresa "${compTheme.companyName}" carregados!`);
+    await saveTenantBrandingToSupabase(compTheme);
   };
 
   const handleResetToCleanDefault = () => {
@@ -697,15 +720,52 @@ module.exports = {
       {/* TAB CONTENT: 2. LOGO & BRAND BADGES */}
       {activeSubTab === 'logo' && (
         <div className="space-y-6">
+          {/* Target Company Banner */}
+          <div className="p-4 rounded-2xl bg-white/95 dark:bg-emerald-950/80 border border-emerald-200/90 dark:border-emerald-700/80 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                <Building2 className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-xs font-black text-emerald-950 dark:text-emerald-100 flex items-center gap-2">
+                  Empresa em Configuração: {theme.companyName}
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300">
+                    {targetTenantId}
+                  </span>
+                </span>
+                <span className="text-[11px] text-emerald-700 dark:text-emerald-300">
+                  {isCompanyAdmin 
+                    ? 'Privilégio de Administrador: o logotipo configurado aqui será exibido exclusivamente para sua empresa.'
+                    : 'Modo Super Master: alternância e customização individualizada por empresa.'}
+                </span>
+              </div>
+            </div>
+
+            {isMaster && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Empresa:</span>
+                <select
+                  value={targetTenantId}
+                  onChange={(e) => handleApplyPresetTheme(e.target.value)}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-700 text-xs font-black text-emerald-950 dark:text-white cursor-pointer"
+                >
+                  {PRESET_COMPANIES.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Upload Box */}
             <div className="bg-emerald-50/70 dark:bg-[#072a1e]/90 border border-emerald-200/80 dark:border-emerald-800/80 rounded-3xl p-6 shadow-xs space-y-4">
               <h3 className="text-base font-bold text-emerald-950 dark:text-emerald-50 flex items-center gap-2">
                 <Upload className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                Upload do Logotipo Próprio
+                Upload do Logotipo da Empresa
               </h3>
               <p className="text-xs text-emerald-800/80 dark:text-emerald-300/80">
-                Envie o logotipo da sua empresa em formato <strong>.PNG</strong> com fundo transparente, <strong>.SVG</strong> ou <strong>.JPG</strong>.
+                Envie o logotipo oficial de <strong>{theme.companyName}</strong> em formato <strong>.PNG</strong> com fundo transparente, <strong>.SVG</strong> ou <strong>.JPG</strong>.
               </p>
 
               <div
@@ -723,29 +783,62 @@ module.exports = {
                   <Upload className="w-6 h-6" />
                 </div>
                 <p className="text-xs font-bold text-emerald-950 dark:text-emerald-200">
-                  Clique para selecionar imagem do dispositivo
+                  Clique para selecionar imagem do logotipo
                 </p>
                 <p className="text-[10px] text-emerald-700/70 dark:text-emerald-400 mt-1">
-                  Extração automática de cores e persistência local via Base64
+                  Exibição exclusiva nas páginas e relatórios de {theme.companyName}
                 </p>
               </div>
 
-              {theme.logoUrl && (
+              {/* Status do Logotipo Atual */}
+              {theme.logoUrl ? (
                 <div className="p-3.5 rounded-2xl bg-emerald-100/60 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <img src={theme.logoUrl} alt="Logo Carregado" className="w-10 h-10 object-contain rounded-lg bg-white p-1 shadow-2xs border border-emerald-200" />
                     <div>
-                      <span className="text-xs font-bold text-emerald-950 dark:text-white block">Logotipo Personalizado</span>
-                      <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold">● Ativo em todo o sistema</span>
+                      <span className="text-xs font-bold text-emerald-950 dark:text-white block">Logotipo Personalizado Ativo</span>
+                      <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold">● Exclusivo de {theme.companyName}</span>
                     </div>
                   </div>
                   <button
                     onClick={handleRemoveCustomLogo}
-                    className="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors cursor-pointer"
-                    title="Remover logotipo personalizado"
+                    className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-950/60 rounded-xl transition-colors cursor-pointer border border-rose-200 dark:border-rose-900"
+                    title="Remover logotipo personalizado e adotar o padrão"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Voltar ao Padrão</span>
                   </button>
+                </div>
+              ) : theme.logoIconId ? (
+                <div className="p-3.5 rounded-2xl bg-emerald-100/60 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <BrandLogo theme={theme} size="sm" />
+                    <div>
+                      <span className="text-xs font-bold text-emerald-950 dark:text-white block">Brasão Vetorial Ativo</span>
+                      <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold">● Modelo da biblioteca</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleRemoveCustomLogo}
+                    className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-950/60 rounded-xl transition-colors cursor-pointer border border-rose-200 dark:border-rose-900"
+                    title="Remover brasão vetorial e adotar o padrão"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Voltar ao Padrão</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="p-3.5 rounded-2xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <BrandLogo theme={theme} size="sm" />
+                    <div>
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">Logotipo Padrão Ativo</span>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Nenhum logotipo customizado. O sistema adota o padrão AgroSys.</span>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                    Padrão
+                  </span>
                 </div>
               )}
             </div>

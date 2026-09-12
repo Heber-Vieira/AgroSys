@@ -831,7 +831,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
             }`}
           >
             <Palette className="w-4 h-4" />
-            <span>Marca & Cores</span>
+            <span>Logotipo & Marca</span>
           </button>
         </div>
 

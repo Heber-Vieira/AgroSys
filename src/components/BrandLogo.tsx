@@ -38,8 +38,16 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
     '2xl': 'w-14 h-14',
   };
 
-  const effectiveLogoUrl = t.logoUrl || getStoredConfiguredLogoUrl();
-  const effectiveLogoIconId = t.logoIconId || getStoredConfiguredLogoIconId();
+  const tenantId = t.tenantId;
+  
+  // Strictly individualized logo for this company - no cross-company leakage
+  const effectiveLogoUrl = (tenantId && tenantId !== 'ALL') 
+    ? (getStoredConfiguredLogoUrl(tenantId) || (t.tenantId === tenantId ? t.logoUrl : undefined))
+    : undefined;
+    
+  const effectiveLogoIconId = (tenantId && tenantId !== 'ALL')
+    ? (getStoredConfiguredLogoIconId(tenantId) || (t.tenantId === tenantId ? t.logoIconId : undefined))
+    : undefined;
 
   const selectedPresetLogo = effectiveLogoIconId 
     ? PRESET_LOGOS.find(l => l.id === effectiveLogoIconId)

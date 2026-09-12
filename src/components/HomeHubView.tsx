@@ -212,13 +212,13 @@ export const HomeHubView: React.FC<HomeHubViewProps> = ({
     // Suporte & Sistema
     {
       id: 'branding',
-      title: 'Marca (White Label)',
-      subtitle: 'Logotipo, cores e empresa',
+      title: 'Logotipo & Identidade Visual',
+      subtitle: 'Logotipo exclusivo da empresa e cores',
       category: 'sistema',
       icon: <Palette className="w-4 h-4 text-rose-600 dark:text-rose-400" />,
       iconBg: 'bg-rose-100 dark:bg-rose-950/80 text-rose-600',
-      statBadge: theme.companyName,
-      tags: ['marca', 'white label', 'logo', 'empresa'],
+      statBadge: theme.logoUrl ? '● Logo Próprio Ativo' : (theme.logoIconId ? '● Brasão Ativo' : '○ Logo Padrão Ativo'),
+      tags: ['marca', 'white label', 'logo', 'empresa', 'logotipo'],
     },
     {
       id: 'virtual-tour',

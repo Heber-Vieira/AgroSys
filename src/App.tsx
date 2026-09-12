@@ -57,7 +57,8 @@ import {
   getStoredConfiguredLogoUrl, 
   setStoredConfiguredLogoUrl, 
   getStoredConfiguredLogoIconId, 
-  setStoredConfiguredLogoIconId 
+  setStoredConfiguredLogoIconId,
+  getCompanyTheme 
 } from './services/brandingLogoStorage';
 import { 
   USER_PROFILES, 
@@ -122,50 +123,26 @@ export default function App() {
   });
 
   const [theme, setTheme] = useState<WhiteLabelTheme>(() => {
-    const savedLogoUrl = getStoredConfiguredLogoUrl();
-    const savedLogoIconId = getStoredConfiguredLogoIconId();
-
-    const saved = localStorage.getItem('agrodrone_white_label_theme');
-    if (saved) {
+    // If there's a saved currentUser from previous session:
+    const savedUserRaw = localStorage.getItem('agrodrone_current_user');
+    let initialCompanyId = 'ciclodrone';
+    if (savedUserRaw) {
       try {
-        const parsed = JSON.parse(saved);
-        if (parsed && parsed.primaryColor) {
-          const matchedPreset = PRESET_COMPANIES.find(p => p.id === parsed.tenantId) || PRESET_COMPANIES[0];
-          return {
-            ...parsed,
-            tenantId: parsed.tenantId || matchedPreset.id,
-            companyName: parsed.companyName || matchedPreset.name,
-            primaryColor: parsed.primaryColor || matchedPreset.primary,
-            secondaryColor: parsed.secondaryColor || matchedPreset.secondary,
-            accentColor: parsed.accentColor || matchedPreset.accent,
-            logoUrl: parsed.logoUrl || savedLogoUrl,
-            logoIconId: parsed.logoIconId || savedLogoIconId,
-          };
+        const u = JSON.parse(savedUserRaw);
+        if (u && !isMasterUser(u) && u.companyId) {
+          initialCompanyId = u.companyId;
         }
-      } catch (err) {
-        console.error('Falha ao restaurar tema do localStorage:', err);
+      } catch (e) {}
+    } else {
+      const savedTheme = localStorage.getItem('agrodrone_white_label_theme');
+      if (savedTheme) {
+        try {
+          const t = JSON.parse(savedTheme);
+          if (t && t.tenantId) initialCompanyId = t.tenantId;
+        } catch (e) {}
       }
     }
-    const defaultPreset = PRESET_COMPANIES[0]; // Ciclodrone
-    return {
-      tenantId: defaultPreset.id,
-      companyName: defaultPreset.name,
-      tagline: defaultPreset.tagline,
-      primaryColor: defaultPreset.primary || '#0284c7',
-      secondaryColor: defaultPreset.secondary || '#0f766e',
-      accentColor: defaultPreset.accent || '#f59e0b',
-      logoUrl: savedLogoUrl,
-      logoIconId: savedLogoIconId,
-      surfaceLight: '#FFFFFF',
-      surfaceDark: '#081320',
-      borderRadius: '0.875rem',
-      fontFamily: 'Plus Jakarta Sans',
-      contactPhone: defaultPreset.contactPhone || '(16) 99781-4400',
-      contactEmail: defaultPreset.contactEmail || 'operacoes@ciclodrone.com.br',
-      registryCreaMapa: defaultPreset.registryCreaMapa || 'MAPA/SDA nº 24.890/2026 • ART CREA-SP 2026-1044',
-      brandStyle: 'modern',
-      density: 'comfortable',
-    };
+    return getCompanyTheme(initialCompanyId);
   });
 
   // Active Company / Tenant ID
@@ -211,26 +188,10 @@ export default function App() {
   // Automatically synchronize tenant theme when an admin or regular user logs in with a specific companyId
   useEffect(() => {
     const isMaster = isMasterUser(currentUser);
-    if (!isMaster && currentUser.companyId && currentUser.companyId !== activeTenantId) {
-      const matchedCompany = PRESET_COMPANIES.find(p => p.id === currentUser.companyId);
-      if (matchedCompany) {
-        setTheme(prev => ({
-          ...prev,
-          tenantId: matchedCompany.id,
-          companyName: matchedCompany.name,
-          tagline: matchedCompany.tagline,
-          primaryColor: matchedCompany.primary,
-          secondaryColor: matchedCompany.secondary,
-          accentColor: matchedCompany.accent,
-          surfaceLight: matchedCompany.surfaceLight || '#FFFFFF',
-          surfaceDark: matchedCompany.surfaceDark || '#081320',
-          contactPhone: matchedCompany.contactPhone,
-          contactEmail: matchedCompany.contactEmail,
-          registryCreaMapa: matchedCompany.registryCreaMapa,
-        }));
-      }
+    if (!isMaster && currentUser.companyId && currentUser.companyId !== theme.tenantId) {
+      setTheme(getCompanyTheme(currentUser.companyId));
     }
-  }, [currentUser, activeTenantId]);
+  }, [currentUser, theme.tenantId]);
 
   // Master collections with automatic mock merging for multi-tenancy
   const [allOrders, setAllOrders] = useState<ServiceOrder[]>(() => 
@@ -673,18 +634,24 @@ export default function App() {
       try {
         const cloudBranding = await loadTenantBrandingFromSupabase();
         if (cloudBranding && (cloudBranding.companyName || cloudBranding.logoUrl || cloudBranding.logoIconId)) {
+          const tId = cloudBranding.tenantId || 'ciclodrone';
           if (cloudBranding.logoUrl) {
-            setStoredConfiguredLogoUrl(cloudBranding.logoUrl);
+            setStoredConfiguredLogoUrl(tId, cloudBranding.logoUrl);
           }
           if (cloudBranding.logoIconId) {
-            setStoredConfiguredLogoIconId(cloudBranding.logoIconId);
+            setStoredConfiguredLogoIconId(tId, cloudBranding.logoIconId);
           }
-          setTheme(prev => ({
-            ...prev,
-            ...cloudBranding,
-            logoUrl: cloudBranding.logoUrl || prev.logoUrl || getStoredConfiguredLogoUrl(),
-            logoIconId: cloudBranding.logoIconId || prev.logoIconId || getStoredConfiguredLogoIconId(),
-          }));
+          setTheme(prev => {
+            if (prev.tenantId === tId) {
+              return {
+                ...prev,
+                ...cloudBranding,
+                logoUrl: cloudBranding.logoUrl || getStoredConfiguredLogoUrl(tId),
+                logoIconId: cloudBranding.logoIconId || getStoredConfiguredLogoIconId(tId),
+              };
+            }
+            return prev;
+          });
         }
 
         // Hydrate user profile photos from Supabase DB
@@ -731,13 +698,21 @@ export default function App() {
       root.setAttribute('data-theme', 'light');
     }
 
-    // Persist to local storage & ensure configured logo is preserved
+    // Persist to local storage & ensure configured logo is preserved strictly for this company
     try {
-      if (theme.logoUrl) {
-        setStoredConfiguredLogoUrl(theme.logoUrl);
-      }
-      if (theme.logoIconId) {
-        setStoredConfiguredLogoIconId(theme.logoIconId);
+      const tId = theme.tenantId;
+      if (tId && tId !== 'ALL') {
+        if (theme.logoUrl) {
+          setStoredConfiguredLogoUrl(tId, theme.logoUrl);
+        } else {
+          setStoredConfiguredLogoUrl(tId, null);
+        }
+        if (theme.logoIconId) {
+          setStoredConfiguredLogoIconId(tId, theme.logoIconId);
+        } else {
+          setStoredConfiguredLogoIconId(tId, null);
+        }
+        localStorage.setItem(`agrosys_company_theme_${tId}`, JSON.stringify(theme));
       }
       localStorage.setItem('agrodrone_white_label_theme', JSON.stringify(theme));
       localStorage.setItem('agrodrone_theme_mode', themeMode);
@@ -810,6 +785,9 @@ export default function App() {
             setCurrentUser(user);
             setIsAuthenticated(true);
             setCurrentView('hub');
+            if (!isMasterUser(user) && user.companyId) {
+              setTheme(getCompanyTheme(user.companyId));
+            }
           }}
           availableUsers={allUsers}
           setUsers={setAllUsers}
@@ -832,6 +810,9 @@ export default function App() {
       onSelectUser={(u) => {
         setCurrentUser(u);
         setCurrentView('hub');
+        if (!isMasterUser(u) && u.companyId) {
+          setTheme(getCompanyTheme(u.companyId));
+        }
       }}
       onUpdateUserPhoto={handleUpdateUserPhoto}
       onLogout={() => {
