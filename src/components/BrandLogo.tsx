@@ -2,6 +2,7 @@ import React from 'react';
 import { Plane } from 'lucide-react';
 import { WhiteLabelTheme } from '../types';
 import { PRESET_LOGOS } from '../data/themeTokensData';
+import { getStoredConfiguredLogoUrl, getStoredConfiguredLogoIconId } from '../services/brandingLogoStorage';
 
 interface BrandLogoProps {
   theme: WhiteLabelTheme;
@@ -37,8 +38,11 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
     '2xl': 'w-14 h-14',
   };
 
-  const selectedPresetLogo = t.logoIconId 
-    ? PRESET_LOGOS.find(l => l.id === t.logoIconId)
+  const effectiveLogoUrl = t.logoUrl || getStoredConfiguredLogoUrl();
+  const effectiveLogoIconId = t.logoIconId || getStoredConfiguredLogoIconId();
+
+  const selectedPresetLogo = effectiveLogoIconId 
+    ? PRESET_LOGOS.find(l => l.id === effectiveLogoIconId)
     : null;
 
   const bgStyle = showBackground
@@ -48,7 +52,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
     : { color: t.primaryColor || '#059669' };
 
   // 1. If custom uploaded image logo exists
-  if (t.logoUrl) {
+  if (effectiveLogoUrl) {
     return (
       <div 
         className={`relative flex items-center justify-center overflow-hidden transition-all duration-200 border border-emerald-400/30 dark:border-emerald-500/40 shadow-md ${sizeClasses[size]} ${
@@ -56,7 +60,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
         } ${className}`}
       >
         <img
-          src={t.logoUrl}
+          src={effectiveLogoUrl}
           alt={t.companyName || 'Logo'}
           className="w-full h-full object-contain filter drop-shadow-xs"
           onError={(e) => {

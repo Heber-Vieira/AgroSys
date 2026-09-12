@@ -248,15 +248,15 @@ module.exports = {
               {PRESET_COMPANIES.map(p => (
                 <button
                   key={p.id}
-                  onClick={() => setTheme({
-                    ...theme,
+                  onClick={() => setTheme(prev => ({
+                    ...prev,
                     tenantId: p.id,
                     companyName: p.name,
                     tagline: p.tagline,
                     primaryColor: p.primary,
                     secondaryColor: p.secondary,
                     accentColor: p.accent,
-                  })}
+                  }))}
                   className="p-2 text-left rounded-xl border border-slate-200 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-400 transition-all text-xs"
                 >
                   <div className="flex items-center gap-1.5 mb-1">

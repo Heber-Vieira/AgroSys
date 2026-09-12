@@ -16,6 +16,7 @@ import { ThemeMode, WhiteLabelTheme, AppViewMode, UserProfile } from '../types';
 import { PRESET_COMPANIES } from '../data/themeTokensData';
 import { BrandLogo } from './BrandLogo';
 import { UserAvatar, UserPhotoUploadModal, saveStoredUserPhoto } from './UserAvatar';
+import { getStoredConfiguredLogoUrl, getStoredConfiguredLogoIconId } from '../services/brandingLogoStorage';
 
 export type { AppViewMode };
 
@@ -84,7 +85,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   const handleSelectCompany = (companyId: string) => {
     const found = PRESET_COMPANIES.find(p => p.id === companyId);
     if (found) {
-      setTheme({
+      setTheme(prev => ({
+        ...prev,
         tenantId: found.id,
         companyName: found.name,
         tagline: found.tagline,
@@ -98,7 +100,10 @@ export const Navbar: React.FC<NavbarProps> = ({
         contactPhone: found.contactPhone,
         contactEmail: found.contactEmail,
         registryCreaMapa: found.registryCreaMapa,
-      });
+        // Garante que o logotipo configurado para a empresa seja 100% mantido
+        logoUrl: prev.logoUrl || getStoredConfiguredLogoUrl(),
+        logoIconId: prev.logoIconId || getStoredConfiguredLogoIconId(),
+      }));
     }
   };
 

@@ -52,6 +52,12 @@ import {
 } from './types';
 import { PRESET_COMPANIES, generateToneScale } from './data/themeTokensData';
 import { 
+  getStoredConfiguredLogoUrl, 
+  setStoredConfiguredLogoUrl, 
+  getStoredConfiguredLogoIconId, 
+  setStoredConfiguredLogoIconId 
+} from './services/brandingLogoStorage';
+import { 
   USER_PROFILES, 
   INITIAL_PLOTS, 
   INITIAL_DRONES, 
@@ -105,6 +111,9 @@ export default function App() {
   });
 
   const [theme, setTheme] = useState<WhiteLabelTheme>(() => {
+    const savedLogoUrl = getStoredConfiguredLogoUrl();
+    const savedLogoIconId = getStoredConfiguredLogoIconId();
+
     const saved = localStorage.getItem('agrodrone_white_label_theme');
     if (saved) {
       try {
@@ -118,6 +127,8 @@ export default function App() {
             primaryColor: parsed.primaryColor || matchedPreset.primary,
             secondaryColor: parsed.secondaryColor || matchedPreset.secondary,
             accentColor: parsed.accentColor || matchedPreset.accent,
+            logoUrl: parsed.logoUrl || savedLogoUrl,
+            logoIconId: parsed.logoIconId || savedLogoIconId,
           };
         }
       } catch (err) {
@@ -132,6 +143,8 @@ export default function App() {
       primaryColor: defaultPreset.primary || '#0284c7',
       secondaryColor: defaultPreset.secondary || '#0f766e',
       accentColor: defaultPreset.accent || '#f59e0b',
+      logoUrl: savedLogoUrl,
+      logoIconId: savedLogoIconId,
       surfaceLight: '#FFFFFF',
       surfaceDark: '#081320',
       borderRadius: '0.875rem',
@@ -555,10 +568,18 @@ export default function App() {
     async function restoreCloudState() {
       try {
         const cloudBranding = await loadTenantBrandingFromSupabase();
-        if (cloudBranding && (cloudBranding.companyName || cloudBranding.logoUrl)) {
+        if (cloudBranding && (cloudBranding.companyName || cloudBranding.logoUrl || cloudBranding.logoIconId)) {
+          if (cloudBranding.logoUrl) {
+            setStoredConfiguredLogoUrl(cloudBranding.logoUrl);
+          }
+          if (cloudBranding.logoIconId) {
+            setStoredConfiguredLogoIconId(cloudBranding.logoIconId);
+          }
           setTheme(prev => ({
             ...prev,
             ...cloudBranding,
+            logoUrl: cloudBranding.logoUrl || prev.logoUrl || getStoredConfiguredLogoUrl(),
+            logoIconId: cloudBranding.logoIconId || prev.logoIconId || getStoredConfiguredLogoIconId(),
           }));
         }
 
@@ -606,8 +627,14 @@ export default function App() {
       root.setAttribute('data-theme', 'light');
     }
 
-    // Persist to local storage
+    // Persist to local storage & ensure configured logo is preserved
     try {
+      if (theme.logoUrl) {
+        setStoredConfiguredLogoUrl(theme.logoUrl);
+      }
+      if (theme.logoIconId) {
+        setStoredConfiguredLogoIconId(theme.logoIconId);
+      }
       localStorage.setItem('agrodrone_white_label_theme', JSON.stringify(theme));
       localStorage.setItem('agrodrone_theme_mode', themeMode);
     } catch (e) {
