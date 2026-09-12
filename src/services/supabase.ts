@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { WhiteLabelTheme } from '../types';
+import { WhiteLabelTheme, UserProfile } from '../types';
 
 const env = (import.meta as any).env || {};
 const SUPABASE_URL = env.VITE_SUPABASE_URL || 'https://ioqdflvonlajalonxctd.supabase.co';
@@ -166,6 +166,101 @@ export async function loadTenantBrandingFromSupabase(tenantId: string = 'ciclodr
   } catch (err) {
     console.warn('Não foi possível restaurar tema do Supabase:', err);
     return null;
+  }
+}
+
+/**
+ * Persists user profile photo URL to Supabase database.
+ * Upserts to `user_profiles` table and mirrors to `app_settings` for full reliability.
+ */
+export async function saveUserPhotoToSupabase(idOrEmail: string, photoUrl: string, profile?: UserProfile) {
+  try {
+    if (!idOrEmail) return { success: false, error: 'ID ou e-mail inválido' };
+
+    const sanitizedKey = `agro_user_photo_${idOrEmail.toLowerCase().replace(/[^a-z0-9_@-]/g, '_')}`;
+
+    // 1. Mirror payload in app_settings table
+    await supabase.from('app_settings').upsert({
+      key: sanitizedKey,
+      value: JSON.stringify({
+        idOrEmail,
+        photoUrl,
+        name: profile?.name || '',
+        email: profile?.email || '',
+        updated_at: new Date().toISOString()
+      }),
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'key' }).catch(() => {});
+
+    // 2. Try upserting into user_profiles table if available
+    const profilePayload = {
+      id: profile?.id || idOrEmail,
+      email: profile?.email || (idOrEmail.includes('@') ? idOrEmail : null),
+      name: profile?.name || idOrEmail,
+      photo_url: photoUrl,
+      avatar_url: photoUrl,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error: profileError } = await supabase
+      .from('user_profiles')
+      .upsert(profilePayload, { onConflict: 'id' });
+
+    if (profileError) {
+      console.warn('Persistência em user_profiles retornou aviso:', profileError.message);
+    }
+
+    return { success: true, error: null };
+  } catch (err: any) {
+    console.error('Erro ao gravar foto de perfil no Supabase:', err);
+    return { success: false, error: err.message || 'Falha ao salvar foto no banco de dados' };
+  }
+}
+
+/**
+ * Loads all user profile photos stored in Supabase database.
+ */
+export async function loadUserPhotosFromSupabase(): Promise<Record<string, string>> {
+  try {
+    const photoMap: Record<string, string> = {};
+
+    // 1. Fetch settings with key starting with 'agro_user_photo_'
+    const { data: settingsData } = await supabase
+      .from('app_settings')
+      .select('key, value')
+      .like('key', 'agro_user_photo_%');
+
+    if (settingsData && Array.isArray(settingsData)) {
+      settingsData.forEach(item => {
+        try {
+          const parsed = JSON.parse(item.value);
+          if (parsed && parsed.idOrEmail && parsed.photoUrl) {
+            photoMap[parsed.idOrEmail] = parsed.photoUrl;
+            if (parsed.email) photoMap[parsed.email] = parsed.photoUrl;
+          }
+        } catch (e) {}
+      });
+    }
+
+    // 2. Fetch from user_profiles table if populated
+    const { data: profilesData } = await supabase
+      .from('user_profiles')
+      .select('id, email, photo_url, avatar_url');
+
+    if (profilesData && Array.isArray(profilesData)) {
+      profilesData.forEach(p => {
+        const photo = p.photo_url || p.avatar_url;
+        if (photo) {
+          if (p.id) photoMap[p.id] = photo;
+          if (p.email) photoMap[p.email] = photo;
+        }
+      });
+    }
+
+    return photoMap;
+  } catch (err) {
+    console.warn('Não foi possível carregar fotos dos usuários do Supabase:', err);
+    return {};
   }
 }
 

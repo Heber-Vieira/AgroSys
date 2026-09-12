@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { UserProfile, CrewPilot, CrewAssistant, UserRole } from '../types';
 import { Camera, Upload, X, Check, Trash2, ShieldCheck, User, Plane, Wrench, Sparkles } from 'lucide-react';
+import { saveUserPhotoToSupabase } from '../services/supabase';
 
 export const USER_PHOTO_STORAGE_KEY = 'agrodrone_user_custom_photos';
 
@@ -92,7 +93,7 @@ export function getStoredUserPhoto(id: string): string | undefined {
 /**
  * Persist a user or crew photo and broadcast update
  */
-export function saveStoredUserPhoto(idOrCpf: string, photoUrl: string) {
+export function saveStoredUserPhoto(idOrCpf: string, photoUrl: string, profile?: UserProfile) {
   try {
     const current = getStoredUserPhotos();
     if (photoUrl) {
@@ -104,6 +105,11 @@ export function saveStoredUserPhoto(idOrCpf: string, photoUrl: string) {
     window.dispatchEvent(new CustomEvent('agrodrone-user-photo-updated', {
       detail: { id: idOrCpf, photoUrl }
     }));
+
+    // Async save to Supabase DB
+    saveUserPhotoToSupabase(idOrCpf, photoUrl, profile).catch(err => {
+      console.warn('Falha ao salvar foto do usuário no Supabase DB:', err);
+    });
   } catch (e) {
     console.warn('Falha ao salvar foto do usuário no storage:', e);
   }

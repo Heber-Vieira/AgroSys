@@ -67,7 +67,8 @@ import {
 } from './data/mockAppState';
 import { BatteryAlertOverlay } from './components/BatteryAlertOverlay';
 import { playBatteryAlertSound } from './utils/batteryAudioAlert';
-import { loadTenantBrandingFromSupabase } from './services/supabase';
+import { loadTenantBrandingFromSupabase, loadUserPhotosFromSupabase } from './services/supabase';
+import { USER_PHOTO_STORAGE_KEY } from './components/UserAvatar';
 
 // Helper to merge stored arrays with initial mock data so all companies have default records
 function loadAndMergeWithMock<T extends { id: string; companyId?: string }>(
@@ -548,9 +549,9 @@ export default function App() {
     setLiveTourStepIndex(0);
   };
 
-  // Hydrate tenant branding & custom logo from Supabase database on initial mount
+  // Hydrate tenant branding, custom logo & user photos from Supabase database on initial mount
   useEffect(() => {
-    async function restoreCloudBranding() {
+    async function restoreCloudState() {
       try {
         const cloudBranding = await loadTenantBrandingFromSupabase();
         if (cloudBranding && (cloudBranding.companyName || cloudBranding.logoUrl)) {
@@ -559,11 +560,35 @@ export default function App() {
             ...cloudBranding,
           }));
         }
+
+        // Hydrate user profile photos from Supabase DB
+        const cloudPhotos = await loadUserPhotosFromSupabase();
+        if (cloudPhotos && Object.keys(cloudPhotos).length > 0) {
+          try {
+            const rawStored = localStorage.getItem(USER_PHOTO_STORAGE_KEY);
+            const currentStored: Record<string, string> = rawStored ? JSON.parse(rawStored) : {};
+            const merged = { ...currentStored, ...cloudPhotos };
+            localStorage.setItem(USER_PHOTO_STORAGE_KEY, JSON.stringify(merged));
+            
+            // Broadcast photo update event to UI components
+            Object.entries(cloudPhotos).forEach(([id, photoUrl]) => {
+              window.dispatchEvent(new CustomEvent('agrodrone-user-photo-updated', {
+                detail: { id, photoUrl }
+              }));
+            });
+
+            // Sync with allUsers state if matching photo found
+            setAllUsers(prev => prev.map(u => {
+              const photo = cloudPhotos[u.id] || cloudPhotos[u.email];
+              return photo ? { ...u, photoUrl: photo, avatarUrl: photo } : u;
+            }));
+          } catch (e) {}
+        }
       } catch (err) {
-        console.warn('Falha ao restaurar logotipo e marca do Supabase:', err);
+        console.warn('Falha ao restaurar dados do Supabase:', err);
       }
     }
-    restoreCloudBranding();
+    restoreCloudState();
   }, []);
 
   // Dynamically apply theme class to html/body and inject CSS variables
