@@ -195,6 +195,8 @@ export interface BatteryAlertSettings {
   nextAlertTimestamp?: number; // timestamp em ms
   // Campos de compatibilidade com versões anteriores
   intervalMinutes?: number;
+}
+
 export type DroneBatteryStatus = 'READY' | 'CHARGING' | 'STORAGE' | 'ALERT' | 'DISCARDED';
 
 export interface DroneBatteryAsset {

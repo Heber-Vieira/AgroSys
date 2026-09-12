@@ -26,7 +26,11 @@ import {
   Sliders,
   CloudSun,
   Flame,
-  CloudRain
+  CloudRain,
+  Radio,
+  Database,
+  Globe,
+  ExternalLink
 } from 'lucide-react';
 import { 
   CityLocation, 
@@ -70,6 +74,7 @@ export const WeatherGateView: React.FC<WeatherGateViewProps> = ({ currentUser, p
 
   // Weather Report Modal State
   const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
+  const [isSourceInfoModalOpen, setIsSourceInfoModalOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastType, setToastType] = useState<'info' | 'success' | 'error'>('success');
 
@@ -231,6 +236,15 @@ export const WeatherGateView: React.FC<WeatherGateViewProps> = ({ currentUser, p
 
         {/* Global Action Buttons */}
         <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            onClick={() => setIsSourceInfoModalOpen(true)}
+            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-white dark:bg-emerald-950/80 text-emerald-900 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/60 transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
+            title="Entenda de onde vêm os dados de satélite e meteorologia"
+          >
+            <Info className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span>Como Funciona a Coleta?</span>
+          </button>
+
           <button
             onClick={() => setIsReportModalOpen(true)}
             className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
@@ -747,6 +761,123 @@ export const WeatherGateView: React.FC<WeatherGateViewProps> = ({ currentUser, p
         weatherData={weatherData}
         currentUser={currentUser}
       />
+
+      {/* Weather Data Source & Telemetry Info Modal */}
+      {isSourceInfoModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl max-w-2xl w-full overflow-hidden flex flex-col max-h-[90vh]">
+            
+            {/* Modal Header */}
+            <div className="p-5 bg-gradient-to-r from-emerald-900 via-emerald-850 to-teal-900 text-white flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 shadow-2xs">
+                  <Radio className="w-5 h-5 text-emerald-300 animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black tracking-tight flex items-center gap-2">
+                    Arquitetura de Coleta Meteorológica
+                  </h3>
+                  <p className="text-xs text-emerald-200/80">
+                    Origem dos dados, telemetria em tempo real e modelos de simulação agronômica
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsSourceInfoModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-5 sm:p-6 overflow-y-auto space-y-5 text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+              
+              {/* Section 1: API Open-Meteo & Radar */}
+              <div className="p-4 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-800/80 space-y-2">
+                <div className="flex items-center gap-2 font-black text-sm text-emerald-950 dark:text-emerald-200">
+                  <Globe className="w-4.5 h-4.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>1. Integração Live: API Open-Meteo & Modelos Globais</span>
+                </div>
+                <p>
+                  O AgroSys realiza consultas em tempo real à API meteorológica global de alta resolução 
+                  <strong className="text-emerald-900 dark:text-emerald-100"> Open-Meteo API</strong>, combinando múltiplos modelos numéricos de previsão atmosférica:
+                </p>
+                <ul className="list-disc list-inside pl-2 space-y-1 text-[11px] font-medium text-slate-600 dark:text-slate-400">
+                  <li><strong>NOAA GFS & HRRR:</strong> Modelos norte-americanos para dinâmica de vento e pressão de superfície.</li>
+                  <li><strong>ECMWF Integrated Forecasting System:</strong> Padrão ouro europeu para umidade relativa e ponto de orvalho.</li>
+                  <li><strong>DWD ICON (Alemanha):</strong> Cobertura de nuvens, radiação solar e probabilidade de chuva por grade geográfica de 2.5 a 11 km.</li>
+                </ul>
+              </div>
+
+              {/* Section 2: Reversa Geocoding & GPS */}
+              <div className="p-4 rounded-2xl bg-sky-50/60 dark:bg-sky-950/30 border border-sky-200/80 dark:border-sky-800/80 space-y-2">
+                <div className="flex items-center gap-2 font-black text-sm text-sky-950 dark:text-sky-200">
+                  <Compass className="w-4.5 h-4.5 text-sky-600 dark:text-sky-400" />
+                  <span>2. Geolocalização GPS & Geocodificação Reversa</span>
+                </div>
+                <p>
+                  Quando o operador aciona a busca por município ou utiliza a opção <strong>"Usar GPS do Campo"</strong>:
+                </p>
+                <ul className="list-disc list-inside pl-2 space-y-1 text-[11px] font-medium text-slate-600 dark:text-slate-400">
+                  <li>As coordenadas exatas (Latitude / Longitude / Altitude) são identificadas via <strong>API BigDataCloud & OpenStreetMap Nominatim</strong>.</li>
+                  <li>O AgroSys consulta imediatamente o nó de previsão atmosférica correspondente à coordenada da fazenda ou talhão selecionado.</li>
+                </ul>
+              </div>
+
+              {/* Section 3: Aferição Manual (Kestrel) */}
+              <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/80 space-y-2">
+                <div className="flex items-center gap-2 font-black text-sm text-amber-950 dark:text-amber-200">
+                  <Sliders className="w-4.5 h-4.5 text-amber-600 dark:text-amber-400" />
+                  <span>3. Aferição em Campo (Termohigrômetros / Kestrel 5500)</span>
+                </div>
+                <p>
+                  Como microclimas locais podem sofrer variações térmicas ou rajadas súbitas, o AgroSys permite o modo de 
+                  <strong className="text-amber-900 dark:text-amber-100"> "Aferição Manual"</strong>. O piloto ou engenheiro agrônomo lê os dados no medidor portátil no local da pista e ajusta a umidade, temperatura e velocidade do vento instantaneamente.
+                </p>
+              </div>
+
+              {/* Section 4: Fallback & Simulação Agronômica */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-2">
+                <div className="flex items-center gap-2 font-black text-sm text-slate-900 dark:text-white">
+                  <Database className="w-4.5 h-4.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>4. Resiliência Offline & Modelo Agronômico Local</span>
+                </div>
+                <p>
+                  Caso a área de aplicação esteja em zona sem sinal celular/internet, o sistema ativa um modelo psicrométrico determinístico baseado na latitude e histórico estacional do município, garantindo o cálculo seguro do <strong>Delta T e Portão de Decolagem sem interrupção de operação</strong>.
+                </p>
+              </div>
+
+              {/* Section 5: Cálculo do Delta T & Normas MAPA */}
+              <div className="p-3.5 rounded-xl bg-emerald-900 text-white space-y-1.5 text-[11px]">
+                <div className="flex items-center gap-1.5 font-bold text-xs text-emerald-300">
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>Conformidade com Normas Agropecuárias MAPA / EMBRAPA</span>
+                </div>
+                <p className="text-emerald-100/90 leading-normal">
+                  Todas as métricas de liberação de voo (Portão de Decolagem) passam por algoritmos de temperatura de bulbo úmido (Fórmula de Stull) para derivar o <strong>Delta T (°C)</strong>, restringindo o voo quando a umidade cai abaixo de 50%, temperatura supera 30°C ou vento excede 15 km/h.
+                </p>
+              </div>
+
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-50 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                AgroSys Weather Intelligence Protocol v2.5
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsSourceInfoModalOpen(false)}
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all cursor-pointer shadow-2xs"
+              >
+                Entendido
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 };
