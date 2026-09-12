@@ -29,7 +29,8 @@ import {
   Eye,
   ChevronDown,
   ChevronUp,
-  Sliders
+  Sliders,
+  Gauge
 } from 'lucide-react';
 import { ClimateTelemetry } from '../../types';
 import { 
@@ -1105,8 +1106,143 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                   );
                 })()}
               </div>
-
             </div>
+
+            {/* Escala Técnica de Delta T (EMBRAPA / MAPA) Card */}
+            <div className="mt-3.5 p-3.5 sm:p-4 rounded-2xl bg-emerald-50/80 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/80 shadow-2xs space-y-3">
+                {/* Card Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-black text-emerald-950 dark:text-white flex items-center gap-1.5 uppercase tracking-wider">
+                      <Gauge className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      Escala Técnica de Delta T (EMBRAPA / MAPA)
+                    </h4>
+                    <p className="text-[10px] text-emerald-800/80 dark:text-emerald-300/80 font-medium">
+                      Indicador psicrométrico termodinâmico para controle de evaporação e deposição aeroagrícola.
+                    </p>
+                  </div>
+
+                  {/* Live Delta T Status Pill Badge */}
+                  <div className="flex items-center gap-1.5 font-mono font-bold text-xs bg-white dark:bg-emerald-950 px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-800 shadow-2xs shrink-0">
+                    <span className="text-slate-500">ΔT Atual:</span>
+                    <span className={`px-2 py-0.5 rounded-md font-black text-[11px] ${
+                      deltaT < 2.0
+                        ? 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 border border-sky-300'
+                        : deltaT <= 8.0
+                        ? 'bg-emerald-600 text-white shadow-2xs'
+                        : deltaT <= 10.0
+                        ? 'bg-amber-500 text-white shadow-2xs'
+                        : 'bg-rose-600 text-white shadow-2xs'
+                    }`}>
+                      {deltaT.toFixed(1).replace('.', ',')} °C • {
+                        deltaT < 2.0 ? 'Inversão' : deltaT <= 8.0 ? 'IDEAL EMBRAPA' : deltaT <= 10.0 ? 'Atenção' : 'Proibido'
+                      }
+                    </span>
+                  </div>
+                </div>
+
+                {/* Dynamic Pointer Track */}
+                <div className="relative pt-7 pb-2 px-1">
+                  {/* Pointer Marker */}
+                  <div
+                    className="absolute top-0 -translate-x-1/2 flex flex-col items-center z-10 transition-all duration-300 ease-out"
+                    style={{
+                      left: `${Math.min(97, Math.max(3, (deltaT / 12) * 100))}%`,
+                    }}
+                  >
+                    <div className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-black shadow-md flex items-center gap-1 border whitespace-nowrap ${
+                      deltaT < 2.0
+                        ? 'bg-sky-600 text-white border-sky-300'
+                        : deltaT <= 8.0
+                        ? 'bg-emerald-600 text-white border-emerald-300'
+                        : deltaT <= 10.0
+                        ? 'bg-amber-600 text-white border-amber-300'
+                        : 'bg-rose-600 text-white border-rose-300'
+                    }`}>
+                      <span>▲ {deltaT.toFixed(1).replace('.', ',')}°C</span>
+                      <span className="opacity-90">({
+                        deltaT < 2.0 ? 'Inversão' : deltaT <= 8.0 ? 'FAIXA IDEAL' : deltaT <= 10.0 ? 'Atenção' : 'Crítico'
+                      })</span>
+                    </div>
+                    <div className={`w-2.5 h-2.5 rotate-45 -mt-1 ${
+                      deltaT < 2.0 ? 'bg-sky-600' : deltaT <= 8.0 ? 'bg-emerald-600' : deltaT <= 10.0 ? 'bg-amber-600' : 'bg-rose-600'
+                    }`} />
+                  </div>
+
+                  {/* Segmented Color Track */}
+                  <div className="h-6 w-full rounded-2xl overflow-hidden flex text-[10px] font-extrabold text-white shadow-inner p-0.5 bg-emerald-950/80 border border-emerald-700/60">
+                    {/* < 2°C Inversao */}
+                    <div 
+                      style={{ width: '16.66%' }} 
+                      className={`h-full rounded-l-xl flex items-center justify-center transition-all bg-gradient-to-r from-sky-400 to-cyan-500 text-emerald-950 ${
+                        deltaT < 2.0 ? 'ring-2 ring-white scale-y-110 shadow-md font-black' : 'opacity-80'
+                      }`}
+                      title="< 2°C: Risco de Inversão Térmica e Escorrimento Foliar"
+                    >
+                      <span className="truncate px-1">&lt; 2°C</span>
+                    </div>
+
+                    {/* 2° to 8°C Ideal */}
+                    <div 
+                      style={{ width: '50%' }} 
+                      className={`h-full flex items-center justify-center transition-all bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-500 ${
+                        deltaT >= 2.0 && deltaT <= 8.0 ? 'ring-2 ring-white scale-y-110 shadow-md font-black' : 'opacity-80'
+                      }`}
+                      title="2° a 8°C: Faixa Ideal EMBRAPA / MAPA"
+                    >
+                      <span className="truncate px-1 flex items-center gap-1">
+                        <Sparkles className="w-3 h-3 text-amber-300 hidden sm:inline" />
+                        2° a 8°C (FAIXA IDEAL EMBRAPA / MAPA)
+                      </span>
+                    </div>
+
+                    {/* 8° to 10°C Atencao */}
+                    <div 
+                      style={{ width: '16.66%' }} 
+                      className={`h-full flex items-center justify-center transition-all bg-gradient-to-r from-amber-400 to-orange-500 text-amber-950 ${
+                        deltaT > 8.0 && deltaT <= 10.0 ? 'ring-2 ring-white scale-y-110 shadow-md font-black' : 'opacity-80'
+                      }`}
+                      title="8° a 10°C: Evaporação Rápida - Exige Gota Grossa e Adjuvante"
+                    >
+                      <span className="truncate px-1">8° a 10°C</span>
+                    </div>
+
+                    {/* > 10°C Proibido */}
+                    <div 
+                      style={{ width: '16.66%' }} 
+                      className={`h-full rounded-r-xl flex items-center justify-center transition-all bg-gradient-to-r from-rose-500 to-red-600 ${
+                        deltaT > 10.0 ? 'ring-2 ring-white scale-y-110 shadow-md font-black' : 'opacity-80'
+                      }`}
+                      title="> 10°C: Evaporação Crítica - Decolagem Bloqueada"
+                    >
+                      <span className="truncate px-1">&gt; 10°C</span>
+                    </div>
+                  </div>
+
+                  {/* Ruler Ticks */}
+                  <div className="flex justify-between text-[9px] text-emerald-800/80 dark:text-emerald-300/80 font-mono font-bold mt-1 px-1">
+                    <span>0°C</span>
+                    <span>2°C (Mínimo)</span>
+                    <span>5°C (Centro Ideal)</span>
+                    <span>8°C (Máximo Ideal)</span>
+                    <span>10°C (Limite MAPA)</span>
+                  </div>
+                </div>
+
+                {/* Technical Agronomic Prescriptions Box */}
+                <div className="p-3 rounded-xl bg-white/80 dark:bg-emerald-950/80 border border-emerald-200 dark:border-emerald-800 text-xs space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold text-emerald-950 dark:text-emerald-100">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Prescrição Técnica Operacional de Delta T (EMBRAPA / MAPA):</span>
+                  </div>
+                  <p className="text-[11px] text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
+                    {deltaT < 2.0 && '⚠️ ATENÇÃO: Delta T abaixo de 2°C indica alta saturação do ar. Gotas finas flutuam sem penetrar no dossel (risco de escorrimento e inversão). Mantenha atenção à velocidade do vento.'}
+                    {deltaT >= 2.0 && deltaT <= 8.0 && '✨ CONDIÇÃO EXCELENTE: Delta T dentro da Faixa Otimizada EMBRAPA / MAPA (2° a 8°C). Evaporação sob controle, absorção foliar estomática ideal e mínima perda aeroagrícola.'}
+                    {deltaT > 8.0 && deltaT <= 10.0 && '⚠️ ATENÇÃO OPERACIONAL: Delta T elevado (8° a 10°C). Ajuste o espectro para gotas médias/grossas (250-350 µm) e inclua adjuvante anti-evaporante na calda.'}
+                    {deltaT > 10.0 && '⛔ RESTRIÇÃO SEVERA: Delta T acima de 10°C viola as boas práticas EMBRAPA/MAPA. Alta taxa de evaporação pré-alvo. Operação deve ser interrompida até a estabilização térmica.'}
+                  </p>
+                </div>
+              </div>
 
             {/* Warnings Alert Banner list */}
             {currentWarnings.length > 0 && (
