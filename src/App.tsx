@@ -999,8 +999,8 @@ export default function App() {
         {currentView === 'admin-management' && (
           <AdminManagementHubView
             currentUser={currentUser}
-            users={currentUser.role === 'MASTER' || currentUser.isMaster ? allUsers : users}
-            setUsers={currentUser.role === 'MASTER' || currentUser.isMaster ? setAllUsers : setUsers}
+            users={users}
+            setUsers={setUsers}
             drones={drones}
             setDrones={setDrones}
             batteries={batteries}

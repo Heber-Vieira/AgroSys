@@ -59,6 +59,7 @@ import { AdminBrandingStudio } from './AdminBrandingStudio';
 import { formatBRL, formatDecimal, parseInputNumber } from '../utils/formatters';
 import { PRESET_COMPANIES } from '../data/themeTokensData';
 import { isMasterUser } from '../utils/userPermissions';
+import { getCompanyTheme } from '../services/brandingLogoStorage';
 
 interface AdminManagementHubViewProps {
   currentUser: UserProfile;
@@ -125,8 +126,16 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
 
   const [activeTab, setActiveTab] = useState<AdminTab>('users');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCompanyFilter, setSelectedCompanyFilter] = useState<string>('ALL');
+  const [selectedCompanyFilter, setSelectedCompanyFilter] = useState<string>(() => {
+    return (theme?.tenantId && theme.tenantId !== 'ALL') ? theme.tenantId : 'ALL';
+  });
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (theme?.tenantId) {
+      setSelectedCompanyFilter(theme.tenantId);
+    }
+  }, [theme?.tenantId]);
 
   // User Modal State
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
@@ -885,7 +894,22 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
                 Filtrar por Empresa:
               </span>
               <button
-                onClick={() => setSelectedCompanyFilter('ALL')}
+                onClick={() => {
+                  setSelectedCompanyFilter('ALL');
+                  if (setTheme) {
+                    setTheme(prev => ({
+                      ...prev,
+                      tenantId: 'ALL',
+                      companyName: 'Visão Global (Todas as Empresas)',
+                      tagline: 'Gestão Centralizada Multi-Empresa AgroSys',
+                      primaryColor: '#059669',
+                      secondaryColor: '#047857',
+                      accentColor: '#10b981',
+                      logoUrl: undefined,
+                      logoIconId: undefined,
+                    }));
+                  }
+                }}
                 className={`px-2.5 py-1 rounded-xl font-bold text-xs transition-colors cursor-pointer ${
                   selectedCompanyFilter === 'ALL'
                     ? 'bg-purple-600 text-white shadow-2xs'
@@ -899,7 +923,12 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
                 return (
                   <button
                     key={comp.id}
-                    onClick={() => setSelectedCompanyFilter(comp.id)}
+                    onClick={() => {
+                      setSelectedCompanyFilter(comp.id);
+                      if (setTheme) {
+                        setTheme(getCompanyTheme(comp.id));
+                      }
+                    }}
                     className={`px-2.5 py-1 rounded-xl font-bold text-xs transition-colors cursor-pointer flex items-center gap-1 ${
                       selectedCompanyFilter === comp.id
                         ? 'bg-purple-600 text-white shadow-2xs'
