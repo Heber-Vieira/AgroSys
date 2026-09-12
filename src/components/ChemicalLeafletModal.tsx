@@ -26,6 +26,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { formatBRL } from '../utils/formatters';
+import { agroSysNotification } from '../services/notificationService';
 
 interface ChemicalLeafletModalProps {
   leaflet: ChemicalLeaflet | null;
@@ -65,9 +66,31 @@ export const ChemicalLeafletModal: React.FC<ChemicalLeafletModalProps> = ({
 • Classificação: ${leaflet.toxicologicalLabel}
 • EPIs: ${leaflet.mandatoryPPE.join(', ')}`;
 
-    navigator.clipboard.writeText(text);
-    setCopiedSuccess(true);
-    setTimeout(() => setCopiedSuccess(false), 2000);
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'absolute';
+        textArea.style.left = '-999999px';
+        document.body.prepend(textArea);
+        textArea.select();
+        try {
+          document.execCommand('copy');
+        } catch (error) {
+          console.error(error);
+        } finally {
+          textArea.remove();
+        }
+      }
+      setCopiedSuccess(true);
+      agroSysNotification.success('Resumo da Bula Técnica copiado para a área de transferência!', 'Cópia Concluída');
+      setTimeout(() => setCopiedSuccess(false), 2000);
+    } catch (err) {
+      console.error('Falha ao copiar:', err);
+      agroSysNotification.error('Não foi possível copiar a bula. Verifique as permissões do navegador.');
+    }
   };
 
   const getCategoryBadge = (cat: string) => {
