@@ -171,16 +171,49 @@ export const LoginView: React.FC<LoginViewProps> = ({
   const systemTagline = systemBranding.systemSubtitle || 'Plataforma Inteligente de Gestão de Operações Aeroagrícolas & Telemetria';
 
   return (
-    <div className="h-screen w-screen bg-slate-950 flex items-center justify-center p-2 sm:p-4 md:p-6 font-sans relative overflow-hidden">
+    <div className="min-h-[100dvh] w-full bg-slate-950 flex items-center justify-center p-2.5 sm:p-4 md:p-6 font-sans relative overflow-y-auto touch-scroll pt-safe pb-safe">
       {/* Background Decorative Subtle Ambient Light */}
       <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-emerald-600/5 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-teal-600/5 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Main Split Screen Container - Capped to 95vh for perfect viewport fit */}
-      <div className="relative z-10 w-full max-w-5xl max-h-[96vh] lg:max-h-[90vh] h-full lg:h-auto bg-white rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-12 border border-slate-200/80">
+      {/* Main Split Screen Container */}
+      <div className="relative z-10 w-full max-w-5xl my-auto bg-white rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-12 border border-slate-200/80">
         
-        {/* LEFT PANEL: MINIMALIST GREEN GRADIENT BRANDING - AGROSYS OFFICIAL SYSTEM */}
-        <div className="lg:col-span-5 bg-gradient-to-br from-[#064e3b] via-[#043d2e] to-[#02231a] text-white p-5 sm:p-7 lg:p-8 flex flex-col justify-between relative overflow-y-auto">
+        {/* MOBILE BRAND HEADER (Visible only on < lg) */}
+        <div className="lg:hidden bg-gradient-to-r from-[#064e3b] via-[#043d2e] to-[#02231a] text-white p-3.5 sm:p-4 flex items-center justify-between gap-3 border-b border-emerald-800/60">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="bg-white p-1 rounded-xl shadow-md border border-white/80 flex items-center justify-center shrink-0">
+              <DynamicBrandLogo 
+                theme={systemBranding} 
+                variant="white" 
+                isDarkMode={false} 
+                size="sm" 
+              />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="font-black text-sm tracking-wide text-white uppercase truncate">
+                  {systemTitle}
+                </span>
+                <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-white/15 text-emerald-300 border border-white/10 uppercase">
+                  AGROSYS
+                </span>
+              </div>
+              <p className="text-[10px] text-emerald-200/80 truncate">
+                Gestão Aeroagrícola Inteligente
+              </p>
+            </div>
+          </div>
+          <div className="shrink-0">
+            <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[9px] font-black border border-emerald-400/30 flex items-center gap-1">
+              <ShieldCheck className="w-3 h-3" />
+              <span>Protegido</span>
+            </span>
+          </div>
+        </div>
+
+        {/* LEFT PANEL: DESKTOP MINIMALIST GREEN GRADIENT BRANDING (Visible on lg+) */}
+        <div className="hidden lg:flex lg:col-span-5 bg-gradient-to-br from-[#064e3b] via-[#043d2e] to-[#02231a] text-white p-6 sm:p-7 lg:p-8 flex-col justify-between relative overflow-y-auto">
           
           {/* Subtle Glow Overlay */}
           <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
@@ -245,7 +278,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
         </div>
 
         {/* RIGHT PANEL: CLEAN MINIMALIST FORM SECTION */}
-        <div className="lg:col-span-7 bg-white text-slate-800 p-5 sm:p-7 lg:p-8 flex flex-col justify-between overflow-y-auto space-y-4 sm:space-y-5">
+        <div className="col-span-1 lg:col-span-7 bg-white text-slate-800 p-4 sm:p-7 lg:p-8 flex flex-col justify-between space-y-4">
           
           <div className="space-y-4">
             

@@ -622,129 +622,131 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
         
         {/* VIEW MODE 1: WEEK CALENDAR (Ultra-Compact Viewport-Fitting Week Grid) */}
         {viewMode === 'week' && (
-          <div className="flex flex-col h-full min-h-0 overflow-hidden">
-            {/* Week Header Row */}
-            <div className="grid grid-cols-8 border-b border-emerald-200/80 dark:border-emerald-800/80 bg-emerald-50/70 dark:bg-emerald-950/60 shrink-0">
-              <div className="p-1.5 text-center border-r border-emerald-200/60 dark:border-emerald-800/60 flex items-center justify-center">
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Hora</span>
-              </div>
-              {weekDays.map((d, i) => {
-                const isToday = d.dateStr === new Date().toISOString().split('T')[0];
-                const dayOrders = filteredOrders.filter(o => o.scheduledDate === d.dateStr);
+          <div className="flex-1 overflow-x-auto touch-scroll scrollbar-none flex flex-col min-h-0">
+            <div className="flex flex-col h-full min-h-0 min-w-[580px] sm:min-w-0">
+              {/* Week Header Row */}
+              <div className="grid grid-cols-8 border-b border-emerald-200/80 dark:border-emerald-800/80 bg-emerald-50/70 dark:bg-emerald-950/60 shrink-0">
+                <div className="p-1.5 text-center border-r border-emerald-200/60 dark:border-emerald-800/60 flex items-center justify-center">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Hora</span>
+                </div>
+                {weekDays.map((d, i) => {
+                  const isToday = d.dateStr === new Date().toISOString().split('T')[0];
+                  const dayOrders = filteredOrders.filter(o => o.scheduledDate === d.dateStr);
 
-                return (
-                  <div 
-                    key={i} 
-                    className={`p-1 text-center border-r last:border-r-0 border-emerald-200/60 dark:border-emerald-800/60 cursor-pointer hover:bg-emerald-100/50 dark:hover:bg-emerald-900/50 transition-colors ${
-                      isToday ? 'bg-emerald-100/60 dark:bg-emerald-950/90 font-bold' : ''
-                    }`}
-                    onClick={() => handleOpenNewModal(d.dateStr, '07:00')}
-                    title="Clique para agendar neste dia"
-                  >
-                    <div className="flex items-center justify-center gap-1">
-                      <span className="text-[10px] uppercase font-extrabold text-slate-500 dark:text-emerald-300/80">
-                        {d.dayName}
-                      </span>
-                      <span className={`text-xs font-black px-1 rounded ${
-                        isToday ? 'bg-emerald-600 text-white' : 'text-slate-800 dark:text-emerald-100'
-                      }`}>
-                        {d.dayNumber}
-                      </span>
-                    </div>
-                    {dayOrders.length > 0 && (
-                      <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-300 truncate block">
-                        {dayOrders.length} {dayOrders.length === 1 ? 'voo' : 'voos'}
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Scrollable Hourly Grid */}
-            <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-emerald-900/40 text-xs">
-              {visibleHours.map((hour) => {
-                const timeSlotStr = `${String(hour).padStart(2, '0')}:00`;
-                const isMorningGolden = hour >= 6 && hour <= 9; // Golden spray hours
-                const isLateGolden = hour >= 16 && hour <= 17;
-
-                return (
-                  <div key={hour} className="grid grid-cols-8 min-h-[38px] group">
-                    {/* Time Column */}
-                    <div className={`p-1 border-r border-emerald-200/60 dark:border-emerald-800/60 text-center flex flex-col justify-center shrink-0 ${
-                      isMorningGolden || isLateGolden ? 'bg-amber-50/60 dark:bg-amber-950/20' : 'bg-slate-50/50 dark:bg-emerald-950/30'
-                    }`}>
-                      <span className="text-[10px] font-mono font-bold text-slate-600 dark:text-slate-300">
-                        {timeSlotStr}
-                      </span>
-                      {(isMorningGolden || isLateGolden) && (
-                        <span className="text-[8px] font-extrabold text-amber-700 dark:text-amber-400 flex items-center justify-center gap-0.5">
-                          ✨ Ouro
+                  return (
+                    <div 
+                      key={i} 
+                      className={`p-1 text-center border-r last:border-r-0 border-emerald-200/60 dark:border-emerald-800/60 cursor-pointer hover:bg-emerald-100/50 dark:hover:bg-emerald-900/50 transition-colors ${
+                        isToday ? 'bg-emerald-100/60 dark:bg-emerald-950/90 font-bold' : ''
+                      }`}
+                      onClick={() => handleOpenNewModal(d.dateStr, '07:00')}
+                      title="Clique para agendar neste dia"
+                    >
+                      <div className="flex items-center justify-center gap-1">
+                        <span className="text-[10px] uppercase font-extrabold text-slate-500 dark:text-emerald-300/80">
+                          {d.dayName}
+                        </span>
+                        <span className={`text-xs font-black px-1 rounded ${
+                          isToday ? 'bg-emerald-600 text-white' : 'text-slate-800 dark:text-emerald-100'
+                        }`}>
+                          {d.dayNumber}
+                        </span>
+                      </div>
+                      {dayOrders.length > 0 && (
+                        <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-300 truncate block">
+                          {dayOrders.length} {dayOrders.length === 1 ? 'voo' : 'voos'}
                         </span>
                       )}
                     </div>
+                  );
+                })}
+              </div>
 
-                    {/* Day Slot Cells */}
-                    {weekDays.map((d, dayIdx) => {
-                      const slotOrders = filteredOrders.filter(o => {
-                        if (o.scheduledDate !== d.dateStr) return false;
-                        const startMin = timeStringToMinutes(o.startTime || '07:00');
-                        const endMin = timeStringToMinutes(o.endTime || '09:30');
-                        const slotMin = hour * 60;
-                        return slotMin >= startMin && slotMin < endMin;
-                      });
+              {/* Scrollable Hourly Grid */}
+              <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-emerald-900/40 text-xs">
+                {visibleHours.map((hour) => {
+                  const timeSlotStr = `${String(hour).padStart(2, '0')}:00`;
+                  const isMorningGolden = hour >= 6 && hour <= 9; // Golden spray hours
+                  const isLateGolden = hour >= 16 && hour <= 17;
 
-                      return (
-                        <div
-                          key={dayIdx}
-                          onClick={() => {
-                            if (slotOrders.length === 0) {
-                              handleOpenNewModal(d.dateStr, timeSlotStr);
-                            }
-                          }}
-                          className={`p-1 border-r last:border-r-0 border-slate-100 dark:border-emerald-900/30 transition-colors relative cursor-pointer min-h-[38px] flex flex-col gap-0.5 justify-center ${
-                            isMorningGolden || isLateGolden 
-                              ? 'bg-amber-50/15 dark:bg-amber-950/10 hover:bg-emerald-50/60 dark:hover:bg-emerald-900/40' 
-                              : 'hover:bg-emerald-50/50 dark:hover:bg-emerald-950/50'
-                          }`}
-                        >
-                          {slotOrders.map((order) => {
-                            const hasConflict = conflictsMap.has(order.id);
+                  return (
+                    <div key={hour} className="grid grid-cols-8 min-h-[38px] group">
+                      {/* Time Column */}
+                      <div className={`p-1 border-r border-emerald-200/60 dark:border-emerald-800/60 text-center flex flex-col justify-center shrink-0 ${
+                        isMorningGolden || isLateGolden ? 'bg-amber-50/60 dark:bg-amber-950/20' : 'bg-slate-50/50 dark:bg-emerald-950/30'
+                      }`}>
+                        <span className="text-[10px] font-mono font-bold text-slate-600 dark:text-slate-300">
+                          {timeSlotStr}
+                        </span>
+                        {(isMorningGolden || isLateGolden) && (
+                          <span className="text-[8px] font-extrabold text-amber-700 dark:text-amber-400 flex items-center justify-center gap-0.5">
+                            ✨ Ouro
+                          </span>
+                        )}
+                      </div>
 
-                            return (
-                              <div
-                                key={order.id}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleOpenEditModal(order);
-                                }}
-                                className={`px-1.5 py-0.5 rounded-md text-left transition-all hover:scale-[1.01] cursor-pointer border text-[10px] ${
-                                  hasConflict
-                                    ? 'bg-rose-500 text-white border-rose-600 font-bold animate-pulse'
-                                    : order.status === 'OPERATING'
-                                    ? 'bg-emerald-600 text-white border-emerald-700 font-bold shadow-2xs'
-                                    : order.status === 'COMPLETED'
-                                    ? 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300'
-                                    : 'bg-emerald-50 dark:bg-emerald-950 border-emerald-300 dark:border-emerald-800 text-emerald-950 dark:text-emerald-100 font-bold'
-                                }`}
-                                title={`${order.code} • ${order.plotName} (${order.pilotName.split(' ')[0]} / ${order.droneModel.replace('DJI Agras ', '')})`}
-                              >
-                                <div className="flex items-center justify-between gap-1 leading-tight">
-                                  <span className="truncate">{order.code}</span>
-                                  <span className="text-[9px] opacity-90 font-mono">{order.startTime}</span>
+                      {/* Day Slot Cells */}
+                      {weekDays.map((d, dayIdx) => {
+                        const slotOrders = filteredOrders.filter(o => {
+                          if (o.scheduledDate !== d.dateStr) return false;
+                          const startMin = timeStringToMinutes(o.startTime || '07:00');
+                          const endMin = timeStringToMinutes(o.endTime || '09:30');
+                          const slotMin = hour * 60;
+                          return slotMin >= startMin && slotMin < endMin;
+                        });
+
+                        return (
+                          <div
+                            key={dayIdx}
+                            onClick={() => {
+                              if (slotOrders.length === 0) {
+                                handleOpenNewModal(d.dateStr, timeSlotStr);
+                              }
+                            }}
+                            className={`p-1 border-r last:border-r-0 border-slate-100 dark:border-emerald-900/30 transition-colors relative cursor-pointer min-h-[38px] flex flex-col gap-0.5 justify-center ${
+                              isMorningGolden || isLateGolden 
+                                ? 'bg-amber-50/15 dark:bg-amber-950/10 hover:bg-emerald-50/60 dark:hover:bg-emerald-900/40' 
+                                : 'hover:bg-emerald-50/50 dark:hover:bg-emerald-950/50'
+                            }`}
+                          >
+                            {slotOrders.map((order) => {
+                              const hasConflict = conflictsMap.has(order.id);
+
+                              return (
+                                <div
+                                  key={order.id}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenEditModal(order);
+                                  }}
+                                  className={`px-1.5 py-0.5 rounded-md text-left transition-all hover:scale-[1.01] cursor-pointer border text-[10px] ${
+                                    hasConflict
+                                      ? 'bg-rose-500 text-white border-rose-600 font-bold animate-pulse'
+                                      : order.status === 'OPERATING'
+                                      ? 'bg-emerald-600 text-white border-emerald-700 font-bold shadow-2xs'
+                                      : order.status === 'COMPLETED'
+                                      ? 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+                                      : 'bg-emerald-50 dark:bg-emerald-950 border-emerald-300 dark:border-emerald-800 text-emerald-950 dark:text-emerald-100 font-bold'
+                                  }`}
+                                  title={`${order.code} • ${order.plotName} (${order.pilotName.split(' ')[0]} / ${order.droneModel.replace('DJI Agras ', '')})`}
+                                >
+                                  <div className="flex items-center justify-between gap-1 leading-tight">
+                                    <span className="truncate">{order.code}</span>
+                                    <span className="text-[9px] opacity-90 font-mono">{order.startTime}</span>
+                                  </div>
+                                  <div className="text-[9px] opacity-90 truncate font-normal">
+                                    {order.plotName} • {order.pilotName.split(' ')[0]}
+                                  </div>
                                 </div>
-                                <div className="text-[9px] opacity-90 truncate font-normal">
-                                  {order.plotName} • {order.pilotName.split(' ')[0]}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })}
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}

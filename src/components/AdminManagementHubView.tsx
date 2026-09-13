@@ -922,8 +922,8 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
       </div>
 
       {/* Navigation Sub-tabs */}
-      <div className="flex flex-wrap items-center justify-start sm:justify-center gap-1.5 bg-white dark:bg-slate-800/90 p-1.5 rounded-xl border border-slate-200/80 dark:border-slate-700 shadow-2xs overflow-x-auto">
-        <div className="flex items-center flex-wrap gap-1 justify-start sm:justify-center">
+      <div className="flex items-center justify-start sm:justify-center gap-1.5 bg-white dark:bg-slate-800/90 p-1.5 rounded-xl border border-slate-200/80 dark:border-slate-700 shadow-2xs overflow-x-auto scrollbar-none touch-scroll max-w-full">
+        <div className="flex items-center gap-1.5 flex-nowrap sm:flex-wrap justify-start sm:justify-center">
           {/* Master Company Management Tab */}
           {isMaster && (
             <button

@@ -30,6 +30,7 @@ interface NavbarProps {
   setThemeMode: (mode: ThemeMode) => void;
   theme: WhiteLabelTheme;
   setTheme: React.Dispatch<React.SetStateAction<WhiteLabelTheme>>;
+  onOpenMobileDrawer?: () => void;
   onStartTour?: () => void;
   onStartLiveTour?: () => void;
   onOpenHelp?: () => void;
@@ -48,6 +49,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   setThemeMode,
   theme,
   setTheme,
+  onOpenMobileDrawer,
   currentUser,
   availableUsers,
   onSelectUser,
@@ -125,11 +127,23 @@ export const Navbar: React.FC<NavbarProps> = ({
       <header className="print:hidden sticky top-0 z-40 w-full border-b backdrop-blur-md transition-colors bg-emerald-50/95 dark:bg-[#072a1e]/95 border-emerald-200/80 dark:border-emerald-800/80 shadow-2xs safe-top">
         {/* Sleek, Minimalist, Compact Top Bar */}
         <div className="w-full max-w-[1600px] mx-auto px-2.5 sm:px-4 lg:px-6 h-13 sm:h-14 flex items-center justify-between gap-2 sm:gap-4">
-          {/* Left: Brand / Logo */}
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          {/* Left: Brand / Logo + Mobile Menu Drawer Trigger */}
+          <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
+            {onOpenMobileDrawer && (
+              <button
+                type="button"
+                onClick={onOpenMobileDrawer}
+                className="sm:hidden p-1.5 rounded-xl bg-white/90 dark:bg-emerald-950/80 hover:bg-emerald-100 dark:hover:bg-emerald-900 border border-emerald-200/80 dark:border-emerald-800/80 text-emerald-900 dark:text-emerald-100 shadow-2xs active:scale-95 cursor-pointer flex items-center justify-center min-w-[36px] min-h-[36px] shrink-0"
+                title="Abrir Menu de Módulos"
+                aria-label="Abrir Menu Principal"
+              >
+                <Menu className="w-4 h-4 text-emerald-700 dark:text-emerald-300" />
+              </button>
+            )}
+
             <div 
               onClick={() => setCurrentView('hub')}
-              className="flex items-center gap-2.5 sm:gap-3.5 cursor-pointer select-none group py-0.5 min-w-0"
+              className="flex items-center gap-2 sm:gap-3 cursor-pointer select-none group py-0.5 min-w-0"
               title="Ir para a Página Inicial (Hub de Módulos)"
             >
               {/* High-visibility Brand Emblem Frame */}
@@ -145,7 +159,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <span className="font-black text-sm sm:text-base lg:text-lg tracking-tight text-emerald-950 dark:text-emerald-50 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors truncate">
+                  <span className="font-black text-xs sm:text-base lg:text-lg tracking-tight text-emerald-950 dark:text-emerald-50 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors truncate max-w-[120px] xs:max-w-[160px] sm:max-w-none">
                     {theme.companyName}
                   </span>
                   <span 
@@ -167,19 +181,19 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Right Controls: Essential tools, Company Switcher, Theme & User */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* Direct Shortcut to Spray Workflow Guide */}
+          <div className="flex items-center gap-1.5 sm:gap-3">
+            {/* Direct Shortcut to Spray Workflow Guide (Desktop & Tablet) */}
             <button
               onClick={() => setCurrentView('spray-workflow')}
               title="Abrir Esteira Operacional & Passo a Passo de Pulverização (10 Etapas)"
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+              className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                 currentView === 'spray-workflow'
                   ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
                   : 'bg-white/90 dark:bg-emerald-950/80 text-emerald-900 dark:text-emerald-100 hover:bg-emerald-100/70 border-emerald-200/80 dark:border-emerald-800/80 shadow-2xs'
               }`}
             >
               <Workflow className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span className="hidden sm:inline">Passo a Passo</span>
+              <span>Passo a Passo</span>
             </button>
 
             {/* Offline/Online Simulator Indicator */}
@@ -205,13 +219,13 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </button>
 
-            {/* Company Selector for Master / Locked Company Badge for Company Admins */}
+            {/* Company Selector for Master / Locked Company Badge for Company Admins (Desktop & Tablet) */}
             {isMaster ? (
-              <div className="relative flex items-center">
+              <div className="relative hidden sm:flex items-center">
                 <div className="flex items-center gap-1.5 sm:gap-2 bg-gradient-to-r from-amber-500/20 via-yellow-500/25 to-amber-500/20 dark:from-amber-500/30 dark:via-yellow-500/35 dark:to-amber-500/30 border border-amber-400/90 dark:border-amber-400 rounded-xl px-2 sm:px-2.5 py-1 shadow-2xs ring-1 ring-amber-400/40">
                   <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-amber-500/30 dark:bg-amber-500/40 border border-amber-400/60 shadow-2xs" title="Acesso Master Total Multi-Empresa">
                     <span className="text-xs select-none">👑</span>
-                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-950 dark:text-amber-100 hidden sm:inline">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-950 dark:text-amber-100 hidden md:inline">
                       SUPER MASTER
                     </span>
                   </div>
@@ -238,7 +252,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             ) : (
               <div 
-                className="flex items-center gap-1.5 bg-white/90 dark:bg-emerald-950/80 border border-emerald-200/90 dark:border-emerald-800/90 rounded-xl px-2.5 sm:px-3 py-1.5 shadow-2xs"
+                className="hidden sm:flex items-center gap-1.5 bg-white/90 dark:bg-emerald-950/80 border border-emerald-200/90 dark:border-emerald-800/90 rounded-xl px-2.5 sm:px-3 py-1.5 shadow-2xs"
                 title={`Empresa Vinculada: ${theme.companyName} (Acesso Restrito à Unidade)`}
               >
                 <Building2 className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 flex-shrink-0" />

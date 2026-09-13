@@ -53,24 +53,38 @@
   }
 }
 
-/* iOS Safe Area Utilities */
-.safe-top {
-  padding-top: env(safe-area-inset-top, 0px);
+/* iOS & Android Safe Area Utilities */
+.safe-top, .pt-safe {
+  padding-top: max(env(safe-area-inset-top, 0px), 0px);
 }
-.safe-bottom {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+.safe-bottom, .pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 0px);
 }
-.safe-left {
+.safe-left, .pl-safe {
   padding-left: env(safe-area-inset-left, 0px);
 }
-.safe-right {
+.safe-right, .pr-safe {
   padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* Eliminate 300ms mobile tap delay */
+button, a, select, input, [role="button"] {
+  touch-action: manipulation;
 }
 
 /* Touch friendly momentum scrolling for mobile devices */
 .touch-scroll {
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior-x: contain;
+  overscroll-behavior: contain;
+}
+
+/* Hide scrollbar while preserving touch scrolling on mobile */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }
 
 /* Custom scrollbar for clean dashboard */
