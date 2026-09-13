@@ -20,6 +20,7 @@ import { BrandLogo } from './BrandLogo';
 import { UserAvatar, UserPhotoUploadModal, saveStoredUserPhoto } from './UserAvatar';
 import { getCompanyTheme } from '../services/brandingLogoStorage';
 import { getStoredRegisteredCompanies, COMPANIES_UPDATED_EVENT } from '../services/companyStorage';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
 export type { AppViewMode };
 
@@ -57,7 +58,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLogout,
 }) => {
   const isMaster = isMasterUser(currentUser);
-  const [isOfflineSimulated, setIsOfflineSimulated] = useState<boolean>(false);
+  const { isOffline, isSimulated, isActuallyOffline, setSimulatedOffline } = useNetworkStatus();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState<boolean>(false);
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState<boolean>(false);
   const [registeredCompanies, setRegisteredCompanies] = useState<RegisteredCompany[]>(() => getStoredRegisteredCompanies());
@@ -198,17 +199,19 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Offline/Online Simulator Indicator */}
             <button
-              onClick={() => setIsOfflineSimulated(!isOfflineSimulated)}
-              title={isOfflineSimulated ? 'Operando Offline (Fila Local)' : 'Online (Satélite / Nuvem)'}
+              onClick={() => setSimulatedOffline(!isSimulated)}
+              title={isActuallyOffline ? 'Offline (Sem Conexão de Internet)' : isSimulated ? 'Operando Offline (Fila Local - Simulado)' : 'Online (Satélite / Nuvem)'}
               className={`hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
-                isOfflineSimulated
-                  ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/40'
+                isOffline
+                  ? isActuallyOffline 
+                    ? 'bg-red-500/15 text-red-800 dark:text-red-300 border-red-500/40' 
+                    : 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/40'
                   : 'bg-emerald-600/10 text-emerald-800 dark:text-emerald-300 border-emerald-500/30'
               }`}
             >
-              {isOfflineSimulated ? (
+              {isOffline ? (
                 <>
-                  <WifiOff className="w-3.5 h-3.5 text-amber-600" />
+                  <WifiOff className={`w-3.5 h-3.5 ${isActuallyOffline ? 'text-red-600' : 'text-amber-600'}`} />
                   <span className="hidden xl:inline">Offline</span>
                 </>
               ) : (

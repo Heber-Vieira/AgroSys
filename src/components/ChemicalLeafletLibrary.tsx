@@ -270,100 +270,95 @@ export const ChemicalLeafletLibrary: React.FC<ChemicalLeafletLibraryProps> = ({
             return (
               <div 
                 key={leaflet.id}
-                className={`p-5 rounded-3xl bg-white dark:bg-[#07251a] border transition-all flex flex-col justify-between group hover:shadow-lg relative overflow-hidden ${
+                className={`p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-[#072a1e] border transition-all flex flex-col justify-between group hover:shadow-md relative overflow-hidden min-h-[140px] ${
                   inMix 
-                    ? 'border-emerald-400 dark:border-emerald-500 shadow-md ring-1 ring-emerald-400/30' 
+                    ? 'border-emerald-400 dark:border-emerald-500 shadow-sm ring-1 ring-emerald-400/30' 
                     : 'border-emerald-200/80 dark:border-emerald-800/80 hover:border-emerald-400'
                 }`}
               >
                 {/* Top strip for toxicological color */}
                 <div 
-                  className="absolute top-0 left-0 right-0 h-1.5"
+                  className="absolute top-0 left-0 right-0 h-1"
                   style={{ backgroundColor: leaflet.toxicologicalColorHex }}
                 />
 
-                <div className="space-y-3 pt-1">
+                <div className="space-y-2 pt-1">
                   {/* Category & WALES Step badges */}
-                  <div className="flex items-center justify-between gap-2">
-                    <span className={`text-[11px] font-black uppercase px-2.5 py-0.5 rounded-full border ${catColor}`}>
+                  <div className="flex items-center justify-between gap-1.5">
+                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${catColor} leading-none`}>
                       {leaflet.category.replace('_', ' ')}
                     </span>
                     
-                    <div className="flex items-center gap-1">
-                      <span className="text-[11px] font-bold font-mono px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800" title={`Ordem WALES: ${leaflet.walesStageName}`}>
-                        WALES #{leaflet.walesMixOrder} • {leaflet.formulationType}
-                      </span>
-                    </div>
+                    <span className="text-[9px] font-bold font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 leading-none" title={`Ordem WALES: ${leaflet.walesStageName}`}>
+                      WALES #{leaflet.walesMixOrder} • {leaflet.formulationType}
+                    </span>
                   </div>
 
                   {/* Commercial Name & Active Ingredient */}
                   <div>
-                    <h3 className="text-base font-black text-emerald-950 dark:text-white group-hover:text-emerald-600 transition-colors flex items-center justify-between">
-                      <span>{leaflet.commercialName}</span>
+                    <h3 className="text-sm font-black text-emerald-950 dark:text-white group-hover:text-emerald-600 transition-colors flex items-center justify-between leading-tight">
+                      <span className="truncate pr-2">{leaflet.commercialName}</span>
                       {inMix && (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200 border border-emerald-300 flex items-center gap-1">
-                          <Check className="w-3 h-3 text-emerald-600" /> Na Calda
-                        </span>
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" title="Adicionado na Calda" />
                       )}
                     </h3>
-                    <p className="text-xs text-slate-600 dark:text-slate-300 font-medium line-clamp-1 mt-0.5">
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate mt-0.5">
                       {leaflet.activeIngredientConcentration}
                     </p>
-                    <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-bold block mt-0.5">
-                      {leaflet.manufacturer} • <span className="font-mono">{leaflet.mapaRegistration}</span>
+                    <span className="text-[10px] text-emerald-700 dark:text-emerald-400/80 block mt-0.5 truncate">
+                      {leaflet.manufacturer} • MAPA: {leaflet.mapaRegistration}
                     </span>
                   </div>
 
-                  {/* Main Targets preview */}
-                  <div className="p-3 rounded-2xl bg-slate-50 dark:bg-[#051c14] border border-emerald-100 dark:border-emerald-900/60 space-y-1.5 text-xs">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400 block">
-                      Principais Alvos & Dose Drone
-                    </span>
-                    <div className="space-y-1">
-                      {leaflet.targets.slice(0, 2).map((t, idx) => (
-                        <div key={idx} className="flex items-center justify-between text-xs gap-1">
-                          <span className="text-slate-800 dark:text-slate-200 truncate">• {t.pestName}</span>
-                          <strong className="text-emerald-600 dark:text-emerald-400 font-black text-[11px] flex-shrink-0">
-                            {t.doseDrone}
-                          </strong>
+                  {/* Compact Targets & Drone Dose */}
+                  {leaflet.targets.length > 0 && (
+                    <div className="mt-1 pt-1 border-t border-emerald-50 dark:border-emerald-900/30">
+                      {leaflet.targets.slice(0, 1).map((t, idx) => (
+                        <div key={idx} className="flex justify-between items-center text-[10px]">
+                          <span className="truncate pr-1 text-slate-600 dark:text-slate-400" title={t.pestName}>🎯 {t.pestName}</span>
+                          <span className="font-bold text-emerald-700 dark:text-emerald-400 shrink-0">{t.doseDrone}</span>
                         </div>
                       ))}
+                      {leaflet.targets.length > 1 && (
+                        <span className="text-[9px] text-slate-400 dark:text-slate-500 block mt-0.5 leading-none">
+                          + {leaflet.targets.length - 1} outro(s) alvo(s)
+                        </span>
+                      )}
                     </div>
-                  </div>
+                  )}
 
-                  {/* Quick specs pill */}
-                  <div className="grid grid-cols-2 gap-2 text-[11px]">
-                    <div className="p-2 rounded-xl bg-emerald-50/70 dark:bg-[#06241a] border border-emerald-100 dark:border-emerald-800">
-                      <span className="text-slate-500 dark:text-slate-400 block text-[10px]">pH Ideal Água</span>
-                      <strong className="text-emerald-700 dark:text-emerald-300 font-bold">{leaflet.phWaterOptimalRange.min} a {leaflet.phWaterOptimalRange.max}</strong>
-                    </div>
-                    <div className="p-2 rounded-xl bg-emerald-50/70 dark:bg-[#06241a] border border-emerald-100 dark:border-emerald-800">
-                      <span className="text-slate-500 dark:text-slate-400 block text-[10px]">Volume Drone</span>
-                      <strong className="text-emerald-700 dark:text-emerald-300 font-bold">{leaflet.droneGuidelines.minVolumeLHa}-{leaflet.droneGuidelines.maxVolumeLHa} L/ha</strong>
-                    </div>
+                  {/* Compact Quick Specs */}
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1.5 mt-0.5 border-t border-emerald-50 dark:border-emerald-900/30 text-[10px] text-slate-600 dark:text-slate-400">
+                    <span className="flex items-center gap-1" title="pH ideal da calda">
+                      <Droplets className="w-3 h-3 text-emerald-500/70" />
+                      pH: <strong className="text-emerald-800 dark:text-emerald-200">{leaflet.phWaterOptimalRange.min}-{leaflet.phWaterOptimalRange.max}</strong>
+                    </span>
+                    <span className="flex items-center gap-1" title="Volume recomendado para drone">
+                      <Plane className="w-3 h-3 text-emerald-500/70" />
+                      <strong className="text-emerald-800 dark:text-emerald-200">{leaflet.droneGuidelines.minVolumeLHa}-{leaflet.droneGuidelines.maxVolumeLHa} L/ha</strong>
+                    </span>
                   </div>
                 </div>
 
-                {/* Card Actions Footer */}
-                <div className="pt-4 mt-3 border-t border-emerald-100 dark:border-emerald-800/60 flex items-center gap-2">
+                {/* Minimal Card Actions Footer */}
+                <div className="pt-2.5 mt-2 border-t border-emerald-100/60 dark:border-emerald-800/40 flex items-center justify-between gap-2">
                   <button
                     onClick={() => onSelectLeaflet(leaflet)}
-                    className="flex-1 py-2 px-3 rounded-xl text-xs font-bold text-emerald-800 dark:text-emerald-200 bg-emerald-50 dark:bg-emerald-950/80 hover:bg-emerald-100 dark:hover:bg-emerald-900 border border-emerald-200 dark:border-emerald-800 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="flex-1 py-1.5 px-2 rounded-lg text-[11px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900 border border-emerald-200/60 dark:border-emerald-800/60 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                   >
-                    <Eye className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Ver Bula Completa</span>
+                    <Eye className="w-3 h-3 text-emerald-600/70" />
+                    <span>Resumo</span>
                   </button>
 
                   <button
                     onClick={() => onAddToSprayMix(leaflet)}
-                    className={`py-2 px-3.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer shadow-xs ${
+                    className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] font-black transition-all flex items-center justify-center gap-1 cursor-pointer shadow-xs ${
                       inMix 
                         ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200 hover:bg-emerald-200' 
                         : 'bg-emerald-600 hover:bg-emerald-700 text-white'
                     }`}
-                    title={inMix ? "Adicionar mais uma dose na calda" : "Sincronizar e inserir na calda"}
                   >
-                    <Plus className="w-3.5 h-3.5" />
+                    <Plus className="w-3 h-3" />
                     <span>{inMix ? '+ Dose' : 'Calda'}</span>
                   </button>
                 </div>

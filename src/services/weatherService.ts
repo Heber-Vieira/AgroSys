@@ -5,6 +5,8 @@
  */
 
 import { formatDecimal } from '../utils/formatters';
+import { SprayStatus, SprayRuleFailure } from './sprayRulesEngine';
+import { NetworkService } from './networkService';
 
 export interface CityLocation {
   id: string;
@@ -511,6 +513,11 @@ export async function searchCities(query: string): Promise<CityLocation[]> {
  * with instant fallback simulation if offline or network error.
  */
 export async function fetchWeatherForecast(city: CityLocation): Promise<WeatherForecastData> {
+  if (NetworkService.isOffline) {
+    console.log('Sistema em modo Offline. API de clima ignorada, gerando modelo agronômico de resiliência local...');
+    return generateSimulatedWeather(city);
+  }
+
   const { latitude, longitude } = city;
   
   const endpoint = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,rain,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m,dew_point_2m,cloud_cover,uv_index&hourly=temperature_2m,relative_humidity_2m,dew_point_2m,apparent_temperature,precipitation_probability,precipitation,rain,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m,uv_index&daily=weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,precipitation_sum,rain_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant,uv_index_max&timezone=auto&forecast_days=14&wind_speed_unit=kmh&precipitation_unit=mm`;

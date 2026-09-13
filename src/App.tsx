@@ -95,7 +95,7 @@ import { showToast } from './services/notificationService';
 import { loadTenantBrandingFromSupabase, loadUserPhotosFromSupabase } from './services/supabase';
 import { USER_PHOTO_STORAGE_KEY } from './components/UserAvatar';
 import { hydrateAllCloudData, saveBatteryAlertSettingsToCloud } from './services/cloudSyncService';
-
+import { useNetworkStatus } from './hooks/useNetworkStatus';
 // Helper to merge stored arrays with initial mock data so all companies have default records
 function loadAndMergeWithMock<T extends { id: string; companyId?: string }>(
   storageKey: string,
@@ -121,6 +121,23 @@ function loadAndMergeWithMock<T extends { id: string; companyId?: string }>(
 export default function App() {
   // Navigation View - Defaults to the Home Hub Cards Page
   const [currentView, setCurrentView] = useState<AppViewMode>('hub');
+  
+  // Global Network Status (Offline-First support)
+  const { isActuallyOffline } = useNetworkStatus();
+  const initialNetworkState = React.useRef(isActuallyOffline);
+
+  useEffect(() => {
+    // Only show toast on actual transition, not initial render
+    if (initialNetworkState.current !== isActuallyOffline) {
+      if (isActuallyOffline) {
+        showToast('Conexão perdida. Operando de forma resiliente em modo Offline (Fila de Sincronização Local ativada).', 'offline');
+      } else {
+        showToast('Conexão reestabelecida! Sincronizando dados pendentes com a nuvem...', 'success');
+        hydrateAllCloudData().catch(e => console.warn('Erro na hidratação pós-reconexão', e));
+      }
+      initialNetworkState.current = isActuallyOffline;
+    }
+  }, [isActuallyOffline]);
 
   // Theme & White Label with LocalStorage persistence
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
