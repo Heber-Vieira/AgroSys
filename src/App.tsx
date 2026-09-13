@@ -597,13 +597,38 @@ export default function App() {
 
   // Handler for photo updates
   const handleUpdateUserPhoto = (userId: string, photoUrl: string) => {
-    setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, photoUrl, avatarUrl: photoUrl } : u));
-    if (currentUser.id === userId) {
-      setCurrentUser(prev => ({ ...prev, photoUrl, avatarUrl: photoUrl }));
-    }
-    setAllPilots(prev => prev.map(p => (p.id === userId || p.cpf === currentUser.documentNumber) ? { ...p, photoUrl, avatarUrl: photoUrl } : p));
-    setAllAssistants(prev => prev.map(a => (a.id === userId || a.cpf === currentUser.documentNumber) ? { ...a, photoUrl, avatarUrl: photoUrl } : a));
+    setAllUsers(prev => prev.map(u => (u.id === userId || (u.email && u.email.toLowerCase() === userId.toLowerCase())) ? { ...u, photoUrl, avatarUrl: photoUrl } : u));
+    setCurrentUser(prev => (prev.id === userId || (prev.email && prev.email.toLowerCase() === userId.toLowerCase())) ? { ...prev, photoUrl, avatarUrl: photoUrl } : prev);
+    setAllPilots(prev => prev.map(p => (p.id === userId || p.cpf === userId || p.name === userId) ? { ...p, photoUrl, avatarUrl: photoUrl } : p));
+    setAllAssistants(prev => prev.map(a => (a.id === userId || a.cpf === userId || a.name === userId) ? { ...a, photoUrl, avatarUrl: photoUrl } : a));
   };
+
+  // Global listener for photo updates anywhere in the app
+  useEffect(() => {
+    const handleGlobalPhotoUpdate = (e: Event) => {
+      const detail = (e as CustomEvent)?.detail;
+      if (!detail) return;
+      const { id, userId, email, name, documentNumber, photoUrl } = detail;
+      if (photoUrl !== undefined) {
+        const matches = (target: { id?: string; email?: string; name?: string; documentNumber?: string; cpf?: string }) => {
+          if (!target) return false;
+          if (id && (target.id === id || target.email?.toLowerCase() === id.toLowerCase() || target.documentNumber === id || target.cpf === id || target.name === id)) return true;
+          if (userId && target.id === userId) return true;
+          if (email && target.email?.toLowerCase() === email.toLowerCase()) return true;
+          if (documentNumber && (target.documentNumber === documentNumber || target.cpf === documentNumber)) return true;
+          if (name && target.name?.toLowerCase() === name.toLowerCase()) return true;
+          return false;
+        };
+
+        setCurrentUser(prev => matches(prev) ? { ...prev, photoUrl, avatarUrl: photoUrl } : prev);
+        setAllUsers(prev => prev.map(u => matches(u) ? { ...u, photoUrl, avatarUrl: photoUrl } : u));
+        setAllPilots(prev => prev.map(p => matches(p) ? { ...p, photoUrl, avatarUrl: photoUrl } : p));
+        setAllAssistants(prev => prev.map(a => matches(a) ? { ...a, photoUrl, avatarUrl: photoUrl } : a));
+      }
+    };
+    window.addEventListener('agrodrone-user-photo-updated', handleGlobalPhotoUpdate);
+    return () => window.removeEventListener('agrodrone-user-photo-updated', handleGlobalPhotoUpdate);
+  }, []);
 
   // Modal State
   const [showNewOSModal, setShowNewOSModal] = useState<boolean>(false);
@@ -664,17 +689,32 @@ export default function App() {
           }));
         }
 
-        // 3. Hydrate user profile photos
+        // 3. Hydrate user profile photos from Supabase Cloud
         if (hydration.userPhotos && Object.keys(hydration.userPhotos).length > 0) {
-          Object.entries(hydration.userPhotos).forEach(([id, photoUrl]) => {
-            window.dispatchEvent(new CustomEvent('agrodrone-user-photo-updated', {
-              detail: { id, photoUrl }
-            }));
-          });
+          const photoMap = hydration.userPhotos;
 
           setAllUsers(prev => prev.map(u => {
-            const photo = hydration.userPhotos[u.id] || hydration.userPhotos[u.email];
+            const photo = photoMap[u.id] || (u.email && photoMap[u.email.toLowerCase()]) || (u.email && photoMap[u.email]) || photoMap[u.name] || (u.documentNumber && photoMap[u.documentNumber]);
             return photo ? { ...u, photoUrl: photo, avatarUrl: photo } : u;
+          }));
+
+          setCurrentUser(prev => {
+            const photo = photoMap[prev.id] || (prev.email && photoMap[prev.email.toLowerCase()]) || (prev.email && photoMap[prev.email]) || photoMap[prev.name] || (prev.documentNumber && photoMap[prev.documentNumber]);
+            return photo ? { ...prev, photoUrl: photo, avatarUrl: photo } : prev;
+          });
+
+          setAllPilots(prev => prev.map(p => {
+            const photo = photoMap[p.id] || (p.cpf && photoMap[p.cpf]) || photoMap[p.name];
+            return photo ? { ...p, photoUrl: photo, avatarUrl: photo } : p;
+          }));
+
+          setAllAssistants(prev => prev.map(a => {
+            const photo = photoMap[a.id] || (a.cpf && photoMap[a.cpf]) || photoMap[a.name];
+            return photo ? { ...a, photoUrl: photo, avatarUrl: photo } : a;
+          }));
+
+          window.dispatchEvent(new CustomEvent('agrodrone-user-photo-updated', {
+            detail: { photos: photoMap }
           }));
         }
       } catch (err) {

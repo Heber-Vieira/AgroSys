@@ -510,7 +510,13 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
       } as UserProfile : u));
 
       if (photoUrl) {
-        saveStoredUserPhoto(editingUser.id, photoUrl);
+        saveStoredUserPhoto(editingUser.id, photoUrl, {
+          ...editingUser,
+          ...userFormData,
+          id: editingUser.id,
+          photoUrl,
+          avatarUrl: photoUrl,
+        });
       }
 
       // Also sync with crew pilot/assistant if relevant
@@ -561,7 +567,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
       };
 
       if (photoUrl) {
-        saveStoredUserPhoto(newId, photoUrl);
+        saveStoredUserPhoto(newId, photoUrl, newUser);
       }
 
       setUsers(prev => [...prev, newUser]);

@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { WhiteLabelTheme, UserProfile } from '../types';
+import { USER_PROFILES, INITIAL_PILOTS, INITIAL_ASSISTANTS } from '../data/mockAppState';
 
 const env = (import.meta as any).env || {};
 const DEFAULT_SUPABASE_URL = env.VITE_SUPABASE_URL || 'https://ioqdflvonlajalonxctd.supabase.co';
@@ -354,6 +355,53 @@ export async function loadTenantBrandingFromSupabase(tenantId: string = 'ciclodr
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
+ * Resolves full user identity from mock datasets, local storage, or provided profile.
+ */
+export function resolveUserData(idOrEmailOrCpf: string, profile?: Partial<UserProfile>) {
+  const query = (idOrEmailOrCpf || '').trim();
+  const queryLower = query.toLowerCase();
+
+  // 1. Match from USER_PROFILES
+  const matchUser = USER_PROFILES.find(u => 
+    u.id === query || 
+    (u.email && u.email.toLowerCase() === queryLower) ||
+    u.documentNumber === query ||
+    (u.name && u.name.toLowerCase() === queryLower)
+  );
+
+  // 2. Match from INITIAL_PILOTS
+  const matchPilot = INITIAL_PILOTS.find(p =>
+    p.id === query ||
+    p.cpf === query ||
+    (p.name && p.name.toLowerCase() === queryLower)
+  );
+
+  // 3. Match from INITIAL_ASSISTANTS
+  const matchAsst = INITIAL_ASSISTANTS.find(a =>
+    a.id === query ||
+    a.cpf === query ||
+    (a.name && a.name.toLowerCase() === queryLower)
+  );
+
+  const name = profile?.name || matchUser?.name || matchPilot?.name || matchAsst?.name || query;
+  const email = profile?.email || matchUser?.email || (query.includes('@') ? query : '');
+  const documentNumber = (profile as any)?.documentNumber || (profile as any)?.cpf || matchUser?.documentNumber || matchPilot?.cpf || matchAsst?.cpf || '';
+  const companyId = (profile as any)?.companyId || matchUser?.companyId || matchPilot?.companyId || matchAsst?.companyId || 'ciclodrone';
+  const role = (profile as any)?.role || matchUser?.role || (matchPilot ? 'PILOT' : (matchAsst ? 'ASSISTANT' : 'USER'));
+  const roleLabel = (profile as any)?.roleLabel || matchUser?.roleLabel || (matchPilot ? 'Piloto de Drone Remoto' : (matchAsst ? 'Auxiliar de Pulverização' : 'Colaborador'));
+
+  return {
+    id: query,
+    name,
+    email,
+    documentNumber,
+    companyId,
+    role,
+    roleLabel,
+  };
+}
+
+/**
  * Persists user profile photo URL to Supabase database with multi-tier synchronization.
  * Handles both UUIDs and human-readable IDs, updating user_profiles table and
  * saving persistent backups in the cloud database.
@@ -362,9 +410,8 @@ export async function saveUserPhotoToSupabase(idOrEmail: string, photoUrl: strin
   try {
     if (!idOrEmail) return { success: false, error: 'ID ou e-mail inválido' };
     const now = new Date().toISOString();
+    const resolved = resolveUserData(idOrEmail, profile);
     const sanitizedKey = idOrEmail.toLowerCase().replace(/[^a-z0-9_@-]/g, '_');
-    const userEmail = profile?.email || (idOrEmail.includes('@') ? idOrEmail : null);
-    const userName = profile?.name;
     const isUuid = UUID_REGEX.test(idOrEmail);
 
     let updatedInProfiles = false;
@@ -389,7 +436,7 @@ export async function saveUserPhotoToSupabase(idOrEmail: string, photoUrl: strin
     }
 
     // 2. Try updating user_profiles by email
-    if (!updatedInProfiles && userEmail) {
+    if (!updatedInProfiles && resolved.email) {
       try {
         const { data, error } = await supabase
           .from('user_profiles')
@@ -398,7 +445,7 @@ export async function saveUserPhotoToSupabase(idOrEmail: string, photoUrl: strin
             avatar_url: photoUrl || null,
             updated_at: now,
           })
-          .eq('email', userEmail)
+          .eq('email', resolved.email)
           .select('id');
 
         if (!error && data && data.length > 0) {
@@ -407,8 +454,8 @@ export async function saveUserPhotoToSupabase(idOrEmail: string, photoUrl: strin
       } catch (e) {}
     }
 
-    // 3. Try updating user_profiles by name
-    if (!updatedInProfiles && userName) {
+    // 3. Try updating user_profiles by document_number (CPF or CNPJ)
+    if (!updatedInProfiles && resolved.documentNumber) {
       try {
         const { data, error } = await supabase
           .from('user_profiles')
@@ -417,7 +464,7 @@ export async function saveUserPhotoToSupabase(idOrEmail: string, photoUrl: strin
             avatar_url: photoUrl || null,
             updated_at: now,
           })
-          .eq('name', userName)
+          .eq('document_number', resolved.documentNumber)
           .select('id');
 
         if (!error && data && data.length > 0) {
@@ -426,8 +473,27 @@ export async function saveUserPhotoToSupabase(idOrEmail: string, photoUrl: strin
       } catch (e) {}
     }
 
-    // 4. If no existing user_profiles record matched, insert a new record with a valid UUID
-    if (!updatedInProfiles && (userName || userEmail)) {
+    // 4. Try updating user_profiles by name
+    if (!updatedInProfiles && resolved.name) {
+      try {
+        const { data, error } = await supabase
+          .from('user_profiles')
+          .update({
+            photo_url: photoUrl || null,
+            avatar_url: photoUrl || null,
+            updated_at: now,
+          })
+          .eq('name', resolved.name)
+          .select('id');
+
+        if (!error && data && data.length > 0) {
+          updatedInProfiles = true;
+        }
+      } catch (e) {}
+    }
+
+    // 5. If no existing user_profiles record matched, insert a new record with a valid UUID
+    if (!updatedInProfiles) {
       try {
         const newUuid = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'u-' + Date.now();
         if (UUID_REGEX.test(newUuid)) {
@@ -435,14 +501,15 @@ export async function saveUserPhotoToSupabase(idOrEmail: string, photoUrl: strin
             .from('user_profiles')
             .insert({
               id: newUuid,
-              company_id: (profile as any)?.companyId || 'ciclodrone',
-              name: userName || idOrEmail,
-              role: (profile as any)?.role || 'USER',
-              role_label: (profile as any)?.roleLabel || 'Colaborador',
-              email: userEmail || `${sanitizedKey}@agrosys.agr.br`,
+              company_id: resolved.companyId || 'ciclodrone',
+              name: resolved.name || idOrEmail,
+              role: resolved.role || 'USER',
+              role_label: resolved.roleLabel || 'Colaborador',
+              email: resolved.email || `${sanitizedKey}@agrosys.agr.br`,
+              document_number: resolved.documentNumber || null,
               photo_url: photoUrl || null,
               avatar_url: photoUrl || null,
-              badge: (profile as any)?.badge || 'Colaborador',
+              badge: resolved.roleLabel || 'Colaborador',
               status: 'ACTIVE',
               salary_base: (profile as any)?.salaryBase || 0,
               created_at: now,
@@ -456,42 +523,54 @@ export async function saveUserPhotoToSupabase(idOrEmail: string, photoUrl: strin
       } catch (e) {}
     }
 
-    // 5. PRIMARY RESILIENT BACKUP: Save in tenants table description metadata
+    // 6. PRIMARY RESILIENT BACKUP: Save in tenants table description metadata
     try {
       const { data: tenant } = await supabase.from('tenants').select('description').eq('id', 'ciclodrone').maybeSingle();
       let currentDesc = tenant?.description || '';
+      
+      // Clean previous tags for this user
       const tagRegex = new RegExp(`<!--AGRO_USER_PHOTO_${sanitizedKey}:[\\s\\S]*?-->`, 'g');
       currentDesc = currentDesc.replace(tagRegex, '').trim();
+
       const payload = {
         idOrEmail,
         photoUrl,
-        email: userEmail,
-        name: userName,
+        email: resolved.email,
+        name: resolved.name,
+        documentNumber: resolved.documentNumber,
         updated_at: now,
       };
-      const newDesc = `${currentDesc} <!--AGRO_USER_PHOTO_${sanitizedKey}:${JSON.stringify(payload)}-->`.trim();
+
+      if (photoUrl) {
+        currentDesc = `${currentDesc} <!--AGRO_USER_PHOTO_${sanitizedKey}:${JSON.stringify(payload)}-->`.trim();
+      }
 
       await supabase.from('tenants').update({
-        description: newDesc,
+        description: currentDesc,
         updated_at: now,
       }).eq('id', 'ciclodrone');
     } catch (e) {
       console.warn('Aviso ao salvar backup da foto do usuário no tenants:', e);
     }
 
-    // 6. TERTIARY BACKUP: Mirror in app_settings table (if available)
+    // 7. TERTIARY BACKUP: Mirror in app_settings table (if available)
     try {
-      await supabase.from('app_settings').upsert({
-        key: `agro_user_photo_${sanitizedKey}`,
-        value: JSON.stringify({
-          idOrEmail,
-          photoUrl,
-          name: userName || '',
-          email: userEmail || '',
+      if (photoUrl) {
+        await supabase.from('app_settings').upsert({
+          key: `agro_user_photo_${sanitizedKey}`,
+          value: JSON.stringify({
+            idOrEmail,
+            photoUrl,
+            name: resolved.name,
+            email: resolved.email,
+            documentNumber: resolved.documentNumber,
+            updated_at: now,
+          }),
           updated_at: now,
-        }),
-        updated_at: now,
-      }, { onConflict: 'key' });
+        }, { onConflict: 'key' });
+      } else {
+        await supabase.from('app_settings').delete().eq('key', `agro_user_photo_${sanitizedKey}`);
+      }
     } catch (e) {}
 
     return { success: true, error: null };
@@ -502,25 +581,75 @@ export async function saveUserPhotoToSupabase(idOrEmail: string, photoUrl: strin
 }
 
 /**
- * Loads all user profile photos stored in Supabase database.
+ * Loads all user profile photos stored in Supabase database with universal cross-indexing.
  */
 export async function loadUserPhotosFromSupabase(): Promise<Record<string, string>> {
   try {
     const photoMap: Record<string, string> = {};
 
+    // Helper to map a photo to all known identifiers of a user
+    const mapPhotoToAllKeys = (photo: string, identifiers: { id?: string; email?: string; name?: string; documentNumber?: string }) => {
+      if (!photo) return;
+      if (identifiers.id) photoMap[identifiers.id] = photo;
+      if (identifiers.email) photoMap[identifiers.email.toLowerCase()] = photo;
+      if (identifiers.name) photoMap[identifiers.name] = photo;
+      if (identifiers.documentNumber) photoMap[identifiers.documentNumber] = photo;
+
+      // Cross-match against USER_PROFILES
+      const u = USER_PROFILES.find(x => 
+        (identifiers.id && x.id === identifiers.id) ||
+        (identifiers.email && x.email?.toLowerCase() === identifiers.email.toLowerCase()) ||
+        (identifiers.name && x.name?.toLowerCase() === identifiers.name.toLowerCase()) ||
+        (identifiers.documentNumber && x.documentNumber === identifiers.documentNumber)
+      );
+      if (u) {
+        photoMap[u.id] = photo;
+        if (u.email) photoMap[u.email.toLowerCase()] = photo;
+        if (u.name) photoMap[u.name] = photo;
+        if (u.documentNumber) photoMap[u.documentNumber] = photo;
+      }
+
+      // Cross-match against INITIAL_PILOTS
+      const p = INITIAL_PILOTS.find(x =>
+        (identifiers.id && x.id === identifiers.id) ||
+        (identifiers.name && x.name?.toLowerCase() === identifiers.name.toLowerCase()) ||
+        (identifiers.documentNumber && x.cpf === identifiers.documentNumber)
+      );
+      if (p) {
+        photoMap[p.id] = photo;
+        if (p.name) photoMap[p.name] = photo;
+        if (p.cpf) photoMap[p.cpf] = photo;
+      }
+
+      // Cross-match against INITIAL_ASSISTANTS
+      const a = INITIAL_ASSISTANTS.find(x =>
+        (identifiers.id && x.id === identifiers.id) ||
+        (identifiers.name && x.name?.toLowerCase() === identifiers.name.toLowerCase()) ||
+        (identifiers.documentNumber && x.cpf === identifiers.documentNumber)
+      );
+      if (a) {
+        photoMap[a.id] = photo;
+        if (a.name) photoMap[a.name] = photo;
+        if (a.cpf) photoMap[a.cpf] = photo;
+      }
+    };
+
     // 1. Fetch from user_profiles table (primary database table)
     try {
       const { data: profilesData } = await supabase
         .from('user_profiles')
-        .select('id, email, name, photo_url, avatar_url');
+        .select('id, email, name, document_number, photo_url, avatar_url');
 
       if (profilesData && Array.isArray(profilesData)) {
         profilesData.forEach(p => {
           const photo = p.photo_url || p.avatar_url;
           if (photo) {
-            if (p.id) photoMap[p.id] = photo;
-            if (p.email) photoMap[p.email] = photo;
-            if (p.name) photoMap[p.name] = photo;
+            mapPhotoToAllKeys(photo, {
+              id: p.id,
+              email: p.email,
+              name: p.name,
+              documentNumber: p.document_number,
+            });
           }
         });
       }
@@ -542,9 +671,12 @@ export async function loadUserPhotosFromSupabase(): Promise<Record<string, strin
             try {
               const parsed = JSON.parse(match[1]);
               if (parsed && parsed.photoUrl) {
-                if (parsed.idOrEmail) photoMap[parsed.idOrEmail] = parsed.photoUrl;
-                if (parsed.email) photoMap[parsed.email] = parsed.photoUrl;
-                if (parsed.name) photoMap[parsed.name] = parsed.photoUrl;
+                mapPhotoToAllKeys(parsed.photoUrl, {
+                  id: parsed.idOrEmail,
+                  email: parsed.email,
+                  name: parsed.name,
+                  documentNumber: parsed.documentNumber,
+                });
               }
             } catch (e) {}
           }
@@ -564,9 +696,12 @@ export async function loadUserPhotosFromSupabase(): Promise<Record<string, strin
           try {
             const parsed = JSON.parse(item.value);
             if (parsed && parsed.photoUrl) {
-              if (parsed.idOrEmail) photoMap[parsed.idOrEmail] = parsed.photoUrl;
-              if (parsed.email) photoMap[parsed.email] = parsed.photoUrl;
-              if (parsed.name) photoMap[parsed.name] = parsed.photoUrl;
+              mapPhotoToAllKeys(parsed.photoUrl, {
+                id: parsed.idOrEmail,
+                email: parsed.email,
+                name: parsed.name,
+                documentNumber: parsed.documentNumber,
+              });
             }
           } catch (e) {}
         });
@@ -579,6 +714,7 @@ export async function loadUserPhotosFromSupabase(): Promise<Record<string, strin
     return {};
   }
 }
+
 
 /**
  * Persists a registered company to Supabase cloud database.

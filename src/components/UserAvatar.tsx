@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { UserProfile, CrewPilot, CrewAssistant, UserRole } from '../types';
 import { Camera, Upload, X, Check, Trash2, ShieldCheck, User, Plane, Wrench, Sparkles } from 'lucide-react';
-import { saveUserPhotoToSupabase } from '../services/supabase';
+import { saveUserPhotoToSupabase, resolveUserData } from '../services/supabase';
 import { showToast } from '../services/notificationService';
 
 import { saveToDurableStorage, STORES } from '../services/dbStorageEngine';
@@ -100,14 +100,20 @@ export function getStoredUserPhoto(id: string): string | undefined {
 export function saveStoredUserPhoto(idOrCpf: string, photoUrl: string, profile?: Partial<UserProfile>) {
   try {
     const current = getStoredUserPhotos();
+    const resolved = resolveUserData(idOrCpf, profile);
+
     if (photoUrl) {
       current[idOrCpf] = photoUrl;
-      if (profile?.email) current[profile.email] = photoUrl;
-      if (profile?.name) current[profile.name] = photoUrl;
+      if (resolved.id) current[resolved.id] = photoUrl;
+      if (resolved.email) current[resolved.email.toLowerCase()] = photoUrl;
+      if (resolved.name) current[resolved.name] = photoUrl;
+      if (resolved.documentNumber) current[resolved.documentNumber] = photoUrl;
     } else {
       delete current[idOrCpf];
-      if (profile?.email) delete current[profile.email];
-      if (profile?.name) delete current[profile.name];
+      if (resolved.id) delete current[resolved.id];
+      if (resolved.email) delete current[resolved.email.toLowerCase()];
+      if (resolved.name) delete current[resolved.name];
+      if (resolved.documentNumber) delete current[resolved.documentNumber];
     }
     localStorage.setItem(USER_PHOTO_STORAGE_KEY, JSON.stringify(current));
     try {
@@ -115,11 +121,29 @@ export function saveStoredUserPhoto(idOrCpf: string, photoUrl: string, profile?:
     } catch (e) {}
 
     window.dispatchEvent(new CustomEvent('agrodrone-user-photo-updated', {
-      detail: { id: idOrCpf, photoUrl }
+      detail: { 
+        id: idOrCpf, 
+        userId: resolved.id, 
+        email: resolved.email, 
+        name: resolved.name, 
+        documentNumber: resolved.documentNumber, 
+        photoUrl,
+        photos: current 
+      }
     }));
 
-    // Async save to Supabase DB
-    saveUserPhotoToSupabase(idOrCpf, photoUrl, profile).catch(err => {
+    // Async save to Supabase DB with fully resolved profile
+    saveUserPhotoToSupabase(idOrCpf, photoUrl, {
+      id: resolved.id,
+      name: resolved.name,
+      email: resolved.email,
+      documentNumber: resolved.documentNumber,
+      companyId: resolved.companyId,
+      role: resolved.role as any,
+      roleLabel: resolved.roleLabel,
+      photoUrl,
+      avatarUrl: photoUrl,
+    }).catch(err => {
       console.warn('Falha ao salvar foto do usuário no Supabase DB:', err);
     });
   } catch (e) {
@@ -129,6 +153,7 @@ export function saveStoredUserPhoto(idOrCpf: string, photoUrl: string, profile?:
 
 /**
  * Resolves the best photo URL for a user/employee based on explicit URL, local storage, or role fallback.
+ * CRITICAL: Stored photos from Supabase/localStorage ALWAYS take precedence over default mock URLs!
  */
 export function getUserPhotoUrl(params?: {
   id?: string;
@@ -138,19 +163,23 @@ export function getUserPhotoUrl(params?: {
   avatarUrl?: string;
   name?: string;
   role?: UserRole | string;
+  documentNumber?: string;
 }): string {
   if (!params) return '';
 
-  // 1. Direct photoUrl or avatarUrl
+  const searchId = params.id || params.userId;
+  const map = getStoredUserPhotos();
+
+  // 1. PRIMARY: Prioritize user photos stored in database / localStorage
+  if (searchId && map[searchId] && map[searchId].trim()) return map[searchId].trim();
+  if (params.email && map[params.email.toLowerCase()] && map[params.email.toLowerCase()].trim()) return map[params.email.toLowerCase()].trim();
+  if (params.email && map[params.email] && map[params.email].trim()) return map[params.email].trim();
+  if (params.documentNumber && map[params.documentNumber] && map[params.documentNumber].trim()) return map[params.documentNumber].trim();
+  if (params.name && map[params.name] && map[params.name].trim()) return map[params.name].trim();
+
+  // 2. SECONDARY: Direct photoUrl or avatarUrl (from props or explicit override)
   if (params.photoUrl && params.photoUrl.trim()) return params.photoUrl.trim();
   if (params.avatarUrl && params.avatarUrl.trim()) return params.avatarUrl.trim();
-
-  // 2. Check localStorage by ID, email or name
-  const map = getStoredUserPhotos();
-  const searchId = params.id || params.userId;
-  if (searchId && map[searchId]) return map[searchId];
-  if (params.email && map[params.email]) return map[params.email];
-  if (params.name && map[params.name]) return map[params.name];
 
   // 3. Match presets based on name or role
   const nameLower = (params.name || '').toLowerCase();
@@ -162,8 +191,8 @@ export function getUserPhotoUrl(params?: {
   if (nameLower.includes('carlos')) return PRESET_USER_AVATARS[6].url;
 
   // Fallback preset by role
-  const role = params.role as UserRole;
-  if (role === 'ADMIN') return PRESET_USER_AVATARS[0].url;
+  const role = params.role ? String(params.role).toUpperCase() : '';
+  if (role === 'ADMIN' || role === 'MASTER') return PRESET_USER_AVATARS[0].url;
   if (role === 'PILOT') return PRESET_USER_AVATARS[2].url;
   if (role === 'ASSISTANT') return PRESET_USER_AVATARS[5].url;
   if (role === 'USER') return PRESET_USER_AVATARS[7].url;
@@ -203,15 +232,20 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
   const resolvedName = name || (user as any)?.name || 'Usuário';
   const resolvedRole = (role || (user as any)?.role || 'USER') as UserRole;
   const resolvedUserId = userId || (user as any)?.id || '';
+  const resolvedEmail = (user as any)?.email || '';
+  const resolvedDoc = (user as any)?.documentNumber || (user as any)?.cpf || '';
   const initial = resolvedName.trim().charAt(0).toUpperCase() || 'U';
 
   const [currentPhoto, setCurrentPhoto] = useState<string>(() => {
     return getUserPhotoUrl({
+      id: resolvedUserId,
       userId: resolvedUserId,
-      photoUrl: photoUrl || (user as any)?.photoUrl,
-      avatarUrl: avatarUrl || (user as any)?.avatarUrl,
+      email: resolvedEmail,
       name: resolvedName,
       role: resolvedRole,
+      photoUrl,
+      avatarUrl,
+      documentNumber: resolvedDoc,
     });
   });
 
@@ -221,27 +255,74 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
   useEffect(() => {
     const handleUpdate = (e: Event) => {
       const detail = (e as CustomEvent)?.detail;
-      if (detail && detail.id === resolvedUserId) {
-        setCurrentPhoto(detail.photoUrl);
+      if (detail) {
+        // Individual match
+        if (
+          (detail.id && (detail.id === resolvedUserId || detail.id === resolvedEmail || detail.id === resolvedDoc || detail.id === resolvedName)) ||
+          (detail.userId && detail.userId === resolvedUserId) ||
+          (detail.email && resolvedEmail && detail.email.toLowerCase() === resolvedEmail.toLowerCase()) ||
+          (detail.documentNumber && resolvedDoc && detail.documentNumber === resolvedDoc) ||
+          (detail.name && resolvedName && detail.name.toLowerCase() === resolvedName.toLowerCase())
+        ) {
+          if (detail.photoUrl) {
+            setCurrentPhoto(detail.photoUrl);
+            setHasError(false);
+            return;
+          }
+        }
+
+        // Batch hydration match
+        if (detail.photos && typeof detail.photos === 'object') {
+          const matched = detail.photos[resolvedUserId] ||
+            (resolvedEmail && detail.photos[resolvedEmail.toLowerCase()]) ||
+            (resolvedEmail && detail.photos[resolvedEmail]) ||
+            (resolvedDoc && detail.photos[resolvedDoc]) ||
+            (resolvedName && detail.photos[resolvedName]);
+          if (matched) {
+            setCurrentPhoto(matched);
+            setHasError(false);
+            return;
+          }
+        }
+      }
+
+      // Re-evaluate from store
+      const refreshed = getUserPhotoUrl({
+        id: resolvedUserId,
+        userId: resolvedUserId,
+        email: resolvedEmail,
+        name: resolvedName,
+        role: resolvedRole,
+        photoUrl,
+        avatarUrl,
+        documentNumber: resolvedDoc,
+      });
+      if (refreshed) {
+        setCurrentPhoto(refreshed);
         setHasError(false);
       }
     };
+
     window.addEventListener('agrodrone-user-photo-updated', handleUpdate);
     return () => window.removeEventListener('agrodrone-user-photo-updated', handleUpdate);
-  }, [resolvedUserId]);
+  }, [resolvedUserId, resolvedEmail, resolvedDoc, resolvedName, photoUrl, avatarUrl, resolvedRole]);
 
   // Update whenever props change
   useEffect(() => {
     const nextUrl = getUserPhotoUrl({
+      id: resolvedUserId,
       userId: resolvedUserId,
-      photoUrl: photoUrl || (user as any)?.photoUrl,
-      avatarUrl: avatarUrl || (user as any)?.avatarUrl,
+      email: resolvedEmail,
       name: resolvedName,
       role: resolvedRole,
+      photoUrl,
+      avatarUrl,
+      documentNumber: resolvedDoc,
     });
     setCurrentPhoto(nextUrl);
     setHasError(false);
-  }, [user, photoUrl, avatarUrl, name, role, resolvedUserId]);
+  }, [user, photoUrl, avatarUrl, name, role, resolvedUserId, resolvedEmail, resolvedDoc, resolvedName]);
+
 
   const sizeClasses = {
     xs: 'w-6 h-6 text-[10px]',
@@ -357,7 +438,7 @@ export const UserPhotoUploadModal: React.FC<UserPhotoUploadModalProps> = ({
         img.onload = () => {
           // Crop and compress to high quality square (400x400)
           const canvas = document.createElement('canvas');
-          const maxDim = 600;
+          const maxDim = 420;
           let width = img.width;
           let height = img.height;
 
@@ -382,7 +463,7 @@ export const UserPhotoUploadModal: React.FC<UserPhotoUploadModalProps> = ({
               canvas.width,
               canvas.height
             );
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
             setPhotoInput(dataUrl);
             setIsProcessing(false);
           }
