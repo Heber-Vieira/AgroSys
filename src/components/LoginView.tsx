@@ -22,6 +22,11 @@ import { PRESET_COMPANIES } from '../data/themeTokensData';
 import { isMasterUser } from '../utils/userPermissions';
 import { UserAvatar } from './UserAvatar';
 import { BrandLogo } from './BrandLogo';
+import DynamicBrandLogo from './DynamicBrandLogo';
+import { 
+  getStoredSystemBranding, 
+  SYSTEM_LOGO_UPDATED_EVENT 
+} from '../services/brandingLogoStorage';
 import { getStoredRegisteredCompanies } from '../services/companyStorage';
 
 interface LoginViewProps {
@@ -52,6 +57,26 @@ export const LoginView: React.FC<LoginViewProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [selectedQuickUserId, setSelectedQuickUserId] = useState<string | null>(null);
+
+  // AgroSys Master System Branding State (Display Only)
+  const [systemBranding, setSystemBranding] = useState<WhiteLabelTheme>(() => getStoredSystemBranding());
+
+  // Synchronize on system branding updates
+  React.useEffect(() => {
+    const handleSystemBrandingUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<WhiteLabelTheme>;
+      if (customEvent.detail) {
+        setSystemBranding(customEvent.detail);
+      } else {
+        setSystemBranding(getStoredSystemBranding());
+      }
+    };
+
+    window.addEventListener(SYSTEM_LOGO_UPDATED_EVENT, handleSystemBrandingUpdate);
+    return () => {
+      window.removeEventListener(SYSTEM_LOGO_UPDATED_EVENT, handleSystemBrandingUpdate);
+    };
+  }, []);
 
   // Trigger login completion
   const handleAuthComplete = (user: UserProfile) => {
@@ -142,8 +167,8 @@ export const LoginView: React.FC<LoginViewProps> = ({
     }
   };
 
-  const companyName = theme?.companyName || 'AGROSYS';
-  const tagline = theme?.tagline || 'Plataforma Inteligente de Gestão de Operações Aeroagrícolas & Telemetria';
+  const systemTitle = systemBranding.systemName || 'AGROSYS';
+  const systemTagline = systemBranding.systemSubtitle || 'Plataforma Inteligente de Gestão de Operações Aeroagrícolas & Telemetria';
 
   return (
     <div className="h-screen w-screen bg-slate-950 flex items-center justify-center p-2 sm:p-4 md:p-6 font-sans relative overflow-hidden">
@@ -154,7 +179,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
       {/* Main Split Screen Container - Capped to 95vh for perfect viewport fit */}
       <div className="relative z-10 w-full max-w-5xl max-h-[96vh] lg:max-h-[90vh] h-full lg:h-auto bg-white rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-12 border border-slate-200/80">
         
-        {/* LEFT PANEL: MINIMALIST GREEN GRADIENT BRANDING */}
+        {/* LEFT PANEL: MINIMALIST GREEN GRADIENT BRANDING - AGROSYS OFFICIAL SYSTEM */}
         <div className="lg:col-span-5 bg-gradient-to-br from-[#064e3b] via-[#043d2e] to-[#02231a] text-white p-5 sm:p-7 lg:p-8 flex flex-col justify-between relative overflow-y-auto">
           
           {/* Subtle Glow Overlay */}
@@ -164,11 +189,11 @@ export const LoginView: React.FC<LoginViewProps> = ({
           <div className="relative z-10 space-y-4 sm:space-y-5">
             
             {/* Header Brand Bar */}
-            <div className="flex items-center gap-2.5">
-              <BrandLogo theme={theme || ({} as WhiteLabelTheme)} size="md" />
+            <div className="flex items-center gap-3">
+              <DynamicBrandLogo theme={systemBranding} isDarkMode={true} size="md" />
               <div>
                 <span className="font-black text-lg sm:text-xl tracking-wide text-white uppercase block leading-none">
-                  {companyName}
+                  {systemTitle}
                 </span>
                 <span className="text-[9px] sm:text-[10px] font-bold tracking-widest text-emerald-400/90 uppercase">
                   TECNOLOGIA AGRÍCOLA
@@ -179,7 +204,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
             {/* Tag Pill */}
             <div className="inline-block">
               <span className="px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-white/10 border border-white/10 text-[9px] sm:text-[10px] font-bold tracking-widest text-emerald-300 uppercase">
-                PLATAFORMA DE GESTÃO
+                SISTEMA AGROSYS
               </span>
             </div>
 
@@ -189,7 +214,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 Gestão Agrícola e Monitoramento IA
               </h1>
               <p className="text-emerald-100/75 text-xs sm:text-sm leading-relaxed font-normal">
-                {tagline}
+                {systemTagline}
               </p>
             </div>
           </div>
@@ -205,7 +230,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                   SEGURANÇA E PRECISÃO NO CAMPO
                 </h4>
                 <p className="text-[10px] sm:text-[11px] text-emerald-200/70 font-normal leading-snug mt-0.5">
-                  Dados operacionais protegidos com criptografia de ponta a ponta.
+                  Dados operacionais sincronizados e protegidos no Supabase Cloud.
                 </p>
               </div>
             </div>

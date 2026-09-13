@@ -42,6 +42,8 @@ import {
   PRESET_LOGOS
 } from '../data/themeTokensData';
 import { BrandLogo } from './BrandLogo';
+import DynamicBrandLogo from './DynamicBrandLogo';
+import { AgroSysLoginLogoModal } from './AgroSysLoginLogoModal';
 import { 
   saveTenantBrandingToSupabase, 
   testSupabaseConnection, 
@@ -58,9 +60,11 @@ import {
   setStoredLogoAdaptiveMode,
   getStoredConfiguredLogoIconId, 
   setStoredConfiguredLogoIconId,
+  getStoredSystemBranding,
   getCompanyTheme 
 } from '../services/brandingLogoStorage';
 import { getStoredRegisteredCompanies, COMPANIES_UPDATED_EVENT } from '../services/companyStorage';
+import { isMasterUser } from '../utils/userPermissions';
 
 interface AdminBrandingStudioProps {
   theme: WhiteLabelTheme;
@@ -89,6 +93,10 @@ export const AdminBrandingStudio: React.FC<AdminBrandingStudioProps> = ({
   const [activeSubTab, setActiveSubTab] = useState<'palette' | 'logo' | 'typography' | 'company' | 'preview' | 'cloud'>('palette');
   const [registeredCompanies, setRegisteredCompanies] = useState<RegisteredCompany[]>(() => getStoredRegisteredCompanies());
   
+  // AgroSys Master Login Logo State
+  const [isMasterLoginLogoModalOpen, setIsMasterLoginLogoModalOpen] = useState<boolean>(false);
+  const [systemBranding, setSystemBranding] = useState<WhiteLabelTheme>(() => getStoredSystemBranding());
+
   // Supabase & IndexedDB Cloud Connection State
   const [dbConfig, setDbConfig] = useState(() => getStoredSupabaseConfig());
   const [testingDbConn, setTestingDbConn] = useState<boolean>(false);
@@ -133,8 +141,8 @@ export const AdminBrandingStudio: React.FC<AdminBrandingStudioProps> = ({
   const textOnPrimary = evaluateWcagCompliance('#FFFFFF', theme.primaryColor);
   const accentOnWhite = evaluateWcagCompliance(theme.accentColor, '#FFFFFF');
 
-  const isMaster = currentUser.role === 'MASTER' || currentUser.isMaster;
-  const isCompanyAdmin = currentUser.role === 'ADMIN';
+  const isMaster = isMasterUser(currentUser);
+  const isCompanyAdmin = currentUser.role === 'ADMIN' && !isMaster;
   const isAdmin = isMaster || isCompanyAdmin;
 
   // The tenant being edited:
@@ -828,6 +836,37 @@ module.exports = {
       {/* TAB CONTENT: 2. LOGO & BRAND BADGES */}
       {activeSubTab === 'logo' && (
         <div className="space-y-6">
+          {/* Master AgroSys Login Logo Banner (Exclusive for Master Administrators) */}
+          {isMaster && (
+            <div className="p-5 rounded-3xl bg-gradient-to-r from-emerald-950/90 via-slate-900 to-teal-950/90 border border-amber-500/40 shadow-lg text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
+                  <DynamicBrandLogo theme={systemBranding} isDarkMode={true} size="md" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-black tracking-tight text-white">Logotipo do Sistema AgroSys (Tela de Login)</span>
+                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase flex items-center gap-1">
+                      👑 Acesso Exclusivo Master
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300 mt-0.5">
+                    Configure o logotipo e identidade do AgroSys exibido na tela de login para todos os acessos, sincronizado no Supabase Cloud.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsMasterLoginLogoModalOpen(true)}
+                className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md shadow-amber-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap active:scale-95"
+              >
+                <Sparkles className="w-4 h-4 text-slate-950" />
+                <span>Customizar Logotipo da Tela de Login</span>
+              </button>
+            </div>
+          )}
+
           {/* Target Company Banner */}
           <div className="p-4 rounded-2xl bg-white/95 dark:bg-emerald-950/80 border border-emerald-200/90 dark:border-emerald-700/80 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
@@ -1686,6 +1725,16 @@ module.exports = {
           </div>
         </div>
       )}
+
+      {/* AgroSys Login Logo Modal for Master Users */}
+      <AgroSysLoginLogoModal
+        isOpen={isMasterLoginLogoModalOpen}
+        onClose={() => setIsMasterLoginLogoModalOpen(false)}
+        onSaved={(updated) => {
+          setSystemBranding(updated);
+          showToast('Logotipo Master da tela de login atualizado com sucesso no Supabase!');
+        }}
+      />
     </div>
   );
 };

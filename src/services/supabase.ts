@@ -860,3 +860,77 @@ export async function loadAppDataFromSupabase<T>(key: string): Promise<T | null>
   }
 }
 
+/**
+ * Persists AgroSys Master System Login Branding & Logo to Supabase Cloud.
+ */
+export async function saveSystemBrandingToSupabase(branding: Partial<WhiteLabelTheme>) {
+  try {
+    const now = new Date().toISOString();
+
+    // 1. Try app_settings table
+    try {
+      await supabase.from('app_settings').upsert({
+        key: 'agro_system_branding',
+        value: JSON.stringify(branding),
+        updated_at: now,
+      }, { onConflict: 'key' });
+    } catch (e) {}
+
+    // 2. Resilient backup in tenants description on ciclodrone (master tenant)
+    try {
+      const { data: tenant } = await supabase.from('tenants').select('description').eq('id', 'ciclodrone').maybeSingle();
+      let currentDesc = tenant?.description || '';
+      const tagRegex = /<!--AGRO_SYSTEM_BRANDING:[\s\S]*?-->/g;
+      currentDesc = currentDesc.replace(tagRegex, '').trim();
+      const newDesc = `${currentDesc} <!--AGRO_SYSTEM_BRANDING:${JSON.stringify(branding)}-->`.trim();
+
+      await supabase.from('tenants').update({
+        description: newDesc,
+        updated_at: now,
+      }).eq('id', 'ciclodrone');
+    } catch (e) {
+      console.warn('Aviso ao salvar branding do sistema no tenants:', e);
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('Erro ao salvar branding do sistema no Supabase:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Retrieves saved AgroSys Master System Login Branding & Logo from Supabase Cloud.
+ */
+export async function loadSystemBrandingFromSupabase(): Promise<Partial<WhiteLabelTheme> | null> {
+  try {
+    // 1. Try app_settings table
+    try {
+      const { data, error } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'agro_system_branding')
+        .maybeSingle();
+
+      if (!error && data?.value) {
+        return JSON.parse(data.value);
+      }
+    } catch (e) {}
+
+    // 2. Try tenants description tag on ciclodrone
+    try {
+      const { data: tenant } = await supabase.from('tenants').select('description').eq('id', 'ciclodrone').maybeSingle();
+      if (tenant?.description) {
+        const match = tenant.description.match(/<!--AGRO_SYSTEM_BRANDING:([\s\S]*?)-->/);
+        if (match && match[1]) {
+          return JSON.parse(match[1]);
+        }
+      }
+    } catch (e) {}
+
+    return null;
+  } catch (err) {
+    return null;
+  }
+}
+

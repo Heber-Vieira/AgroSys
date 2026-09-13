@@ -14,13 +14,17 @@ import {
   loadCompaniesFromSupabase,
   saveCompanyToSupabase,
   loadUserPhotosFromSupabase,
+  loadSystemBrandingFromSupabase,
   extractThemeFromDescription
 } from './supabase';
 import { 
   setStoredConfiguredLogoUrl, 
   setStoredConfiguredLogoDarkUrl, 
   setStoredConfiguredLogoIconId,
-  setStoredLogoAdaptiveMode 
+  setStoredLogoAdaptiveMode,
+  getStoredSystemBranding,
+  saveStoredSystemBranding,
+  SYSTEM_LOGO_UPDATED_EVENT
 } from './brandingLogoStorage';
 import { getStoredRegisteredCompanies, saveStoredRegisteredCompanies } from './companyStorage';
 import { USER_PHOTO_STORAGE_KEY } from '../components/UserAvatar';
@@ -224,6 +228,7 @@ export async function loadAllTenantBrandingsFromSupabase(): Promise<Record<strin
 
 export interface CloudHydrationResult {
   brandings: Record<string, WhiteLabelTheme>;
+  systemBranding: WhiteLabelTheme;
   companies: RegisteredCompany[];
   batteryAlertSettings: BatteryAlertSettings | null;
   weatherAlertSettings: WeatherAlertSettings;
@@ -245,6 +250,7 @@ export async function hydrateAllCloudData(): Promise<CloudHydrationResult> {
 
   const result: CloudHydrationResult = {
     brandings: {},
+    systemBranding: getStoredSystemBranding(),
     companies: getStoredRegisteredCompanies(),
     batteryAlertSettings: (() => {
       try {
@@ -265,17 +271,25 @@ export async function hydrateAllCloudData(): Promise<CloudHydrationResult> {
     // STEP 2: Fetch Cloud Database Ground Truth
     const [
       cloudBrandings,
+      cloudSystemBranding,
       cloudCompanies,
       cloudBatterySettings,
       cloudWeatherSettings,
       cloudPhotos,
     ] = await Promise.all([
       loadAllTenantBrandingsFromSupabase(),
+      loadSystemBrandingFromSupabase(),
       loadCompaniesFromSupabase(),
       loadBatteryAlertSettingsFromCloud(),
       loadWeatherAlertSettingsFromCloud(),
       loadUserPhotosFromSupabase(),
     ]);
+
+    // 0. Hydrate AgroSys Master System Logo & Branding
+    if (cloudSystemBranding) {
+      result.systemBranding = cloudSystemBranding;
+      await saveStoredSystemBranding(cloudSystemBranding);
+    }
 
     // 1. Hydrate Brandings & Logos from cloud if available
     if (cloudBrandings && Object.keys(cloudBrandings).length > 0) {
