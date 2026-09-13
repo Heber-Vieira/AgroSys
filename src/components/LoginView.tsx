@@ -188,9 +188,16 @@ export const LoginView: React.FC<LoginViewProps> = ({
           {/* Top Brand & Title Group */}
           <div className="relative z-10 space-y-4 sm:space-y-5">
             
-            {/* Header Brand Bar */}
+            {/* Header Brand Bar with White Background Logo Field */}
             <div className="flex items-center gap-3">
-              <DynamicBrandLogo theme={systemBranding} isDarkMode={true} size="md" />
+              <div className="bg-white p-1 rounded-2xl shadow-lg border border-white/80 flex items-center justify-center shrink-0">
+                <DynamicBrandLogo 
+                  theme={systemBranding} 
+                  variant="white" 
+                  isDarkMode={false} 
+                  size="md" 
+                />
+              </div>
               <div>
                 <span className="font-black text-lg sm:text-xl tracking-wide text-white uppercase block leading-none">
                   {systemTitle}

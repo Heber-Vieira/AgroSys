@@ -11,6 +11,7 @@ export interface DynamicBrandLogoProps {
   iconClassName?: string;
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
   showBackground?: boolean;
+  variant?: 'gradient' | 'white';
 }
 
 export const DynamicBrandLogo: React.FC<DynamicBrandLogoProps> = ({
@@ -20,6 +21,7 @@ export const DynamicBrandLogo: React.FC<DynamicBrandLogoProps> = ({
   iconClassName = '',
   size = 'md',
   showBackground = true,
+  variant = 'gradient',
 }) => {
   const t = theme || {};
 
@@ -44,21 +46,27 @@ export const DynamicBrandLogo: React.FC<DynamicBrandLogoProps> = ({
   const primaryColor = t.primaryColor || '#059669';
   const secondaryColor = t.secondaryColor || '#0284c7';
 
+  const isWhiteBg = variant === 'white';
+
   // 1. Check for custom image upload URL
-  const activeImageUrl = isDarkMode && t.logoDarkUrl ? t.logoDarkUrl : t.logoUrl;
+  const activeImageUrl = isWhiteBg
+    ? (t.logoUrl || t.logoDarkUrl)
+    : (isDarkMode && t.logoDarkUrl ? t.logoDarkUrl : t.logoUrl);
 
   if (activeImageUrl) {
     const adaptiveMode = t.logoAdaptiveMode || 'auto';
     let filterClass = 'filter drop-shadow-xs transition-transform duration-300';
     let containerClass = showBackground 
-      ? isDarkMode 
-        ? 'bg-slate-900/90 border border-emerald-500/40 shadow-lg backdrop-blur-md'
-        : 'bg-white/95 border border-slate-200 shadow-md backdrop-blur-md'
+      ? isWhiteBg
+        ? 'bg-white border border-slate-200/90 shadow-md p-1.5'
+        : isDarkMode 
+          ? 'bg-slate-900/90 border border-emerald-500/40 shadow-lg backdrop-blur-md'
+          : 'bg-white/95 border border-slate-200 shadow-md backdrop-blur-md'
       : '';
 
-    if (adaptiveMode === 'white' && isDarkMode) {
+    if (!isWhiteBg && adaptiveMode === 'white' && isDarkMode) {
       filterClass = 'filter brightness-200 contrast-125 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]';
-    } else if (adaptiveMode === 'auto' && isDarkMode && !t.logoDarkUrl) {
+    } else if (!isWhiteBg && adaptiveMode === 'auto' && isDarkMode && !t.logoDarkUrl) {
       containerClass += ' ring-2 ring-emerald-500/20';
     }
 
@@ -84,22 +92,33 @@ export const DynamicBrandLogo: React.FC<DynamicBrandLogoProps> = ({
   const systemPreset = SYSTEM_LOGO_PRESETS.find(p => p.id === iconId);
   const generalPreset = PRESET_LOGOS.find(p => p.id === iconId);
 
-  const bgStyle = showBackground
+  const containerBgClass = isWhiteBg
+    ? 'bg-white text-emerald-700 border border-slate-200/80 shadow-md ring-2 ring-white/60'
+    : 'text-white shadow-lg ring-2 ring-white/20 border border-white/30';
+
+  const bgStyle = (!isWhiteBg && showBackground)
     ? {
         background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`,
       }
-    : { color: primaryColor };
+    : (!isWhiteBg && !showBackground)
+    ? { color: primaryColor }
+    : {};
+
+  const vectorSvgColor = isWhiteBg ? primaryColor : undefined;
 
   if (systemPreset) {
     return (
       <div
-        className={`relative flex items-center justify-center text-white font-black transition-all duration-300 shadow-lg ring-2 ring-white/20 border border-white/30 ${sizeClasses[size]} ${className}`}
+        className={`relative flex items-center justify-center font-black transition-all duration-300 ${sizeClasses[size]} ${containerBgClass} ${className}`}
         style={bgStyle}
         title={t.systemName || systemPreset.label}
       >
-        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/30 rounded-[inherit] pointer-events-none" />
+        {!isWhiteBg && (
+          <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/30 rounded-[inherit] pointer-events-none" />
+        )}
         <svg
-          className={`${iconSizes[size]} fill-current drop-shadow-md relative z-10 ${iconClassName}`}
+          className={`${iconSizes[size]} fill-current ${isWhiteBg ? 'drop-shadow-xs' : 'drop-shadow-md'} relative z-10 ${iconClassName}`}
+          style={vectorSvgColor ? { color: vectorSvgColor } : {}}
           viewBox={systemPreset.viewBox || "0 0 24 24"}
         >
           <path d={systemPreset.svgPath} />
@@ -111,13 +130,16 @@ export const DynamicBrandLogo: React.FC<DynamicBrandLogoProps> = ({
   if (generalPreset) {
     return (
       <div
-        className={`relative flex items-center justify-center text-white font-black transition-all duration-300 shadow-lg ring-2 ring-white/20 border border-white/30 ${sizeClasses[size]} ${className}`}
+        className={`relative flex items-center justify-center font-black transition-all duration-300 ${sizeClasses[size]} ${containerBgClass} ${className}`}
         style={bgStyle}
         title={t.companyName || generalPreset.name}
       >
-        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/30 rounded-[inherit] pointer-events-none" />
+        {!isWhiteBg && (
+          <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/30 rounded-[inherit] pointer-events-none" />
+        )}
         <svg
-          className={`${iconSizes[size]} fill-current drop-shadow-md relative z-10 ${iconClassName}`}
+          className={`${iconSizes[size]} fill-current ${isWhiteBg ? 'drop-shadow-xs' : 'drop-shadow-md'} relative z-10 ${iconClassName}`}
+          style={vectorSvgColor ? { color: vectorSvgColor } : {}}
           viewBox={generalPreset.viewBox || "0 0 24 24"}
         >
           <path d={generalPreset.svgPath} />
@@ -129,12 +151,17 @@ export const DynamicBrandLogo: React.FC<DynamicBrandLogoProps> = ({
   // 3. Official Default AgroSys Fallback
   return (
     <div
-      className={`relative flex items-center justify-center text-white font-black transition-all duration-300 shadow-lg ring-2 ring-white/20 border border-white/30 ${sizeClasses[size]} ${className}`}
+      className={`relative flex items-center justify-center font-black transition-all duration-300 ${sizeClasses[size]} ${containerBgClass} ${className}`}
       style={bgStyle}
       title={t.systemName || 'AgroSys'}
     >
-      <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/30 rounded-[inherit] pointer-events-none" />
-      <Plane className={`${iconSizes[size]} -rotate-45 drop-shadow-md relative z-10 ${iconClassName}`} />
+      {!isWhiteBg && (
+        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/30 rounded-[inherit] pointer-events-none" />
+      )}
+      <Plane 
+        className={`${iconSizes[size]} -rotate-45 ${isWhiteBg ? 'drop-shadow-xs' : 'drop-shadow-md'} relative z-10 ${iconClassName}`}
+        style={vectorSvgColor ? { color: vectorSvgColor } : {}}
+      />
     </div>
   );
 };
