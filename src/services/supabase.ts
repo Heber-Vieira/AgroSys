@@ -133,57 +133,125 @@ export async function getSupabaseSession() {
   }
 }
 
+const THEME_META_REGEX = /<!--AGRO_THEME:([\s\S]*?)-->/;
+const DATA_META_REGEX = /<!--AGRO_DATA_([a-zA-Z0-9_-]+):([\s\S]*?)-->/g;
+
+export function extractThemeFromDescription(rawDescription?: string | null): Partial<WhiteLabelTheme> | null {
+  if (!rawDescription) return null;
+  const match = rawDescription.match(THEME_META_REGEX);
+  if (match && match[1]) {
+    try {
+      return JSON.parse(match[1]);
+    } catch (e) {}
+  }
+  return null;
+}
+
+export function cleanDescriptionText(rawDescription?: string | null): string {
+  if (!rawDescription) return '';
+  return rawDescription
+    .replace(THEME_META_REGEX, '')
+    .replace(/<!--AGRO_DATA_[\s\S]*?-->/g, '')
+    .trim();
+}
+
 /**
  * Persists tenant branding configuration and custom logo URL to Supabase database.
- * First tries upserting to `tenant_branding_configs`, with fallbacks to `tenants` or `app_settings`.
+ * Uses a resilient 3-layer architecture:
+ * 1. tenants table (with safe native columns + JSON metadata comment in description)
+ * 2. tenant_branding_configs table (if created/available)
+ * 3. app_settings table (if created/available)
  */
 export async function saveTenantBrandingToSupabase(theme: WhiteLabelTheme) {
   try {
     const tenantId = theme.tenantId || 'ciclodrone';
+    const now = new Date().toISOString();
 
-    // 1. Try upserting into tenant_branding_configs
-    const brandingPayload = {
-      tenant_id: tenantId,
-      company_name: theme.companyName,
+    // 1. Fetch current tenant description to preserve user notes & other tags
+    let baseDescription = '';
+    try {
+      const { data: currentTenant } = await supabase
+        .from('tenants')
+        .select('description')
+        .eq('id', tenantId)
+        .maybeSingle();
+      if (currentTenant?.description) {
+        baseDescription = cleanDescriptionText(currentTenant.description);
+      }
+    } catch (e) {}
+
+    const themeJson = JSON.stringify({
+      logoUrl: theme.logoUrl,
+      logoDarkUrl: theme.logoDarkUrl,
+      logoIconId: theme.logoIconId,
+      logoAdaptiveMode: theme.logoAdaptiveMode,
+      fontFamily: theme.fontFamily,
+      borderRadius: theme.borderRadius,
+      companyName: theme.companyName,
       tagline: theme.tagline,
-      logo_light_url: theme.logoUrl || null,
-      logo_dark_url: theme.logoDarkUrl || theme.logoUrl || null,
-      logo_icon_id: theme.logoIconId || null,
-      primary_color_hex: theme.primaryColor,
-      secondary_color_hex: theme.secondaryColor,
-      accent_color_hex: theme.accentColor,
-      font_family: theme.fontFamily,
-      border_radius_base: theme.borderRadius,
-      contact_phone: theme.contactPhone || null,
-      contact_email: theme.contactEmail || null,
-      registry_crea_mapa: theme.registryCreaMapa || null,
-      updated_at: new Date().toISOString(),
-    };
+      primaryColor: theme.primaryColor,
+      secondaryColor: theme.secondaryColor,
+      accentColor: theme.accentColor,
+      contactPhone: theme.contactPhone,
+      contactEmail: theme.contactEmail,
+      registryCreaMapa: theme.registryCreaMapa,
+    });
 
-    const { data: brandingResult, error: brandingError } = await supabase
-      .from('tenant_branding_configs')
-      .upsert(brandingPayload, { onConflict: 'tenant_id' })
-      .select();
+    const packedDescription = `${baseDescription} <!--AGRO_THEME:${themeJson}-->`.trim();
 
-    if (brandingError) {
-      console.warn('Persistência em tenant_branding_configs retornou aviso:', brandingError.message);
-      // Secondary fallback: update company_name or logo in tenants table
-      try {
-        await supabase.from('tenants').upsert({
-          id: tenantId,
-          company_name: theme.companyName,
-          trade_name: theme.companyName,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'id' });
-      } catch (e) {}
+    // 2. PRIMARY: Update tenants table with guaranteed native schema compatibility
+    try {
+      await supabase.from('tenants').update({
+        name: theme.companyName,
+        trade_name: theme.companyName,
+        tagline: theme.tagline || null,
+        primary_color: theme.primaryColor,
+        secondary_color: theme.secondaryColor,
+        accent_color: theme.accentColor,
+        phone: theme.contactPhone || null,
+        email: theme.contactEmail || null,
+        registry_crea_mapa: theme.registryCreaMapa || null,
+        description: packedDescription,
+        updated_at: now,
+      }).eq('id', tenantId);
+    } catch (e) {
+      console.warn('Aviso ao persistir branding em tenants:', e);
     }
 
-    // Always mirror full JSON payload in app_settings table to guarantee 100% cloud sync
+    // 3. SECONDARY: Try upserting into tenant_branding_configs (if table exists)
+    let brandingResult = null;
+    try {
+      const { data, error: brandingError } = await supabase
+        .from('tenant_branding_configs')
+        .upsert({
+          tenant_id: tenantId,
+          company_name: theme.companyName,
+          tagline: theme.tagline,
+          logo_light_url: theme.logoUrl || null,
+          logo_dark_url: theme.logoDarkUrl || theme.logoUrl || null,
+          logo_icon_id: theme.logoIconId || null,
+          logo_adaptive_mode: theme.logoAdaptiveMode || 'auto',
+          primary_color_hex: theme.primaryColor,
+          secondary_color_hex: theme.secondaryColor,
+          accent_color_hex: theme.accentColor,
+          font_family: theme.fontFamily,
+          border_radius_base: theme.borderRadius,
+          contact_phone: theme.contactPhone || null,
+          contact_email: theme.contactEmail || null,
+          registry_crea_mapa: theme.registryCreaMapa || null,
+          updated_at: now,
+        }, { onConflict: 'tenant_id' })
+        .select();
+
+      if (!brandingError) brandingResult = data;
+    } catch (e) {}
+
+    // 4. TERTIARY: Mirror full JSON in app_settings (if table exists)
     try {
       await supabase.from('app_settings').upsert({
         key: `agro_branding_${tenantId}`,
         value: JSON.stringify(theme),
-        updated_at: new Date().toISOString()
+        updated_at: now,
       }, { onConflict: 'key' });
     } catch (e) {}
 
@@ -200,44 +268,79 @@ export async function saveTenantBrandingToSupabase(theme: WhiteLabelTheme) {
 export async function loadTenantBrandingFromSupabase(tenantId: string = 'ciclodrone'): Promise<WhiteLabelTheme | null> {
   try {
     // 1. Try app_settings JSON mirror for complete state
-    const { data: settingData } = await supabase
-      .from('app_settings')
-      .select('value')
-      .eq('key', `agro_branding_${tenantId}`)
-      .maybeSingle();
+    try {
+      const { data: settingData, error: settingErr } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', `agro_branding_${tenantId}`)
+        .maybeSingle();
 
-    if (settingData?.value) {
-      const parsed = JSON.parse(settingData.value);
-      if (parsed && (parsed.primaryColor || parsed.companyName)) {
-        return parsed as WhiteLabelTheme;
+      if (!settingErr && settingData?.value) {
+        const parsed = JSON.parse(settingData.value);
+        if (parsed && (parsed.primaryColor || parsed.companyName)) {
+          return parsed as WhiteLabelTheme;
+        }
       }
-    }
+    } catch (e) {}
 
     // 2. Try tenant_branding_configs table
-    const { data, error } = await supabase
-      .from('tenant_branding_configs')
+    try {
+      const { data, error } = await supabase
+        .from('tenant_branding_configs')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .maybeSingle();
+
+      if (!error && data) {
+        return {
+          tenantId: data.tenant_id,
+          companyName: data.company_name || 'Ciclodrone Agro',
+          tagline: data.tagline || '',
+          logoUrl: data.logo_light_url || undefined,
+          logoDarkUrl: data.logo_dark_url || undefined,
+          logoIconId: data.logo_icon_id || undefined,
+          logoAdaptiveMode: data.logo_adaptive_mode || 'auto',
+          primaryColor: data.primary_color_hex || '#0284c7',
+          secondaryColor: data.secondary_color_hex || '#0f766e',
+          accentColor: data.accent_color_hex || '#f59e0b',
+          fontFamily: data.font_family || 'Plus Jakarta Sans',
+          borderRadius: data.border_radius_base || '0.875rem',
+          surfaceLight: '#FFFFFF',
+          surfaceDark: '#0f172a',
+          contactPhone: data.contact_phone || undefined,
+          contactEmail: data.contact_email || undefined,
+          registryCreaMapa: data.registry_crea_mapa || undefined,
+        };
+      }
+    } catch (e) {}
+
+    // 3. PRIMARY GUARANTEED: Load from tenants table (always exists in Supabase)
+    const { data: tenantData, error: tenantErr } = await supabase
+      .from('tenants')
       .select('*')
-      .eq('tenant_id', tenantId)
+      .eq('id', tenantId)
       .maybeSingle();
 
-    if (!error && data) {
+    if (!tenantErr && tenantData) {
+      const meta = extractThemeFromDescription(tenantData.description);
       return {
-        tenantId: data.tenant_id,
-        companyName: data.company_name || 'Ciclodrone Agro',
-        tagline: data.tagline || '',
-        logoUrl: data.logo_light_url || undefined,
-        logoDarkUrl: data.logo_dark_url || undefined,
-        logoIconId: data.logo_icon_id || undefined,
-        primaryColor: data.primary_color_hex || '#0284c7',
-        secondaryColor: data.secondary_color_hex || '#0f766e',
-        accentColor: data.accent_color_hex || '#f59e0b',
-        fontFamily: data.font_family || 'Plus Jakarta Sans',
-        borderRadius: data.border_radius_base || '0.875rem',
+        tenantId: tenantData.id,
+        companyName: tenantData.name || 'AgroSys',
+        tagline: tenantData.tagline || '',
+        logoUrl: meta?.logoUrl || (tenantData as any).logo_light_url || undefined,
+        logoDarkUrl: meta?.logoDarkUrl || (tenantData as any).logo_dark_url || undefined,
+        logoIconId: meta?.logoIconId || (tenantData as any).logo_icon_id || undefined,
+        logoAdaptiveMode: meta?.logoAdaptiveMode || (tenantData as any).logo_adaptive_mode || 'auto',
+        primaryColor: tenantData.primary_color || '#0284c7',
+        secondaryColor: tenantData.secondary_color || '#0f766e',
+        accentColor: tenantData.accent_color || '#f59e0b',
+        fontFamily: meta?.fontFamily || (tenantData as any).font_family || 'Plus Jakarta Sans',
+        borderRadius: meta?.borderRadius || (tenantData as any).border_radius_base || '0.875rem',
         surfaceLight: '#FFFFFF',
         surfaceDark: '#0f172a',
-        contactPhone: data.contact_phone || undefined,
-        contactEmail: data.contact_email || undefined,
-        registryCreaMapa: data.registry_crea_mapa || undefined,
+        contactPhone: tenantData.phone || undefined,
+        contactEmail: tenantData.email || undefined,
+        registryCreaMapa: tenantData.registry_crea_mapa || undefined,
       };
     }
 
@@ -258,7 +361,7 @@ export async function saveUserPhotoToSupabase(idOrEmail: string, photoUrl: strin
 
     const sanitizedKey = `agro_user_photo_${idOrEmail.toLowerCase().replace(/[^a-z0-9_@-]/g, '_')}`;
 
-    // 1. Mirror payload in app_settings table
+    // 1. Mirror payload in app_settings table (if available)
     try {
       await supabase.from('app_settings').upsert({
         key: sanitizedKey,
@@ -273,8 +376,8 @@ export async function saveUserPhotoToSupabase(idOrEmail: string, photoUrl: strin
       }, { onConflict: 'key' });
     } catch (e) {}
 
-    // 2. Try upserting into user_profiles table if available
-    const profilePayload = {
+    // 2. Try upserting into user_profiles table (guaranteed to exist)
+    const profilePayload: any = {
       id: profile?.id || idOrEmail,
       email: profile?.email || (idOrEmail.includes('@') ? idOrEmail : null),
       name: profile?.name || idOrEmail,
@@ -305,38 +408,42 @@ export async function loadUserPhotosFromSupabase(): Promise<Record<string, strin
   try {
     const photoMap: Record<string, string> = {};
 
-    // 1. Fetch settings with key starting with 'agro_user_photo_'
-    const { data: settingsData } = await supabase
-      .from('app_settings')
-      .select('key, value')
-      .like('key', 'agro_user_photo_%');
+    // 1. Fetch from user_profiles table (primary table in database)
+    try {
+      const { data: profilesData } = await supabase
+        .from('user_profiles')
+        .select('id, email, photo_url, avatar_url');
 
-    if (settingsData && Array.isArray(settingsData)) {
-      settingsData.forEach(item => {
-        try {
-          const parsed = JSON.parse(item.value);
-          if (parsed && parsed.idOrEmail && parsed.photoUrl) {
-            photoMap[parsed.idOrEmail] = parsed.photoUrl;
-            if (parsed.email) photoMap[parsed.email] = parsed.photoUrl;
+      if (profilesData && Array.isArray(profilesData)) {
+        profilesData.forEach(p => {
+          const photo = p.photo_url || p.avatar_url;
+          if (photo) {
+            if (p.id) photoMap[p.id] = photo;
+            if (p.email) photoMap[p.email] = photo;
           }
-        } catch (e) {}
-      });
-    }
+        });
+      }
+    } catch (e) {}
 
-    // 2. Fetch from user_profiles table if populated
-    const { data: profilesData } = await supabase
-      .from('user_profiles')
-      .select('id, email, photo_url, avatar_url');
+    // 2. Enrich from app_settings if available
+    try {
+      const { data: settingsData } = await supabase
+        .from('app_settings')
+        .select('key, value')
+        .like('key', 'agro_user_photo_%');
 
-    if (profilesData && Array.isArray(profilesData)) {
-      profilesData.forEach(p => {
-        const photo = p.photo_url || p.avatar_url;
-        if (photo) {
-          if (p.id) photoMap[p.id] = photo;
-          if (p.email) photoMap[p.email] = photo;
-        }
-      });
-    }
+      if (settingsData && Array.isArray(settingsData)) {
+        settingsData.forEach(item => {
+          try {
+            const parsed = JSON.parse(item.value);
+            if (parsed && parsed.idOrEmail && parsed.photoUrl) {
+              photoMap[parsed.idOrEmail] = parsed.photoUrl;
+              if (parsed.email) photoMap[parsed.email] = parsed.photoUrl;
+            }
+          } catch (e) {}
+        });
+      }
+    } catch (e) {}
 
     return photoMap;
   } catch (err) {
@@ -351,32 +458,74 @@ export async function loadUserPhotosFromSupabase(): Promise<Record<string, strin
 export async function saveCompanyToSupabase(company: any) {
   try {
     if (!company || !company.id) return { success: false, error: 'Empresa inválida' };
+    const now = new Date().toISOString();
 
-    // 1. Mirror company payload in app_settings table
-    try {
-      await supabase.from('app_settings').upsert({
-        key: `agro_company_${company.id}`,
-        value: JSON.stringify(company),
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'key' });
-    } catch (e) {}
+    const cleanDesc = cleanDescriptionText(company.description || '');
+    const meta = JSON.stringify({
+      logoUrl: company.logoUrl,
+      logoDarkUrl: company.logoDarkUrl,
+      logoIconId: company.logoIconId,
+      logoAdaptiveMode: company.logoAdaptiveMode,
+      fontFamily: company.fontFamily,
+      borderRadius: company.borderRadius,
+      tagline: company.tagline,
+      cropFocus: company.cropFocus,
+    });
+    const packedDesc = `${cleanDesc} <!--AGRO_THEME:${meta}-->`.trim();
 
-    // 2. Upsert to tenants table if available
+    // 1. PRIMARY: Upsert to tenants table (with native columns only)
     try {
       await supabase.from('tenants').upsert({
         id: company.id,
-        company_name: company.name,
+        name: company.name,
         trade_name: company.tradeName || company.name,
-        cnpj: company.cnpj,
+        cnpj: company.cnpj || '',
         state_registration: company.stateRegistration || null,
         phone: company.phone || null,
         email: company.email || null,
         city_state: company.cityState || null,
         tagline: company.tagline || null,
         primary_color: company.primaryColor || '#0284c7',
+        secondary_color: company.secondaryColor || '#0f766e',
+        accent_color: company.accentColor || '#f59e0b',
+        crop_focus: company.cropFocus || null,
+        description: packedDesc,
         status: company.status || 'ACTIVE',
-        updated_at: new Date().toISOString()
+        updated_at: now,
       }, { onConflict: 'id' });
+    } catch (e) {
+      console.warn('Aviso ao salvar empresa no tenants:', e);
+    }
+
+    // 2. SECONDARY: Try tenant_branding_configs table if available
+    try {
+      await supabase.from('tenant_branding_configs').upsert({
+        tenant_id: company.id,
+        company_name: company.name,
+        tagline: company.tagline,
+        logo_light_url: company.logoUrl || null,
+        logo_dark_url: company.logoDarkUrl || company.logoUrl || null,
+        logo_icon_id: company.logoIconId || null,
+        logo_adaptive_mode: company.logoAdaptiveMode || 'auto',
+        primary_color_hex: company.primaryColor || '#0284c7',
+        secondary_color_hex: company.secondaryColor || '#0f766e',
+        accent_color_hex: company.accentColor || '#f59e0b',
+        font_family: company.fontFamily || 'Plus Jakarta Sans',
+        border_radius_base: company.borderRadius || '0.875rem',
+        contact_phone: company.phone || null,
+        contact_email: company.email || null,
+        registry_crea_mapa: company.registryCreaMapa || null,
+        updated_at: now,
+      }, { onConflict: 'tenant_id' });
+    } catch (e) {}
+
+    // 3. TERTIARY: Mirror company payload in app_settings table (if available)
+    try {
+      await supabase.from('app_settings').upsert({
+        key: `agro_company_${company.id}`,
+        value: JSON.stringify(company),
+        updated_at: now,
+      }, { onConflict: 'key' });
     } catch (e) {}
 
     return { success: true, error: null };
@@ -398,6 +547,10 @@ export async function deleteCompanyFromSupabase(companyId: string) {
     } catch (e) {}
 
     try {
+      await supabase.from('tenant_branding_configs').delete().eq('tenant_id', companyId);
+    } catch (e) {}
+
+    try {
       await supabase.from('tenants').delete().eq('id', companyId);
     } catch (e) {}
 
@@ -414,21 +567,85 @@ export async function loadCompaniesFromSupabase(): Promise<any[]> {
   try {
     const companiesMap = new Map<string, any>();
 
-    const { data: settingsData } = await supabase
-      .from('app_settings')
-      .select('key, value')
-      .like('key', 'agro_company_%');
-
-    if (settingsData && Array.isArray(settingsData)) {
-      settingsData.forEach(item => {
-        try {
-          const parsed = JSON.parse(item.value);
-          if (parsed && parsed.id && parsed.name) {
-            companiesMap.set(parsed.id, parsed);
+    // PRIMARY: Load from tenants table (guaranteed to exist in Supabase)
+    try {
+      const { data: tenantsData } = await supabase.from('tenants').select('*');
+      if (tenantsData && Array.isArray(tenantsData)) {
+        tenantsData.forEach(t => {
+          if (t.id) {
+            const meta = extractThemeFromDescription(t.description);
+            companiesMap.set(t.id, {
+              id: t.id,
+              name: t.name,
+              tradeName: t.trade_name || t.name,
+              cnpj: t.cnpj,
+              stateRegistration: t.state_registration,
+              registryCreaMapa: t.registry_crea_mapa,
+              phone: t.phone,
+              email: t.email,
+              cityState: t.city_state,
+              tagline: t.tagline,
+              primaryColor: t.primary_color || '#0284c7',
+              secondaryColor: t.secondary_color || '#0f766e',
+              accentColor: t.accent_color || '#f59e0b',
+              logoUrl: meta?.logoUrl || (t as any).logo_light_url || undefined,
+              logoDarkUrl: meta?.logoDarkUrl || (t as any).logo_dark_url || undefined,
+              logoIconId: meta?.logoIconId || (t as any).logo_icon_id || undefined,
+              logoAdaptiveMode: meta?.logoAdaptiveMode || (t as any).logo_adaptive_mode || 'auto',
+              fontFamily: meta?.fontFamily || (t as any).font_family || 'Plus Jakarta Sans',
+              borderRadius: meta?.borderRadius || (t as any).border_radius_base || '0.875rem',
+              cropFocus: t.crop_focus,
+              description: cleanDescriptionText(t.description),
+              status: t.status || 'ACTIVE',
+              createdAt: t.created_at,
+            });
           }
-        } catch (e) {}
-      });
+        });
+      }
+    } catch (e) {
+      console.warn('Falha ao carregar empresas de tenants:', e);
     }
+
+    // SECONDARY: Enrich from tenant_branding_configs (if available)
+    try {
+      const { data: configsData } = await supabase.from('tenant_branding_configs').select('*');
+      if (configsData && Array.isArray(configsData)) {
+        configsData.forEach(c => {
+          if (c.tenant_id && companiesMap.has(c.tenant_id)) {
+            const existing = companiesMap.get(c.tenant_id);
+            companiesMap.set(c.tenant_id, {
+              ...existing,
+              logoUrl: c.logo_light_url || existing.logoUrl,
+              logoDarkUrl: c.logo_dark_url || existing.logoDarkUrl,
+              logoIconId: c.logo_icon_id || existing.logoIconId,
+              logoAdaptiveMode: c.logo_adaptive_mode || existing.logoAdaptiveMode,
+              fontFamily: c.font_family || existing.fontFamily,
+              borderRadius: c.border_radius_base || existing.borderRadius,
+            });
+          }
+        });
+      }
+    } catch (e) {}
+
+    // TERTIARY: Enrich from app_settings (if available)
+    try {
+      const { data: settingsData, error: settingsErr } = await supabase
+        .from('app_settings')
+        .select('key, value')
+        .like('key', 'agro_company_%');
+
+      if (!settingsErr && settingsData && Array.isArray(settingsData)) {
+        settingsData.forEach(item => {
+          try {
+            const parsed = JSON.parse(item.value);
+            if (parsed && parsed.id && parsed.name) {
+              const existing = companiesMap.get(parsed.id);
+              companiesMap.set(parsed.id, { ...existing, ...parsed });
+            }
+          } catch (e) {}
+        });
+      }
+    } catch (e) {}
 
     return Array.from(companiesMap.values());
   } catch (err) {
@@ -438,16 +655,42 @@ export async function loadCompaniesFromSupabase(): Promise<any[]> {
 }
 
 /**
- * Generic helper to back up any module data to Supabase app_settings.
+ * Generic helper to back up any module data to Supabase.
+ * Multi-layer fallback:
+ * 1. app_settings table
+ * 2. tenants description JSON metadata on ciclodrone
  */
 export async function saveAppDataToSupabase(key: string, value: any) {
   try {
-    await supabase.from('app_settings').upsert({
-      key: `agro_data_${key}`,
-      value: JSON.stringify(value),
-      updated_at: new Date().toISOString()
-    }, { onConflict: 'key' });
-    return { success: true };
+    const now = new Date().toISOString();
+
+    // 1. Try app_settings table
+    try {
+      const { error } = await supabase.from('app_settings').upsert({
+        key: `agro_data_${key}`,
+        value: JSON.stringify(value),
+        updated_at: now
+      }, { onConflict: 'key' });
+
+      if (!error) return { success: true };
+    } catch (e) {}
+
+    // 2. Resilient fallback in tenants description for master tenant
+    try {
+      const { data: tenant } = await supabase.from('tenants').select('description').eq('id', 'ciclodrone').maybeSingle();
+      let currentDesc = tenant?.description || '';
+      const tagRegex = new RegExp(`<!--AGRO_DATA_${key}:[\\s\\S]*?-->`, 'g');
+      currentDesc = currentDesc.replace(tagRegex, '').trim();
+      const newDesc = `${currentDesc} <!--AGRO_DATA_${key}:${JSON.stringify(value)}-->`.trim();
+
+      await supabase.from('tenants').update({
+        description: newDesc,
+        updated_at: now
+      }).eq('id', 'ciclodrone');
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
   } catch (err: any) {
     return { success: false, error: err.message };
   }
@@ -458,15 +701,31 @@ export async function saveAppDataToSupabase(key: string, value: any) {
  */
 export async function loadAppDataFromSupabase<T>(key: string): Promise<T | null> {
   try {
-    const { data } = await supabase
-      .from('app_settings')
-      .select('value')
-      .eq('key', `agro_data_${key}`)
-      .maybeSingle();
+    // 1. Try app_settings table
+    try {
+      const { data, error } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', `agro_data_${key}`)
+        .maybeSingle();
 
-    if (data?.value) {
-      return JSON.parse(data.value) as T;
-    }
+      if (!error && data?.value) {
+        return JSON.parse(data.value) as T;
+      }
+    } catch (e) {}
+
+    // 2. Try tenants description fallback
+    try {
+      const { data: tenant } = await supabase.from('tenants').select('description').eq('id', 'ciclodrone').maybeSingle();
+      if (tenant?.description) {
+        const tagRegex = new RegExp(`<!--AGRO_DATA_${key}:([\\s\\S]*?)-->`);
+        const match = tenant.description.match(tagRegex);
+        if (match && match[1]) {
+          return JSON.parse(match[1]) as T;
+        }
+      }
+    } catch (e) {}
+
     return null;
   } catch (err) {
     return null;

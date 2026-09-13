@@ -13,7 +13,8 @@ import {
   loadTenantBrandingFromSupabase,
   loadCompaniesFromSupabase,
   saveCompanyToSupabase,
-  loadUserPhotosFromSupabase
+  loadUserPhotosFromSupabase,
+  extractThemeFromDescription
 } from './supabase';
 import { 
   setStoredConfiguredLogoUrl, 
@@ -55,7 +56,7 @@ export async function saveBatteryAlertSettingsToCloud(settings: BatteryAlertSett
     await saveToDurableStorage(BATTERY_ALERT_STORAGE_KEY, settings, STORES.ALARMS);
     await setIDBItem(STORES.ALARMS, { key: BATTERY_ALERT_STORAGE_KEY, value: settings });
 
-    // 2. Persist to Supabase app_settings cloud storage
+    // 2. Persist to Supabase cloud storage (with fallback)
     const cloudRes = await saveAppDataToSupabase('battery_alert_config', settings);
     return cloudRes;
   } catch (err: any) {
@@ -125,58 +126,96 @@ export async function loadWeatherAlertSettingsFromCloud(): Promise<WeatherAlertS
 
 /**
  * Retrieves all registered company brandings and custom logos saved in Supabase.
+ * Multi-source priority:
+ * 1. tenants table (guaranteed ground truth for all companies)
+ * 2. tenant_branding_configs table (if created)
+ * 3. app_settings table (if created)
  */
 export async function loadAllTenantBrandingsFromSupabase(): Promise<Record<string, WhiteLabelTheme>> {
   const brandings: Record<string, WhiteLabelTheme> = {};
   try {
-    // 1. Fetch from app_settings with prefix 'agro_branding_'
-    const { data: settingsData } = await supabase
-      .from('app_settings')
-      .select('key, value')
-      .like('key', 'agro_branding_%');
-
-    if (settingsData && Array.isArray(settingsData)) {
-      settingsData.forEach(row => {
-        try {
-          const tId = row.key.replace('agro_branding_', '');
-          const parsed = JSON.parse(row.value);
-          if (parsed && (parsed.companyName || parsed.primaryColor || parsed.logoUrl)) {
-            brandings[tId] = parsed;
-          }
-        } catch (e) {}
-      });
-    }
-
-    // 2. Fetch from tenant_branding_configs table as complement
-    const { data: configsData } = await supabase
-      .from('tenant_branding_configs')
-      .select('*');
-
-    if (configsData && Array.isArray(configsData)) {
-      configsData.forEach(c => {
-        const tId = c.tenant_id;
-        if (tId && !brandings[tId]) {
-          brandings[tId] = {
-            tenantId: tId,
-            companyName: c.company_name || 'AgroSys',
-            tagline: c.tagline || '',
-            logoUrl: c.logo_light_url || undefined,
-            logoDarkUrl: c.logo_dark_url || undefined,
-            logoIconId: c.logo_icon_id || undefined,
-            primaryColor: c.primary_color_hex || '#0284c7',
-            secondaryColor: c.secondary_color_hex || '#0f766e',
-            accentColor: c.accent_color_hex || '#f59e0b',
-            fontFamily: c.font_family || 'Plus Jakarta Sans',
-            borderRadius: c.border_radius_base || '0.875rem',
+    // 1. PRIMARY: Load from tenants table
+    const { data: tenantsData } = await supabase.from('tenants').select('*');
+    if (tenantsData && Array.isArray(tenantsData)) {
+      tenantsData.forEach(t => {
+        if (t.id) {
+          const meta = extractThemeFromDescription(t.description);
+          brandings[t.id] = {
+            tenantId: t.id,
+            companyName: t.name || 'AgroSys',
+            tagline: t.tagline || '',
+            logoUrl: meta?.logoUrl || (t as any).logo_light_url || undefined,
+            logoDarkUrl: meta?.logoDarkUrl || (t as any).logo_dark_url || undefined,
+            logoIconId: meta?.logoIconId || (t as any).logo_icon_id || undefined,
+            logoAdaptiveMode: meta?.logoAdaptiveMode || (t as any).logo_adaptive_mode || 'auto',
+            primaryColor: t.primary_color || '#0284c7',
+            secondaryColor: t.secondary_color || '#0f766e',
+            accentColor: t.accent_color || '#f59e0b',
+            fontFamily: meta?.fontFamily || (t as any).font_family || 'Plus Jakarta Sans',
+            borderRadius: meta?.borderRadius || (t as any).border_radius_base || '0.875rem',
             surfaceLight: '#FFFFFF',
             surfaceDark: '#0f172a',
-            contactPhone: c.contact_phone || undefined,
-            contactEmail: c.contact_email || undefined,
-            registryCreaMapa: c.registry_crea_mapa || undefined,
+            contactPhone: t.phone || undefined,
+            contactEmail: t.email || undefined,
+            registryCreaMapa: t.registry_crea_mapa || undefined,
           };
         }
       });
     }
+
+    // 2. SECONDARY: Enrich with tenant_branding_configs if available
+    try {
+      const { data: configsData } = await supabase.from('tenant_branding_configs').select('*');
+      if (configsData && Array.isArray(configsData)) {
+        configsData.forEach(c => {
+          const tId = c.tenant_id;
+          if (tId) {
+            brandings[tId] = {
+              ...(brandings[tId] || {
+                tenantId: tId,
+                companyName: c.company_name || 'AgroSys',
+                surfaceLight: '#FFFFFF',
+                surfaceDark: '#0f172a',
+              }),
+              companyName: c.company_name || brandings[tId]?.companyName || 'AgroSys',
+              tagline: c.tagline || brandings[tId]?.tagline || '',
+              logoUrl: c.logo_light_url || brandings[tId]?.logoUrl,
+              logoDarkUrl: c.logo_dark_url || brandings[tId]?.logoDarkUrl,
+              logoIconId: c.logo_icon_id || brandings[tId]?.logoIconId,
+              logoAdaptiveMode: c.logo_adaptive_mode || brandings[tId]?.logoAdaptiveMode || 'auto',
+              primaryColor: c.primary_color_hex || brandings[tId]?.primaryColor || '#0284c7',
+              secondaryColor: c.secondary_color_hex || brandings[tId]?.secondaryColor || '#0f766e',
+              accentColor: c.accent_color_hex || brandings[tId]?.accentColor || '#f59e0b',
+              fontFamily: c.font_family || brandings[tId]?.fontFamily || 'Plus Jakarta Sans',
+              borderRadius: c.border_radius_base || brandings[tId]?.borderRadius || '0.875rem',
+              contactPhone: c.contact_phone || brandings[tId]?.contactPhone,
+              contactEmail: c.contact_email || brandings[tId]?.contactEmail,
+              registryCreaMapa: c.registry_crea_mapa || brandings[tId]?.registryCreaMapa,
+            };
+          }
+        });
+      }
+    } catch (e) {}
+
+    // 3. TERTIARY: Enrich with app_settings if available
+    try {
+      const { data: settingsData } = await supabase
+        .from('app_settings')
+        .select('key, value')
+        .like('key', 'agro_branding_%');
+
+      if (settingsData && Array.isArray(settingsData)) {
+        settingsData.forEach(row => {
+          try {
+            const tId = row.key.replace('agro_branding_', '');
+            const parsed = JSON.parse(row.value);
+            if (parsed && (parsed.companyName || parsed.primaryColor || parsed.logoUrl)) {
+              brandings[tId] = { ...(brandings[tId] || {}), ...parsed };
+            }
+          } catch (e) {}
+        });
+      }
+    } catch (e) {}
   } catch (err) {
     console.warn('Erro ao carregar marcas de empresas da nuvem:', err);
   }
