@@ -3418,7 +3418,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
         user={activeUserPhotoModal}
         onSavePhoto={(newPhotoUrl) => {
           if (!activeUserPhotoModal) return;
-          saveStoredUserPhoto(activeUserPhotoModal.id, newPhotoUrl);
+          saveStoredUserPhoto(activeUserPhotoModal.id, newPhotoUrl, activeUserPhotoModal);
           setUsers(prev => prev.map(u => u.id === activeUserPhotoModal.id ? { ...u, photoUrl: newPhotoUrl, avatarUrl: newPhotoUrl } : u));
           setPilots(prev => prev.map(p => (p.id === activeUserPhotoModal.id || p.cpf === activeUserPhotoModal.documentNumber) ? { ...p, photoUrl: newPhotoUrl, avatarUrl: newPhotoUrl } : p));
           setAssistants(prev => prev.map(a => (a.id === activeUserPhotoModal.id || a.cpf === activeUserPhotoModal.documentNumber) ? { ...a, photoUrl: newPhotoUrl, avatarUrl: newPhotoUrl } : a));

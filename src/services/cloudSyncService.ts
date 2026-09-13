@@ -347,7 +347,11 @@ export async function hydrateAllCloudData(): Promise<CloudHydrationResult> {
         const rawStored = localStorage.getItem(USER_PHOTO_STORAGE_KEY);
         const currentStored = rawStored ? JSON.parse(rawStored) : {};
         const mergedPhotos = { ...currentStored, ...cloudPhotos };
+        localStorage.setItem(USER_PHOTO_STORAGE_KEY, JSON.stringify(mergedPhotos));
         await saveToDurableStorage(USER_PHOTO_STORAGE_KEY, mergedPhotos, STORES.SETTINGS);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('agrodrone-user-photo-updated', { detail: { photos: mergedPhotos } }));
+        }
       } catch (e) {}
     }
   } catch (err) {

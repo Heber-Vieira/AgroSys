@@ -4,6 +4,8 @@ import { Camera, Upload, X, Check, Trash2, ShieldCheck, User, Plane, Wrench, Spa
 import { saveUserPhotoToSupabase } from '../services/supabase';
 import { showToast } from '../services/notificationService';
 
+import { saveToDurableStorage, STORES } from '../services/dbStorageEngine';
+
 export const USER_PHOTO_STORAGE_KEY = 'agrodrone_user_custom_photos';
 
 // High-quality curated professional photos for agriculture & drone operations
@@ -95,15 +97,23 @@ export function getStoredUserPhoto(id: string): string | undefined {
 /**
  * Persist a user or crew photo and broadcast update
  */
-export function saveStoredUserPhoto(idOrCpf: string, photoUrl: string, profile?: UserProfile) {
+export function saveStoredUserPhoto(idOrCpf: string, photoUrl: string, profile?: Partial<UserProfile>) {
   try {
     const current = getStoredUserPhotos();
     if (photoUrl) {
       current[idOrCpf] = photoUrl;
+      if (profile?.email) current[profile.email] = photoUrl;
+      if (profile?.name) current[profile.name] = photoUrl;
     } else {
       delete current[idOrCpf];
+      if (profile?.email) delete current[profile.email];
+      if (profile?.name) delete current[profile.name];
     }
     localStorage.setItem(USER_PHOTO_STORAGE_KEY, JSON.stringify(current));
+    try {
+      saveToDurableStorage(USER_PHOTO_STORAGE_KEY, current, STORES.SETTINGS);
+    } catch (e) {}
+
     window.dispatchEvent(new CustomEvent('agrodrone-user-photo-updated', {
       detail: { id: idOrCpf, photoUrl }
     }));
@@ -123,6 +133,7 @@ export function saveStoredUserPhoto(idOrCpf: string, photoUrl: string, profile?:
 export function getUserPhotoUrl(params?: {
   id?: string;
   userId?: string;
+  email?: string;
   photoUrl?: string;
   avatarUrl?: string;
   name?: string;
@@ -134,12 +145,12 @@ export function getUserPhotoUrl(params?: {
   if (params.photoUrl && params.photoUrl.trim()) return params.photoUrl.trim();
   if (params.avatarUrl && params.avatarUrl.trim()) return params.avatarUrl.trim();
 
-  // 2. Check localStorage by ID
+  // 2. Check localStorage by ID, email or name
+  const map = getStoredUserPhotos();
   const searchId = params.id || params.userId;
-  if (searchId) {
-    const map = getStoredUserPhotos();
-    if (map[searchId]) return map[searchId];
-  }
+  if (searchId && map[searchId]) return map[searchId];
+  if (params.email && map[params.email]) return map[params.email];
+  if (params.name && map[params.name]) return map[params.name];
 
   // 3. Match presets based on name or role
   const nameLower = (params.name || '').toLowerCase();

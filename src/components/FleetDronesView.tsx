@@ -85,7 +85,13 @@ export const FleetDronesView: React.FC<FleetDronesViewProps> = ({
   const handleSaveCrewPhoto = (newPhotoUrl: string) => {
     if (!activeUploadCrew) return;
     const { person, role } = activeUploadCrew;
-    saveStoredUserPhoto(person.id, newPhotoUrl);
+    saveStoredUserPhoto(person.id, newPhotoUrl, {
+      id: person.id,
+      name: person.name,
+      role: role as any,
+      photoUrl: newPhotoUrl,
+      avatarUrl: newPhotoUrl,
+    });
 
     if (role === 'PILOT' && setPilots) {
       setPilots(prev => prev.map(p => p.id === person.id ? { ...p, photoUrl: newPhotoUrl, avatarUrl: newPhotoUrl } : p));

@@ -351,48 +351,148 @@ export async function loadTenantBrandingFromSupabase(tenantId: string = 'ciclodr
   }
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
- * Persists user profile photo URL to Supabase database.
- * Upserts to `user_profiles` table and mirrors to `app_settings` for full reliability.
+ * Persists user profile photo URL to Supabase database with multi-tier synchronization.
+ * Handles both UUIDs and human-readable IDs, updating user_profiles table and
+ * saving persistent backups in the cloud database.
  */
-export async function saveUserPhotoToSupabase(idOrEmail: string, photoUrl: string, profile?: UserProfile) {
+export async function saveUserPhotoToSupabase(idOrEmail: string, photoUrl: string, profile?: Partial<UserProfile>) {
   try {
     if (!idOrEmail) return { success: false, error: 'ID ou e-mail inválido' };
+    const now = new Date().toISOString();
+    const sanitizedKey = idOrEmail.toLowerCase().replace(/[^a-z0-9_@-]/g, '_');
+    const userEmail = profile?.email || (idOrEmail.includes('@') ? idOrEmail : null);
+    const userName = profile?.name;
+    const isUuid = UUID_REGEX.test(idOrEmail);
 
-    const sanitizedKey = `agro_user_photo_${idOrEmail.toLowerCase().replace(/[^a-z0-9_@-]/g, '_')}`;
+    let updatedInProfiles = false;
 
-    // 1. Mirror payload in app_settings table (if available)
+    // 1. Try updating user_profiles by UUID if idOrEmail is a valid UUID
+    if (isUuid) {
+      try {
+        const { data, error } = await supabase
+          .from('user_profiles')
+          .update({
+            photo_url: photoUrl || null,
+            avatar_url: photoUrl || null,
+            updated_at: now,
+          })
+          .eq('id', idOrEmail)
+          .select('id');
+
+        if (!error && data && data.length > 0) {
+          updatedInProfiles = true;
+        }
+      } catch (e) {}
+    }
+
+    // 2. Try updating user_profiles by email
+    if (!updatedInProfiles && userEmail) {
+      try {
+        const { data, error } = await supabase
+          .from('user_profiles')
+          .update({
+            photo_url: photoUrl || null,
+            avatar_url: photoUrl || null,
+            updated_at: now,
+          })
+          .eq('email', userEmail)
+          .select('id');
+
+        if (!error && data && data.length > 0) {
+          updatedInProfiles = true;
+        }
+      } catch (e) {}
+    }
+
+    // 3. Try updating user_profiles by name
+    if (!updatedInProfiles && userName) {
+      try {
+        const { data, error } = await supabase
+          .from('user_profiles')
+          .update({
+            photo_url: photoUrl || null,
+            avatar_url: photoUrl || null,
+            updated_at: now,
+          })
+          .eq('name', userName)
+          .select('id');
+
+        if (!error && data && data.length > 0) {
+          updatedInProfiles = true;
+        }
+      } catch (e) {}
+    }
+
+    // 4. If no existing user_profiles record matched, insert a new record with a valid UUID
+    if (!updatedInProfiles && (userName || userEmail)) {
+      try {
+        const newUuid = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'u-' + Date.now();
+        if (UUID_REGEX.test(newUuid)) {
+          const { error: insertError } = await supabase
+            .from('user_profiles')
+            .insert({
+              id: newUuid,
+              company_id: (profile as any)?.companyId || 'ciclodrone',
+              name: userName || idOrEmail,
+              role: (profile as any)?.role || 'USER',
+              role_label: (profile as any)?.roleLabel || 'Colaborador',
+              email: userEmail || `${sanitizedKey}@agrosys.agr.br`,
+              photo_url: photoUrl || null,
+              avatar_url: photoUrl || null,
+              badge: (profile as any)?.badge || 'Colaborador',
+              status: 'ACTIVE',
+              salary_base: (profile as any)?.salaryBase || 0,
+              created_at: now,
+              updated_at: now,
+            });
+
+          if (!insertError) {
+            updatedInProfiles = true;
+          }
+        }
+      } catch (e) {}
+    }
+
+    // 5. PRIMARY RESILIENT BACKUP: Save in tenants table description metadata
+    try {
+      const { data: tenant } = await supabase.from('tenants').select('description').eq('id', 'ciclodrone').maybeSingle();
+      let currentDesc = tenant?.description || '';
+      const tagRegex = new RegExp(`<!--AGRO_USER_PHOTO_${sanitizedKey}:[\\s\\S]*?-->`, 'g');
+      currentDesc = currentDesc.replace(tagRegex, '').trim();
+      const payload = {
+        idOrEmail,
+        photoUrl,
+        email: userEmail,
+        name: userName,
+        updated_at: now,
+      };
+      const newDesc = `${currentDesc} <!--AGRO_USER_PHOTO_${sanitizedKey}:${JSON.stringify(payload)}-->`.trim();
+
+      await supabase.from('tenants').update({
+        description: newDesc,
+        updated_at: now,
+      }).eq('id', 'ciclodrone');
+    } catch (e) {
+      console.warn('Aviso ao salvar backup da foto do usuário no tenants:', e);
+    }
+
+    // 6. TERTIARY BACKUP: Mirror in app_settings table (if available)
     try {
       await supabase.from('app_settings').upsert({
-        key: sanitizedKey,
+        key: `agro_user_photo_${sanitizedKey}`,
         value: JSON.stringify({
           idOrEmail,
           photoUrl,
-          name: profile?.name || '',
-          email: profile?.email || '',
-          updated_at: new Date().toISOString()
+          name: userName || '',
+          email: userEmail || '',
+          updated_at: now,
         }),
-        updated_at: new Date().toISOString()
+        updated_at: now,
       }, { onConflict: 'key' });
     } catch (e) {}
-
-    // 2. Try upserting into user_profiles table (guaranteed to exist)
-    const profilePayload: any = {
-      id: profile?.id || idOrEmail,
-      email: profile?.email || (idOrEmail.includes('@') ? idOrEmail : null),
-      name: profile?.name || idOrEmail,
-      photo_url: photoUrl,
-      avatar_url: photoUrl,
-      updated_at: new Date().toISOString(),
-    };
-
-    const { error: profileError } = await supabase
-      .from('user_profiles')
-      .upsert(profilePayload, { onConflict: 'id' });
-
-    if (profileError) {
-      console.warn('Persistência em user_profiles retornou aviso:', profileError.message);
-    }
 
     return { success: true, error: null };
   } catch (err: any) {
@@ -408,11 +508,11 @@ export async function loadUserPhotosFromSupabase(): Promise<Record<string, strin
   try {
     const photoMap: Record<string, string> = {};
 
-    // 1. Fetch from user_profiles table (primary table in database)
+    // 1. Fetch from user_profiles table (primary database table)
     try {
       const { data: profilesData } = await supabase
         .from('user_profiles')
-        .select('id, email, photo_url, avatar_url');
+        .select('id, email, name, photo_url, avatar_url');
 
       if (profilesData && Array.isArray(profilesData)) {
         profilesData.forEach(p => {
@@ -420,12 +520,39 @@ export async function loadUserPhotosFromSupabase(): Promise<Record<string, strin
           if (photo) {
             if (p.id) photoMap[p.id] = photo;
             if (p.email) photoMap[p.email] = photo;
+            if (p.name) photoMap[p.name] = photo;
           }
         });
       }
     } catch (e) {}
 
-    // 2. Enrich from app_settings if available
+    // 2. Fetch from tenants description tags (resilient metadata layer)
+    try {
+      const { data: tenantData } = await supabase
+        .from('tenants')
+        .select('description')
+        .eq('id', 'ciclodrone')
+        .maybeSingle();
+
+      if (tenantData?.description) {
+        const photoTags = tenantData.description.match(/<!--AGRO_USER_PHOTO_[^:]+:([\s\S]*?)-->/g) || [];
+        photoTags.forEach((tag: string) => {
+          const match = tag.match(/<!--AGRO_USER_PHOTO_[^:]+:([\s\S]*?)-->/);
+          if (match && match[1]) {
+            try {
+              const parsed = JSON.parse(match[1]);
+              if (parsed && parsed.photoUrl) {
+                if (parsed.idOrEmail) photoMap[parsed.idOrEmail] = parsed.photoUrl;
+                if (parsed.email) photoMap[parsed.email] = parsed.photoUrl;
+                if (parsed.name) photoMap[parsed.name] = parsed.photoUrl;
+              }
+            } catch (e) {}
+          }
+        });
+      }
+    } catch (e) {}
+
+    // 3. Enrich from app_settings if available
     try {
       const { data: settingsData } = await supabase
         .from('app_settings')
@@ -436,9 +563,10 @@ export async function loadUserPhotosFromSupabase(): Promise<Record<string, strin
         settingsData.forEach(item => {
           try {
             const parsed = JSON.parse(item.value);
-            if (parsed && parsed.idOrEmail && parsed.photoUrl) {
-              photoMap[parsed.idOrEmail] = parsed.photoUrl;
+            if (parsed && parsed.photoUrl) {
+              if (parsed.idOrEmail) photoMap[parsed.idOrEmail] = parsed.photoUrl;
               if (parsed.email) photoMap[parsed.email] = parsed.photoUrl;
+              if (parsed.name) photoMap[parsed.name] = parsed.photoUrl;
             }
           } catch (e) {}
         });

@@ -89,7 +89,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const handleSavePhoto = (newPhotoUrl: string) => {
     if (!currentUser) return;
-    saveStoredUserPhoto(currentUser.id, newPhotoUrl);
+    saveStoredUserPhoto(currentUser.id, newPhotoUrl, currentUser);
     if (onUpdateUserPhoto) {
       onUpdateUserPhoto(currentUser.id, newPhotoUrl);
     } else if (onSelectUser) {
@@ -390,8 +390,8 @@ export const Navbar: React.FC<NavbarProps> = ({
         <UserPhotoUploadModal
           isOpen={isPhotoModalOpen}
           onClose={() => setIsPhotoModalOpen(false)}
+          user={currentUser}
           currentPhotoUrl={currentUser.photoUrl || currentUser.avatarUrl}
-          userName={currentUser.name}
           onSavePhoto={handleSavePhoto}
         />
       )}
