@@ -33,9 +33,11 @@ import {
   ListOrdered,
   Database,
   BookOpen,
-  Sliders
+  Sliders,
+  Info
 } from 'lucide-react';
 import { UserAvatar } from './UserAvatar';
+import { ModuleSummaryBalloon } from './ModuleSummaryBalloon';
 import { formatInteger } from '../utils/formatters';
 import { isMasterUser, hasAdminPrivileges } from '../utils/userPermissions';
 
@@ -76,6 +78,7 @@ export const HomeHubView: React.FC<HomeHubViewProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedSummaryModule, setSelectedSummaryModule] = useState<AppViewMode | null>(null);
 
   // Operational metrics
   const activeOrdersCount = orders.filter(o => o.status === 'OPERATING' || o.status === 'IN_TRANSIT').length;
@@ -86,7 +89,17 @@ export const HomeHubView: React.FC<HomeHubViewProps> = ({
 
   // Full 20 modules list (exactly 4 rows x 5 columns = 20 cards on desktop)
   const allItems: HubItem[] = useMemo(() => [
-    // Linha 1: Operações & Voo (5 cards)
+    // Linha 1: Executivo & Operações (5 cards)
+    {
+      id: 'dashboard',
+      title: 'Painel Geral Executivo (BI)',
+      subtitle: 'Indicadores globais e hectares aplicados',
+      category: 'frota',
+      icon: <LayoutDashboard className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />,
+      iconBg: 'bg-indigo-100 dark:bg-indigo-950/80 text-indigo-600',
+      statBadge: `${formatInteger(totalAppliedHa)} ha total`,
+      tags: ['painel', 'dashboard', 'bi', 'métricas', 'executivo', 'geral'],
+    },
     {
       id: 'spray-workflow',
       title: 'Esteira do Processo (10 Passos)',
@@ -127,6 +140,8 @@ export const HomeHubView: React.FC<HomeHubViewProps> = ({
       statBadge: `${plots.length} talhões cadastrados`,
       tags: ['gis', 'mapa', 'talhão', 'satélite', 'área'],
     },
+
+    // Linha 2: Telemetria & Agronomia & Comercial (5 cards)
     {
       id: 'telemetry',
       title: 'Telemetria de Voo',
@@ -137,8 +152,6 @@ export const HomeHubView: React.FC<HomeHubViewProps> = ({
       statBadge: 'Tempo Real',
       tags: ['telemetria', 'tempo real', 'altitude', 'vazão', 'bateria'],
     },
-
-    // Linha 2: Agronomia & Comercial (5 cards)
     {
       id: 'spray-mix',
       title: 'Cálculo de Calda (WALES)',
@@ -179,6 +192,8 @@ export const HomeHubView: React.FC<HomeHubViewProps> = ({
       statBadge: 'Preços por Hectare',
       tags: ['preço', 'matriz', 'tabela', 'hectare', 'faixa'],
     },
+
+    // Linha 3: Comercial, Frota & Identidade (5 cards)
     {
       id: 'quotations',
       title: 'Orçamentos Comerciais',
@@ -189,8 +204,6 @@ export const HomeHubView: React.FC<HomeHubViewProps> = ({
       statBadge: `${quotations.length} orçamentos`,
       tags: ['orçamento', 'cotação', 'proposta', 'hectare'],
     },
-
-    // Linha 3: Comercial, Frota & Identidade (5 cards)
     {
       id: 'financial',
       title: 'Financeiro & Comissões',
@@ -210,16 +223,6 @@ export const HomeHubView: React.FC<HomeHubViewProps> = ({
       iconBg: 'bg-sky-100 dark:bg-sky-950/80 text-sky-600',
       statBadge: `${operationalDronesCount}/${drones.length} operacionais`,
       tags: ['frota', 'drones', 'baterias', 'aeronaves'],
-    },
-    {
-      id: 'dashboard',
-      title: 'Painel Geral Executivo (BI)',
-      subtitle: 'Indicadores globais e hectares aplicados',
-      category: 'frota',
-      icon: <LayoutDashboard className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />,
-      iconBg: 'bg-indigo-100 dark:bg-indigo-950/80 text-indigo-600',
-      statBadge: `${formatInteger(totalAppliedHa)} ha total`,
-      tags: ['painel', 'dashboard', 'bi', 'métricas'],
     },
     {
       id: 'admin-management',
@@ -442,6 +445,7 @@ export const HomeHubView: React.FC<HomeHubViewProps> = ({
           return (
             <div
               key={item.id}
+              id={`module-card-${item.id}`}
               onClick={() => onNavigate(item.id)}
               className="group relative p-2.5 sm:p-3 rounded-xl sm:rounded-2xl bg-white dark:bg-[#072a1e] border border-emerald-200/80 dark:border-emerald-800/80 hover:border-emerald-500 dark:hover:border-emerald-500 hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col justify-between min-h-[80px] sm:min-h-[86px] lg:min-h-[90px] active:scale-[0.98]"
               title={`Abrir ${item.title}`}
@@ -457,6 +461,7 @@ export const HomeHubView: React.FC<HomeHubViewProps> = ({
                       {item.title}
                     </h3>
                   </div>
+
                   <div className="w-4 h-4 rounded-full bg-slate-50 dark:bg-emerald-950/60 flex items-center justify-center shrink-0 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/60 transition-colors">
                     <ArrowRight className="w-3 h-3 text-slate-400 dark:text-slate-500 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all" />
                   </div>
@@ -468,14 +473,23 @@ export const HomeHubView: React.FC<HomeHubViewProps> = ({
                 </p>
               </div>
 
-              {/* Bottom badge */}
+              {/* Bottom badge + Ver Resumo action */}
               <div className="mt-1 pt-1 border-t border-slate-100 dark:border-emerald-900/50 flex items-center justify-between">
                 <span className="text-[9.5px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50/90 dark:bg-emerald-950/90 px-1.5 py-0.5 rounded border border-emerald-200/60 dark:border-emerald-800/60 truncate max-w-full">
                   {item.statBadge}
                 </span>
-                <span className="text-[8.5px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-emerald-500/60 hidden xl:inline">
-                  Acessar
-                </span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedSummaryModule(item.id);
+                  }}
+                  className="text-[8.5px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors cursor-pointer hover:underline flex items-center gap-0.5"
+                  title="Abrir balão com resumo explicativo do módulo"
+                >
+                  <span>Resumo</span>
+                  <Sparkles className="w-2.5 h-2.5" />
+                </button>
               </div>
             </div>
           );
@@ -507,6 +521,18 @@ export const HomeHubView: React.FC<HomeHubViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Interactive Module Summary Balloon Modal */}
+      <ModuleSummaryBalloon
+        moduleId={selectedSummaryModule}
+        isOpen={!!selectedSummaryModule}
+        onClose={() => setSelectedSummaryModule(null)}
+        onNavigate={(view) => {
+          setSelectedSummaryModule(null);
+          onNavigate(view);
+        }}
+        availableModules={filteredItems.map(i => i.id)}
+      />
     </div>
   );
 };

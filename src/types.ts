@@ -47,6 +47,7 @@ export interface UserProfile {
   hiredDate?: string;
   password?: string;
   isMaster?: boolean; // Usuário Master com privilégio total multi-empresa
+  allowedViews?: AppViewMode[]; // Permissões customizadas concedidas pela empresa/master
 }
 
 export interface ClientProducer {

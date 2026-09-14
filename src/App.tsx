@@ -64,8 +64,9 @@ import {
   setStoredLogoAdaptiveMode,
   getStoredConfiguredLogoIconId, 
   setStoredConfiguredLogoIconId,
-  getCompanyTheme 
 } from './services/brandingLogoStorage';
+import { getCompanyTheme } from './services/brandingLogoStorage';
+import { getStoredRegisteredCompanies } from './services/companyStorage';
 import { 
   USER_PROFILES, 
   INITIAL_PLOTS, 
@@ -928,7 +929,17 @@ export default function App() {
             orders={orders}
             plots={plots}
             drones={drones}
+            batteries={batteries}
+            clients={clients}
+            pilots={pilots}
+            assistants={assistants}
             financials={financials}
+            allUsers={allUsers}
+            onSaveUserPermissions={(userId, allowedViews) => {
+              setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, allowedViews } : u));
+            }}
+            registeredCompanies={getStoredRegisteredCompanies()}
+            activeCompanyId={theme.tenantId}
             onNavigate={(view) => setCurrentView(view as AppViewMode)}
             onOpenNewOSModal={() => {
               setCurrentView('orders');

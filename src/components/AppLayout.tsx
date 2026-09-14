@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   AppViewMode, 
   UserProfile, 
@@ -38,7 +38,7 @@ import {
 } from 'lucide-react';
 import { UserAvatar } from './UserAvatar';
 import { BrandLogo } from './BrandLogo';
-import { isMasterUser } from '../utils/userPermissions';
+import { isMasterUser, canUserAccessView } from '../utils/userPermissions';
 import { getStoredRegisteredCompanies } from '../services/companyStorage';
 import { getCompanyTheme } from '../services/brandingLogoStorage';
 
@@ -135,52 +135,56 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
     setTheme(compTheme);
   };
 
-  const navSections: {
-    label: string;
-    items: { id: AppViewMode; title: string; icon: React.ReactNode; badge?: string }[];
-  }[] = [
-    {
-      label: 'Operações & Campo',
-      items: [
-        { id: 'hub', title: 'Central de Módulos', icon: <LayoutGrid className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> },
-        { id: 'orders', title: 'Ordens de Serviço (OS)', icon: <ClipboardList className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> },
-        { id: 'spray-workflow', title: 'Esteira Passo a Passo (10 Passos)', icon: <Workflow className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />, badge: 'MAPA' },
-        { id: 'gis', title: 'Talhões & Mapas GIS', icon: <MapPin className="w-4 h-4 text-cyan-600 dark:text-cyan-400" /> },
-        { id: 'schedule', title: 'Agenda & Escala Operacional', icon: <Calendar className="w-4 h-4 text-teal-600 dark:text-teal-400" /> },
-        { id: 'telemetry', title: 'Telemetria de Voo ao Vivo', icon: <Activity className="w-4 h-4 text-blue-600 dark:text-blue-400" /> },
-      ],
-    },
-    {
-      label: 'Agronomia & Aplicação',
-      items: [
-        { id: 'spray-mix', title: 'Cálculo de Calda (WALES)', icon: <Droplets className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> },
-        { id: 'weather', title: 'Clima & Janela Delta T', icon: <Activity className="w-4 h-4 text-teal-600 dark:text-teal-400" /> },
-        { id: 'reports', title: 'Relatórios Técnicos', icon: <FileText className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> },
-      ],
-    },
-    {
-      label: 'Comercial & Frota',
-      items: [
-        { id: 'fleet', title: 'Frota de Drones & Equipes', icon: <Plane className="w-4 h-4 text-sky-600 dark:text-sky-400" /> },
-        { id: 'pricing', title: 'Matriz de Preços por Hectare', icon: <DollarSign className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> },
-        { id: 'quotations', title: 'Orçamentos Comerciais', icon: <DollarSign className="w-4 h-4 text-amber-600 dark:text-amber-400" /> },
-        { id: 'financial', title: 'Comissões & Financeiro', icon: <DollarSign className="w-4 h-4 text-teal-600 dark:text-teal-400" /> },
-        { id: 'dashboard', title: 'Painel Executivo & Métricas', icon: <Sliders className="w-4 h-4 text-purple-600 dark:text-purple-400" /> },
-      ],
-    },
-    {
-      label: 'Governança & Suporte',
-      items: [
-        { id: 'admin-management', title: 'Hub de Administração & Cadastros', icon: <ShieldCheck className="w-4 h-4 text-purple-600 dark:text-purple-400" /> },
-        { id: 'branding', title: 'Branding Studio & Marca', icon: <Palette className="w-4 h-4 text-rose-600 dark:text-rose-400" /> },
-        { id: 'design-system', title: 'Design System & Cores', icon: <Palette className="w-4 h-4 text-indigo-600 dark:text-indigo-400" /> },
-        { id: 'database', title: 'Esquema PostgreSQL & GIS', icon: <Database className="w-4 h-4 text-slate-600 dark:text-slate-400" /> },
-        { id: 'docs', title: 'Documentação Técnica & APIs', icon: <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" /> },
-        { id: 'virtual-tour', title: 'Tour Virtual do Sistema', icon: <Compass className="w-4 h-4 text-amber-600 dark:text-amber-400" /> },
-        { id: 'help', title: 'Central de Ajuda & MAPA', icon: <HelpCircle className="w-4 h-4 text-blue-600 dark:text-blue-400" /> },
-      ],
-    },
-  ];
+  const navSections = useMemo(() => {
+    const rawSections = [
+      {
+        label: 'Operações & Campo',
+        items: [
+          { id: 'hub', title: 'Central de Módulos', icon: <LayoutGrid className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> },
+          { id: 'orders', title: 'Ordens de Serviço (OS)', icon: <ClipboardList className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> },
+          { id: 'spray-workflow', title: 'Esteira Passo a Passo (10 Passos)', icon: <Workflow className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />, badge: 'MAPA' },
+          { id: 'gis', title: 'Talhões & Mapas GIS', icon: <MapPin className="w-4 h-4 text-cyan-600 dark:text-cyan-400" /> },
+          { id: 'schedule', title: 'Agenda & Escala Operacional', icon: <Calendar className="w-4 h-4 text-teal-600 dark:text-teal-400" /> },
+          { id: 'telemetry', title: 'Telemetria de Voo ao Vivo', icon: <Activity className="w-4 h-4 text-blue-600 dark:text-blue-400" /> },
+        ],
+      },
+      {
+        label: 'Agronomia & Aplicação',
+        items: [
+          { id: 'spray-mix', title: 'Cálculo de Calda (WALES)', icon: <Droplets className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> },
+          { id: 'weather', title: 'Clima & Janela Delta T', icon: <Activity className="w-4 h-4 text-teal-600 dark:text-teal-400" /> },
+          { id: 'reports', title: 'Relatórios Técnicos', icon: <FileText className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> },
+        ],
+      },
+      {
+        label: 'Comercial & Frota',
+        items: [
+          { id: 'fleet', title: 'Frota de Drones & Equipes', icon: <Plane className="w-4 h-4 text-sky-600 dark:text-sky-400" /> },
+          { id: 'pricing', title: 'Matriz de Preços por Hectare', icon: <DollarSign className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> },
+          { id: 'quotations', title: 'Orçamentos Comerciais', icon: <DollarSign className="w-4 h-4 text-amber-600 dark:text-amber-400" /> },
+          { id: 'financial', title: 'Comissões & Financeiro', icon: <DollarSign className="w-4 h-4 text-teal-600 dark:text-teal-400" /> },
+          { id: 'dashboard', title: 'Painel Executivo & Métricas (BI)', icon: <Sliders className="w-4 h-4 text-purple-600 dark:text-purple-400" /> },
+        ],
+      },
+      {
+        label: 'Governança & Suporte',
+        items: [
+          { id: 'admin-management', title: 'Hub de Administração & Cadastros', icon: <ShieldCheck className="w-4 h-4 text-purple-600 dark:text-purple-400" /> },
+          { id: 'branding', title: 'Branding Studio & Marca', icon: <Palette className="w-4 h-4 text-rose-600 dark:text-rose-400" /> },
+          { id: 'design-system', title: 'Design System & Cores', icon: <Palette className="w-4 h-4 text-indigo-600 dark:text-indigo-400" /> },
+          { id: 'database', title: 'Esquema PostgreSQL & GIS', icon: <Database className="w-4 h-4 text-slate-600 dark:text-slate-400" /> },
+          { id: 'docs', title: 'Documentação Técnica & APIs', icon: <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" /> },
+          { id: 'virtual-tour', title: 'Tour Virtual do Sistema', icon: <Compass className="w-4 h-4 text-amber-600 dark:text-amber-400" /> },
+          { id: 'help', title: 'Central de Ajuda & MAPA', icon: <HelpCircle className="w-4 h-4 text-blue-600 dark:text-blue-400" /> },
+        ],
+      },
+    ];
+
+    return rawSections.map(sec => ({
+      ...sec,
+      items: sec.items.filter(item => canUserAccessView(currentUser, item.id as AppViewMode)),
+    })).filter(sec => sec.items.length > 0);
+  }, [currentUser]);
 
   return (
     <div className={`min-h-[100dvh] sm:min-h-screen ${isScheduleView ? 'sm:h-screen sm:overflow-hidden' : ''} flex flex-col bg-emerald-50/50 dark:bg-[#051811] text-emerald-950 dark:text-emerald-50 selection:bg-emerald-500 selection:text-white transition-colors duration-200 pb-16 sm:pb-0`}>

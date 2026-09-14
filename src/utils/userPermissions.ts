@@ -1,4 +1,4 @@
-import { UserProfile } from '../types';
+import { UserProfile, UserRole, AppViewMode } from '../types';
 
 /**
  * Checks if a user is a Master Administrator with unrestricted global multi-company privileges.
@@ -38,6 +38,60 @@ export function hasAdminPrivileges(user?: UserProfile | null): boolean {
 }
 
 /**
+ * Returns the baseline/default views accessible by a given role.
+ */
+export function getDefaultRoleViews(role: UserRole): AppViewMode[] {
+  switch (role) {
+    case 'MASTER':
+      return [
+        'hub', 'dashboard', 'orders', 'spray-workflow', 'gis', 'schedule', 'telemetry',
+        'weather', 'spray-mix', 'fleet', 'pricing', 'quotations', 'reports', 'financial',
+        'admin-management', 'branding', 'docs', 'database', 'design-system', 'virtual-tour', 'help'
+      ];
+    case 'ADMIN':
+      return [
+        'hub', 'dashboard', 'orders', 'spray-workflow', 'gis', 'schedule', 'telemetry',
+        'weather', 'spray-mix', 'fleet', 'pricing', 'quotations', 'reports', 'financial',
+        'admin-management', 'branding', 'docs', 'virtual-tour', 'help'
+      ];
+    case 'PILOT':
+      return [
+        'hub', 'dashboard', 'orders', 'spray-workflow', 'gis', 'schedule', 'telemetry',
+        'weather', 'spray-mix', 'fleet', 'reports', 'financial', 'docs', 'virtual-tour', 'help'
+      ];
+    case 'ASSISTANT':
+      return [
+        'hub', 'dashboard', 'orders', 'spray-workflow', 'schedule', 'weather',
+        'spray-mix', 'fleet', 'financial', 'docs', 'virtual-tour', 'help'
+      ];
+    case 'USER':
+      return [
+        'hub', 'dashboard', 'orders', 'gis', 'weather', 'reports', 'financial',
+        'docs', 'virtual-tour', 'help'
+      ];
+    default:
+      return ['hub', 'dashboard', 'orders', 'help'];
+  }
+}
+
+/**
+ * Checks whether a user has permission to access a specific module/view.
+ * Respects custom allowedViews granted by Company Admin or Master.
+ */
+export function canUserAccessView(user: UserProfile | null | undefined, view: AppViewMode): boolean {
+  if (!user) return false;
+  if (isMasterUser(user)) return true;
+
+  // If custom allowed views are set on this user profile, use them
+  if (user.allowedViews && Array.isArray(user.allowedViews) && user.allowedViews.length > 0) {
+    return user.allowedViews.includes(view);
+  }
+
+  // Fallback to default role permissions
+  return getDefaultRoleViews(user.role).includes(view);
+}
+
+/**
  * Normalizes user object ensuring Master attributes are properly set.
  */
 export function normalizeUserProfile(user: UserProfile): UserProfile {
@@ -52,3 +106,4 @@ export function normalizeUserProfile(user: UserProfile): UserProfile {
   }
   return user;
 }
+
