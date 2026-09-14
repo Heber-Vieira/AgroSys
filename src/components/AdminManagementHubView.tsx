@@ -59,6 +59,7 @@ import { UserAvatar, UserPhotoUploadModal, saveStoredUserPhoto, PRESET_AVATARS, 
 import { PricingMatrixView } from './PricingMatrixView';
 import { FleetDronesView } from './FleetDronesView';
 import { AdminBrandingStudio } from './AdminBrandingStudio';
+import { AuditLogsView } from './AuditLogsView';
 import { formatBRL, formatDecimal, parseInputNumber } from '../utils/formatters';
 import { PRESET_COMPANIES, PRESET_LOGOS } from '../data/themeTokensData';
 import { isMasterUser } from '../utils/userPermissions';
@@ -108,7 +109,7 @@ interface AdminManagementHubViewProps {
   setThemeMode?: (mode: ThemeMode) => void;
 }
 
-type AdminTab = 'users' | 'drones' | 'clients' | 'compensation' | 'pricing' | 'fleet' | 'branding' | 'companies';
+type AdminTab = 'users' | 'drones' | 'clients' | 'compensation' | 'pricing' | 'fleet' | 'branding' | 'companies' | 'audit_logs';
 
 export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
   currentUser,
@@ -926,18 +927,33 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
         <div className="flex items-center gap-1.5 flex-nowrap sm:flex-wrap justify-start sm:justify-center">
           {/* Master Company Management Tab */}
           {isMaster && (
-            <button
-              onClick={() => { setActiveTab('companies'); setSearchQuery(''); }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                activeTab === 'companies'
-                  ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-2xs font-black ring-1 ring-amber-300'
-                  : 'text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40'
-              }`}
-              title="Super Master: Cadastre, edite e exclua empresas no sistema AgroSys"
-            >
-              <Building2 className="w-3.5 h-3.5 text-amber-900 dark:text-amber-300" />
-              <span>🏢 Empresas ({registeredCompanies.length})</span>
-            </button>
+            <>
+              <button
+                onClick={() => { setActiveTab('companies'); setSearchQuery(''); }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  activeTab === 'companies'
+                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-2xs font-black ring-1 ring-amber-300'
+                    : 'text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40'
+                }`}
+                title="Super Master: Cadastre, edite e exclua empresas no sistema AgroSys"
+              >
+                <Building2 className="w-3.5 h-3.5 text-amber-900 dark:text-amber-300" />
+                <span>🏢 Empresas ({registeredCompanies.length})</span>
+              </button>
+
+              <button
+                onClick={() => { setActiveTab('audit_logs'); setSearchQuery(''); }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  activeTab === 'audit_logs'
+                    ? 'bg-emerald-600 text-white shadow-2xs font-black ring-1 ring-emerald-300'
+                    : 'text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40'
+                }`}
+                title="Super Master: Visualizar logs de auditoria de atividade dos usuários"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />
+                <span>📋 Logs de Auditoria</span>
+              </button>
+            </>
           )}
 
           <button
@@ -2127,6 +2143,10 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
           onSwitchToAdmin={onSwitchToAdmin}
           onNavigate={onNavigate}
         />
+      )}
+
+      {activeTab === 'audit_logs' && (
+        <AuditLogsView currentUser={currentUser} />
       )}
 
       {activeTab === 'virtual-tour' && (

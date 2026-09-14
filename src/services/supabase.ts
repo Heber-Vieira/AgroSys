@@ -78,24 +78,52 @@ export async function testSupabaseConnection(): Promise<{ success: boolean; mess
   }
 }
 
+import { logUserActivity } from './auditLoggerService';
+
 function fontOrTableConnected(error: any): boolean {
   return !error.message.includes('Invalid API key') && !error.message.includes('apiKey');
 }
 
 export async function signInWithSupabase(email: string, password: string) {
+  const startTime = performance.now();
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
     if (error) throw error;
+
+    const durationMs = Math.round(performance.now() - startTime);
+    logUserActivity({
+      userId: data.user?.id || email,
+      userName: data.user?.user_metadata?.name || email.split('@')[0],
+      userEmail: email,
+      action: 'LOGIN',
+      details: { provider: 'supabase-password', authId: data.user?.id },
+      responseStatus: 200,
+      statusLabel: 'SUCCESS',
+      durationMs,
+    });
+
     return { user: data.user, session: data.session, error: null };
   } catch (err: any) {
+    const durationMs = Math.round(performance.now() - startTime);
+    logUserActivity({
+      userId: email,
+      userEmail: email,
+      action: 'LOGIN_FAILED',
+      details: { reason: err.message || 'Falha de autenticação' },
+      responseStatus: 401,
+      statusLabel: 'FAILURE',
+      durationMs,
+    });
+
     return { user: null, session: null, error: err.message || 'Falha ao autenticar no Supabase Auth' };
   }
 }
 
 export async function signUpWithSupabase(email: string, password: string, name?: string, role?: string) {
+  const startTime = performance.now();
   try {
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -108,16 +136,56 @@ export async function signUpWithSupabase(email: string, password: string, name?:
       }
     });
     if (error) throw error;
+
+    const durationMs = Math.round(performance.now() - startTime);
+    logUserActivity({
+      userId: data.user?.id || email,
+      userName: name || email.split('@')[0],
+      userEmail: email,
+      action: 'CREATE_USER',
+      details: { role: role || 'ADMIN', registeredVia: 'Supabase SignUp' },
+      responseStatus: 201,
+      statusLabel: 'SUCCESS',
+      durationMs,
+    });
+
     return { user: data.user, session: data.session, error: null };
   } catch (err: any) {
+    const durationMs = Math.round(performance.now() - startTime);
+    logUserActivity({
+      userId: email,
+      userEmail: email,
+      action: 'CREATE_USER',
+      details: { reason: err.message || 'Falha ao registrar conta' },
+      responseStatus: 400,
+      statusLabel: 'FAILURE',
+      durationMs,
+    });
+
     return { user: null, session: null, error: err.message || 'Falha ao cadastrar usuário no Supabase Auth' };
   }
 }
 
 export async function signOutSupabase() {
+  const startTime = performance.now();
   try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const currentUser = sessionData?.session?.user;
+
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
+
+    const durationMs = Math.round(performance.now() - startTime);
+    logUserActivity({
+      userId: currentUser?.id || 'session-ended',
+      userEmail: currentUser?.email || '',
+      action: 'LOGOUT',
+      details: { sessionEnded: true },
+      responseStatus: 200,
+      statusLabel: 'SUCCESS',
+      durationMs,
+    });
+
     return { error: null };
   } catch (err: any) {
     return { error: err.message };

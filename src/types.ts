@@ -541,3 +541,47 @@ export type AppViewMode =
   | 'admin-management'
   | 'spray-workflow';
 
+export type AuditActionType = 
+  | 'LOGIN'
+  | 'LOGOUT'
+  | 'LOGIN_FAILED'
+  | 'CREATE_USER'
+  | 'UPDATE_USER'
+  | 'DELETE_USER'
+  | 'CREATE_CLIENT'
+  | 'UPDATE_CLIENT'
+  | 'DELETE_CLIENT'
+  | 'CREATE_DRONE'
+  | 'UPDATE_DRONE'
+  | 'DELETE_DRONE'
+  | 'CREATE_OS'
+  | 'UPDATE_OS'
+  | 'DELETE_OS'
+  | 'CREATE_QUOTATION'
+  | 'UPDATE_QUOTATION'
+  | 'DELETE_QUOTATION'
+  | 'SYSTEM_SETTINGS_UPDATE'
+  | 'COMPANY_BRANDING_UPDATE'
+  | 'MAINTENANCE_LOG_ADD'
+  | 'BATTERY_ALERT_UPDATE'
+  | 'WEATHER_ALERT_UPDATE'
+  | 'DATA_EXPORT'
+  | 'ACCESS_DENIED';
+
+export interface UserActivityLog {
+  id: string;
+  userId: string;
+  userName?: string;
+  userEmail?: string;
+  companyId?: string;
+  action: AuditActionType | string;
+  details?: Record<string, any> | string;
+  ipAddress: string;
+  responseStatus: number; // e.g. 200, 201, 400, 403, 500
+  statusLabel: 'SUCCESS' | 'FAILURE' | 'DENIED' | 'WARNING';
+  createdAt: string; // ISO 8601 string
+  userRole?: UserRole;
+  durationMs?: number;
+}
+
+
