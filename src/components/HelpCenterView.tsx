@@ -84,14 +84,11 @@ export const HelpCenterView: React.FC<HelpCenterViewProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Allowed Roles list: Master and Admin can inspect subordinate guides for support;
-  // regular users (PILOT, ASSISTANT, USER) are strictly limited to their own role.
+  // Strict Scope: Everyone (including Master/Admin) only sees their own role's help guide
+  // as per the requirement: "não deve ter as funcionalidades de outro perfil, faça esse ajuste com precisão."
   const allowedHelpRoles = useMemo<UserRole[]>(() => {
-    if (isMaster || userRole === 'ADMIN') {
-      return ['MASTER', 'ADMIN', 'PILOT', 'ASSISTANT', 'USER'];
-    }
     return [userRole];
-  }, [userRole, isMaster]);
+  }, [userRole]);
 
   // Authorized Smart Navigator Features for active currentUser
   const authorizedFeatures = useMemo(() => {

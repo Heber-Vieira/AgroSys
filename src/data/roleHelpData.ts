@@ -55,6 +55,7 @@ export const ROLE_HELP_DATA: Record<UserRole, RoleHelpItem> = {
       'Configurar logotipos e identidades visuais individualizadas por empresa.',
       'Alternar de forma transparente entre o modo Multi-Empresa Global e a visão de cada empresa.',
       'Gerenciar administradores gerais, pilotos e operadores de todas as unidades.',
+      'Ativar ou desativar o módulo de Análise por Inteligência Artificial (IA) para a empresa.',
     ],
     workflowSteps: [
       {
@@ -87,6 +88,12 @@ export const ROLE_HELP_DATA: Record<UserRole, RoleHelpItem> = {
         purpose: 'Cadastro de novas empresas, edição de logotipos e dados cadastrais.',
         howToUse: 'Alterne a empresa ativa na Navbar ou cadastre novas empresas no Hub.',
       },
+      {
+        moduleId: 'dashboard',
+        moduleName: 'Painel Geral Executivo (BI)',
+        purpose: 'Visualização de métricas e ativação/desativação da IA.',
+        howToUse: 'Acesse o painel para verificar métricas consolidadas e controlar a Inteligência Preditiva.',
+      },
     ],
     fieldTips: [
       'Mantenha o logotipo de cada empresa atualizado para a emissão correta de relatórios e laudos técnicos.',
@@ -115,6 +122,7 @@ export const ROLE_HELP_DATA: Record<UserRole, RoleHelpItem> = {
       'Monitorar a estação meteorológica (Portão Delta T) para liberação de laudos técnicos.',
       'Gerenciar ciclos, saúde e alertas de armazenamento prolongado de Baterias Inteligentes.',
       'Acompanhar a saúde financeira, comissões de tripulação e faturamento.',
+      'Analisar o Painel Executivo (BI) e aplicar recomendações sugeridas pela Inteligência Artificial.',
     ],
     workflowSteps: [
       {
@@ -177,6 +185,12 @@ export const ROLE_HELP_DATA: Record<UserRole, RoleHelpItem> = {
         moduleName: 'Matriz de Precificação',
         purpose: 'Configuração da política comercial por hectare, hora ou calda.',
         howToUse: 'Simule cotações na hora e ajuste o preço base.',
+      },
+      {
+        moduleId: 'dashboard',
+        moduleName: 'Painel Geral Executivo (BI)',
+        purpose: 'Acompanhar métricas de negócio e IA preditiva.',
+        howToUse: 'Visualize rapidamente a saúde financeira, métricas operacionais e recomendações geradas por IA (se ativado pelo Master).',
       },
     ],
     regulatoryStandards: [

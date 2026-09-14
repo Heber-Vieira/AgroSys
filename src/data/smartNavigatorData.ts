@@ -233,6 +233,32 @@ export const SMART_FEATURES_REGISTRY: SmartFeatureItem[] = [
     keywords: ['guia', 'passo a passo', 'fluxo', 'treinamento', 'manual', 'como usar', 'etapas'],
     allowedRoles: ['MASTER', 'ADMIN', 'PILOT', 'ASSISTANT', 'USER'],
   },
+  {
+    id: 'executive-dashboard-bi',
+    title: 'Painel Geral Executivo (BI) & Analytics',
+    category: 'Gestão Corporativa',
+    description: 'Painel completo com gráficos de faturamento, pulverizações, desempenho de equipe/drone e métricas consolidadas da empresa.',
+    moduleName: 'Painel Executivo',
+    tabName: '📈 BI & Analytics',
+    targetView: 'dashboard',
+    targetTab: 'bi-overview',
+    keywords: ['bi', 'dashboard', 'painel', 'executivo', 'grafico', 'faturamento', 'desempenho', 'metricas', 'analytics', 'geral', 'empresa', 'pulverizações'],
+    allowedRoles: ['MASTER', 'ADMIN'],
+    badgeText: 'Admin / Master',
+  },
+  {
+    id: 'ai-analysis',
+    title: 'Central de Análise por IA & Inteligência Preditiva',
+    category: 'Aviação & Análise',
+    description: 'Recomendações geradas por Inteligência Artificial sobre clima, vida útil de baterias, faturamento e otimização operacional.',
+    moduleName: 'Painel Executivo',
+    tabName: '🧠 Análise IA',
+    targetView: 'dashboard',
+    targetTab: 'ai-analysis',
+    keywords: ['ia', 'ai', 'inteligencia', 'artificial', 'analise', 'preditiva', 'recomendações', 'insights', 'machine', 'learning', 'ativar ia'],
+    allowedRoles: ['MASTER', 'ADMIN'],
+    badgeText: 'Admin / Master',
+  },
 ];
 
 /**
