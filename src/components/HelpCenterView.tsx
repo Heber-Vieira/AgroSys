@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   HelpCircle, 
   ShieldCheck, 
@@ -19,11 +19,18 @@ import {
   Printer, 
   X,
   ChevronDown,
-  ChevronRight,
-  Info
+  Info,
+  Zap,
+  Tag,
+  Lock,
+  Command,
+  CornerDownLeft,
+  Navigation
 } from 'lucide-react';
 import { UserProfile, UserRole, WhiteLabelTheme, AppViewMode } from '../types';
 import { ROLE_HELP_DATA, RoleHelpItem } from '../data/roleHelpData';
+import { getAuthorizedFeatures, SmartFeatureItem } from '../data/smartNavigatorData';
+import { isMasterUser } from '../utils/userPermissions';
 
 interface HelpCenterViewProps {
   currentUser: UserProfile;
@@ -44,13 +51,73 @@ export const HelpCenterView: React.FC<HelpCenterViewProps> = ({
   isModal = false,
   onCloseModal,
 }) => {
-  const [selectedRole, setSelectedRole] = useState<UserRole>(currentUser.role);
+  const isMaster = isMasterUser(currentUser);
+  const userRole = currentUser.role;
+
+  // Selected Role for documentation (Strict Scope: regular users only see their own role)
+  const [selectedRole, setSelectedRole] = useState<UserRole>(userRole);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'workflow' | 'modules' | 'regulations' | 'faq' | 'tips'>('workflow');
+  const [activeTab, setActiveTab] = useState<'navigator' | 'workflow' | 'modules' | 'regulations' | 'faq' | 'tips'>('navigator');
   const [checkedChecklistItems, setCheckedChecklistItems] = useState<Record<string, boolean>>({});
   const [expandedFaqIndex, setExpandedFaqIndex] = useState<number | null>(0);
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
 
-  const roleHelp: RoleHelpItem = ROLE_HELP_DATA[selectedRole] || ROLE_HELP_DATA.ADMIN;
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Sync selectedRole if currentUser role changes
+  useEffect(() => {
+    setSelectedRole(currentUser.role);
+  }, [currentUser.role]);
+
+  // Global Ctrl+K shortcut listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setActiveTab('navigator');
+        if (searchInputRef.current) {
+          searchInputRef.current.focus();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Allowed Roles list: Master and Admin can inspect subordinate guides for support;
+  // regular users (PILOT, ASSISTANT, USER) are strictly limited to their own role.
+  const allowedHelpRoles = useMemo<UserRole[]>(() => {
+    if (isMaster || userRole === 'ADMIN') {
+      return ['MASTER', 'ADMIN', 'PILOT', 'ASSISTANT', 'USER'];
+    }
+    return [userRole];
+  }, [userRole, isMaster]);
+
+  // Authorized Smart Navigator Features for active currentUser
+  const authorizedFeatures = useMemo(() => {
+    return getAuthorizedFeatures(currentUser.role, isMaster);
+  }, [currentUser.role, isMaster]);
+
+  // Filtered Smart Navigator Results
+  const filteredSmartFeatures = useMemo(() => {
+    const query = searchQuery.toLowerCase().trim();
+    return authorizedFeatures.filter(feature => {
+      const matchCategory = selectedCategory === 'ALL' || feature.category === selectedCategory;
+      if (!matchCategory) return false;
+
+      if (!query) return true;
+
+      return (
+        feature.title.toLowerCase().includes(query) ||
+        feature.description.toLowerCase().includes(query) ||
+        feature.moduleName.toLowerCase().includes(query) ||
+        (feature.tabName && feature.tabName.toLowerCase().includes(query)) ||
+        feature.keywords.some(k => k.toLowerCase().includes(query))
+      );
+    });
+  }, [authorizedFeatures, searchQuery, selectedCategory]);
+
+  const roleHelp: RoleHelpItem = ROLE_HELP_DATA[selectedRole] || ROLE_HELP_DATA.ADMIN || ROLE_HELP_DATA.USER;
 
   const toggleChecklist = (itemKey: string) => {
     setCheckedChecklistItems(prev => ({
@@ -61,6 +128,8 @@ export const HelpCenterView: React.FC<HelpCenterViewProps> = ({
 
   const getRoleIcon = (role: UserRole) => {
     switch (role) {
+      case 'MASTER':
+        return <ShieldCheck className="w-4 h-4 text-amber-400" />;
       case 'ADMIN':
         return <ShieldCheck className="w-4 h-4" />;
       case 'USER':
@@ -88,35 +157,40 @@ export const HelpCenterView: React.FC<HelpCenterViewProps> = ({
     w.actionTip.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const categoriesList = useMemo(() => {
+    const cats = new Set<string>();
+    authorizedFeatures.forEach(f => cats.add(f.category));
+    return ['ALL', ...Array.from(cats)];
+  }, [authorizedFeatures]);
+
   return (
     <div className={`space-y-6 ${isModal ? 'p-1 sm:p-2' : ''}`}>
       {/* Top Banner / Hero */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xs relative overflow-hidden">
-        {/* Subtle background glow */}
+      <div className="bg-slate-900 text-white border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl relative overflow-hidden">
         <div 
-          className="absolute -right-16 -top-16 w-64 h-64 rounded-full opacity-10 blur-3xl pointer-events-none"
+          className="absolute -right-16 -top-16 w-64 h-64 rounded-full opacity-20 blur-3xl pointer-events-none"
           style={{ backgroundColor: roleHelp.primaryColor }}
         />
 
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 relative z-10">
           <div className="flex items-start sm:items-center gap-3.5">
             <div 
-              className="w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-md flex-shrink-0"
+              className="w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg flex-shrink-0"
               style={{ backgroundColor: roleHelp.primaryColor }}
             >
               <HelpCircle className="w-6 h-6" />
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-                  Central de Ajuda & Manuais por Perfil
+                <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
+                  Central de Ajuda & Navegador Inteligente
                 </h1>
-                <span className="text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300/40">
-                  AgroSys
+                <span className="text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  {currentUser.roleLabel}
                 </span>
               </div>
-              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-                Guia operacional completo com fluxos de trabalho, boas práticas de campo, normas legais e soluções para cada perfil.
+              <p className="text-xs sm:text-sm text-slate-300 mt-1">
+                Localize qualquer funcionalidade ou aba em segundos e acesse manuais restritos exclusivamente às permissões do seu perfil.
               </p>
             </div>
           </div>
@@ -128,7 +202,7 @@ export const HelpCenterView: React.FC<HelpCenterViewProps> = ({
                 if (onStartLiveTour) onStartLiveTour();
                 else onStartTour();
               }}
-              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-transform active:scale-95 flex items-center gap-2 cursor-pointer"
+              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg transition-transform active:scale-95 flex items-center gap-2 cursor-pointer"
             >
               <Compass className="w-4 h-4" />
               <span>Tour Virtual Interativo</span>
@@ -136,17 +210,17 @@ export const HelpCenterView: React.FC<HelpCenterViewProps> = ({
 
             <button
               onClick={() => window.print()}
-              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-xs transition-transform active:scale-95 flex items-center gap-2 cursor-pointer"
+              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-800 text-slate-200 border border-slate-700 hover:bg-slate-700 shadow-xs transition-transform active:scale-95 flex items-center gap-2 cursor-pointer"
               title="Imprimir Guia de Operação e Normas"
             >
-              <Printer className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <span>Imprimir Guia Manual</span>
+              <Printer className="w-4 h-4 text-emerald-400" />
+              <span>Imprimir Guia</span>
             </button>
             
             {isModal && onCloseModal && (
               <button
                 onClick={onCloseModal}
-                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
                 title="Fechar Ajuda"
               >
                 <X className="w-5 h-5" />
@@ -155,75 +229,278 @@ export const HelpCenterView: React.FC<HelpCenterViewProps> = ({
           </div>
         </div>
 
-        {/* Search bar inside header */}
-        <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="relative w-full sm:max-w-md">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+        {/* Smart Search & Command Launcher Input */}
+        <div className="mt-5 pt-4 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="relative w-full sm:max-w-xl">
+            <Search className="w-4 h-4 text-emerald-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
+              ref={searchInputRef}
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar dúvidas, termos (ex: Delta T, EPI, NDVI, SARPAS, Calda)..."
-              className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                if (activeTab !== 'navigator') setActiveTab('navigator');
+              }}
+              placeholder="Digite o que deseja fazer (ex: 'ver auditoria', 'bateria', 'laudo', 'nr-31', 'comissão')..."
+              className="w-full pl-9 pr-24 py-2.5 bg-slate-950/80 border border-slate-700/80 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 shadow-inner"
             />
+            <div className="absolute right-2.5 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-1 text-[10px] text-slate-400 bg-slate-800 px-2 py-1 rounded-md border border-slate-700">
+              <Command className="w-3 h-3" />
+              <span>Ctrl + K</span>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 self-start sm:self-auto">
-            <Info className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
-            <span>Perfil ativo na sessão: <strong className="text-slate-800 dark:text-slate-200">{currentUser.roleLabel}</strong></span>
+          <div className="flex items-center gap-2 text-xs text-slate-300 self-start sm:self-auto bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-700">
+            <Lock className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+            <span>Escopo do perfil: <strong className="text-emerald-300">{currentUser.roleLabel}</strong> ({authorizedFeatures.length} rotas liberadas)</span>
           </div>
         </div>
       </div>
 
-      {/* Role Switcher Tabs */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-2 shadow-xs">
-        <div className="text-xs font-bold text-slate-400 dark:text-slate-500 px-3 py-1.5 uppercase tracking-wider">
-          Selecione o Perfil para Visualizar o Guia Dedicado:
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-          {(['ADMIN', 'USER', 'PILOT', 'ASSISTANT'] as UserRole[]).map((roleKey) => {
-            const rData = ROLE_HELP_DATA[roleKey];
-            const isSelected = selectedRole === roleKey;
-            const isUserActiveProfile = currentUser.role === roleKey;
+      {/* Role Switcher Tabs (Strictly locked to authorized roles only) */}
+      {allowedHelpRoles.length > 1 ? (
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-2.5 shadow-xs">
+          <div className="text-xs font-bold text-slate-400 dark:text-slate-500 px-3 py-1.5 uppercase tracking-wider flex items-center justify-between">
+            <span>Selecione o Perfil para Visualizar o Guia Dedicado:</span>
+            <span className="text-[10px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded border border-amber-300/40">
+              Acesso Administrativo Multi-Perfil
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+            {allowedHelpRoles.map((roleKey) => {
+              const rData = ROLE_HELP_DATA[roleKey] || ROLE_HELP_DATA.ADMIN;
+              const isSelected = selectedRole === roleKey;
+              const isUserActiveProfile = currentUser.role === roleKey;
 
-            return (
+              return (
+                <button
+                  key={roleKey}
+                  onClick={() => setSelectedRole(roleKey)}
+                  className={`p-3 rounded-xl border text-left transition-all cursor-pointer relative flex flex-col justify-between ${
+                    isSelected
+                      ? `${rData.bgColor} ${rData.borderColor} shadow-xs ring-2 ring-emerald-500/30`
+                      : 'bg-slate-50/70 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  {isUserActiveProfile && (
+                    <span className="absolute top-2.5 right-2.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-500 text-white uppercase tracking-wider shadow-2xs">
+                      Seu Perfil
+                    </span>
+                  )}
+                  
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div 
+                      className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold"
+                      style={{ backgroundColor: rData.primaryColor }}
+                    >
+                      {getRoleIcon(roleKey)}
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-black text-slate-900 dark:text-white">
+                        {rData.roleTitle.split(' ')[0]} {rData.roleTitle.split(' ')[1]}
+                      </h3>
+                    </div>
+                  </div>
+
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-1">
+                    {rData.badge}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <div className="bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 rounded-2xl p-3.5 text-xs text-emerald-900 dark:text-emerald-300 flex items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+            <span>
+              Central de Ajuda adaptada estritamente para o perfil <strong>{currentUser.roleLabel}</strong>. Exibindo apenas as funcionalidades e normas autorizadas para uso.
+            </span>
+          </div>
+          <span className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-[10px] font-bold uppercase tracking-wider shrink-0">
+            Escopo Restrito Ativo
+          </span>
+        </div>
+      )}
+
+      {/* Navigation Tabs */}
+      <div className="flex items-center gap-1.5 border-b border-slate-200 dark:border-slate-800 pb-2 overflow-x-auto scrollbar-none">
+        <button
+          onClick={() => setActiveTab('navigator')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === 'navigator'
+              ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md ring-1 ring-emerald-400/50'
+              : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+          }`}
+        >
+          <Zap className="w-3.5 h-3.5 text-amber-300" />
+          <span>⚡ Navegador Inteligente de Atalhos ({filteredSmartFeatures.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('workflow')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === 'workflow'
+              ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+        >
+          <BookOpen className="w-3.5 h-3.5" />
+          <span>Fluxo Passo a Passo ({roleHelp.workflowSteps.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('modules')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === 'modules'
+              ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+        >
+          <Layers className="w-3.5 h-3.5" />
+          <span>Módulos Recomendados ({roleHelp.relevantModules.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('regulations')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === 'regulations'
+              ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+        >
+          <FileCheck2 className="w-3.5 h-3.5" />
+          <span>Normas & Leis ({roleHelp.regulatoryStandards.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('faq')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === 'faq'
+              ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+        >
+          <HelpCircle className="w-3.5 h-3.5" />
+          <span>Dúvidas Frequentes ({roleHelp.faq.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('tips')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === 'tips'
+              ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+          <span>Dicas de Ouro ({roleHelp.fieldTips.length})</span>
+        </button>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* TAB 0: INTELLIGENT FEATURE NAVIGATOR (SMART SHORTCUT FINDER) */}
+      {/* ========================================================================= */}
+      {activeTab === 'navigator' && (
+        <div className="space-y-4">
+          {/* Category Filter Pills */}
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1">
+            <span className="text-xs font-bold text-slate-400 dark:text-slate-500 shrink-0 mr-1">Filtrar Categoria:</span>
+            {categoriesList.map((cat) => (
               <button
-                key={roleKey}
-                onClick={() => setSelectedRole(roleKey)}
-                className={`p-3 rounded-xl border text-left transition-all cursor-pointer relative flex flex-col justify-between ${
-                  isSelected
-                    ? `${rData.bgColor} ${rData.borderColor} shadow-xs ring-2 ring-emerald-500/20`
-                    : 'bg-slate-50/70 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
+                  selectedCategory === cat
+                    ? 'bg-emerald-500 text-slate-950 shadow-2xs'
+                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
                 }`}
               >
-                {isUserActiveProfile && (
-                  <span className="absolute top-2.5 right-2.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-500 text-white uppercase tracking-wider shadow-2xs">
-                    Seu Perfil
-                  </span>
-                )}
-                
-                <div className="flex items-center gap-2 mb-1.5">
-                  <div 
-                    className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold"
-                    style={{ backgroundColor: rData.primaryColor }}
-                  >
-                    {getRoleIcon(roleKey)}
+                {cat === 'ALL' ? 'Todas as Categorias' : cat}
+              </button>
+            ))}
+          </div>
+
+          {/* Results Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            {filteredSmartFeatures.length === 0 ? (
+              <div className="col-span-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 text-center space-y-2">
+                <Search className="w-8 h-8 text-slate-400 mx-auto" />
+                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                  Nenhuma funcionalidade encontrada para "{searchQuery}"
+                </h3>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  Tente buscar por termos como "bateria", "clima", "auditoria", "laudo", "comissão", "nr-31" ou "empresa".
+                </p>
+              </div>
+            ) : (
+              filteredSmartFeatures.map((feat) => (
+                <div
+                  key={feat.id}
+                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col justify-between hover:border-emerald-500/50 transition-all hover:shadow-md group relative overflow-hidden"
+                >
+                  <div className="space-y-2.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                          {feat.category}
+                        </span>
+                        {feat.badgeText && (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                            {feat.badgeText}
+                          </span>
+                        )}
+                      </div>
+                      <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
+                        <Navigation className="w-4 h-4" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="text-sm font-black text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                        {feat.title}
+                      </h3>
+                      <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
+                        {feat.description}
+                      </p>
+                    </div>
+
+                    {/* Target Route Badge */}
+                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700/80 text-xs flex items-center justify-between gap-2">
+                      <span className="text-slate-500 dark:text-slate-400 text-[11px] font-medium flex items-center gap-1.5">
+                        <Layers className="w-3.5 h-3.5 text-slate-400" />
+                        Localização:
+                      </span>
+                      <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-[11px] truncate">
+                        {feat.moduleName} {feat.tabName ? `➔ ${feat.tabName}` : ''}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-xs font-black text-slate-900 dark:text-white">
-                      {roleKey === 'ADMIN' ? 'Administrador' : roleKey === 'USER' ? 'Produtor Rural' : roleKey === 'PILOT' ? 'Piloto de Drone' : 'Auxiliar de Solo'}
-                    </h3>
+
+                  {/* Direct Launch Button */}
+                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                    <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                      <Zap className="w-3 h-3 text-amber-500" />
+                      Atalho Direto
+                    </span>
+                    <button
+                      onClick={() => {
+                        if (isModal && onCloseModal) onCloseModal();
+                        onNavigate(feat.targetView);
+                      }}
+                      className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs flex items-center gap-1.5 transition-transform active:scale-95 cursor-pointer"
+                    >
+                      <span>Ir para esta Tela Agora</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
-
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-1">
-                  {rData.badge}
-                </p>
-              </button>
-            );
-          })}
+              ))
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Profile Highlight Card */}
       <div className={`rounded-2xl border p-5 sm:p-6 ${roleHelp.bgColor} ${roleHelp.borderColor} shadow-xs`}>
@@ -282,69 +559,6 @@ export const HelpCenterView: React.FC<HelpCenterViewProps> = ({
             ))}
           </div>
         </div>
-      </div>
-
-      {/* Inner View Navigation Tabs */}
-      <div className="flex items-center gap-1.5 border-b border-slate-200 dark:border-slate-800 pb-2 overflow-x-auto scrollbar-none">
-        <button
-          onClick={() => setActiveTab('workflow')}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === 'workflow'
-              ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-xs'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <BookOpen className="w-3.5 h-3.5" />
-          <span>Fluxo de Trabalho Passo a Passo ({roleHelp.workflowSteps.length})</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('modules')}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === 'modules'
-              ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-xs'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <Layers className="w-3.5 h-3.5" />
-          <span>Módulos Recomendados ({roleHelp.relevantModules.length})</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('regulations')}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === 'regulations'
-              ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-xs'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <FileCheck2 className="w-3.5 h-3.5" />
-          <span>Normas & Leis ({roleHelp.regulatoryStandards.length})</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('faq')}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === 'faq'
-              ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-xs'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <HelpCircle className="w-3.5 h-3.5" />
-          <span>Dúvidas Frequentes ({roleHelp.faq.length})</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('tips')}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === 'tips'
-              ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-xs'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-          <span>Dicas de Ouro & Segurança ({roleHelp.fieldTips.length})</span>
-        </button>
       </div>
 
       {/* Tab 1: Workflow Step by Step (Interactive Checklist) */}
