@@ -923,10 +923,26 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
               </h3>
               
               <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleRecordMeasurement}
+                  className={`text-[10.5px] font-bold px-2.5 py-1 rounded-full border transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs ${
+                    recordingMode === 'auto'
+                      ? 'bg-slate-200 hover:bg-slate-300 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700'
+                      : 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]'
+                  }`}
+                  title={recordingMode === 'auto' ? 'Registrar Leitura Pontual' : 'Salvar Medição Manual'}
+                >
+                  <Plus className="w-3 h-3" />
+                  <span className="hidden sm:inline">{recordingMode === 'auto' ? 'Registrar' : 'Salvar no Prontuário'}</span>
+                  <span className="sm:hidden">Salvar</span>
+                </button>
+                
                 {!isInhibited && periodicitySeconds > 0 && (
                   <div className="text-[10.5px] text-slate-600 dark:text-slate-400 flex items-center gap-1.5 bg-slate-100 dark:bg-slate-950 px-2.5 py-0.5 rounded-full border border-slate-200 dark:border-slate-800 shadow-2xs">
                     <Clock className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                    <span>Próxima leitura em <strong>{countdown}s</strong></span>
+                    <span className="hidden sm:inline">Próxima leitura em <strong>{countdown}s</strong></span>
+                    <span className="sm:hidden"><strong>{countdown}s</strong></span>
                   </div>
                 )}
 
@@ -945,7 +961,8 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                   title={isSettingsOpen ? 'Ocultar configurações de alerta' : 'Abrir configurações de alerta'}
                 >
                   <Settings className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                  <span>{isSettingsOpen ? 'Fechar Ajustes' : 'Configurar Alertas'}</span>
+                  <span className="hidden sm:inline">{isSettingsOpen ? 'Fechar Ajustes' : 'Configurar Alertas'}</span>
+                  <span className="sm:hidden">Config</span>
                   {isSettingsOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                 </button>
               </div>
@@ -1011,38 +1028,62 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                   const percent = Math.min(Math.max(((temperature - min) / (max - min)) * 100, 0), 100);
                   const isViolation = temperature > idealMax || temperature < idealMin;
                   return (
-                    <div className={`p-2 rounded-xl border transition-all flex flex-col justify-between shadow-2xs ${
+                    <div className={`p-2 rounded-xl border transition-all flex flex-col justify-between shadow-2xs group hover:shadow-md ${
                       isViolation
                         ? 'bg-rose-50/80 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800/60 text-rose-800 dark:text-rose-300' 
                         : 'bg-slate-50/80 dark:bg-slate-950 border-slate-200/80 dark:border-slate-800'
                     }`}>
                       <div className="text-center">
                         <span className="text-[8.5px] font-bold text-slate-500 dark:text-slate-400 block uppercase tracking-tight">TEMPERATURA</span>
-                        <span className={`text-base sm:text-lg font-black block mt-0.5 ${
-                          isViolation ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
-                        }`}>
-                          {temperature.toFixed(1).replace('.', ',')} °C
-                        </span>
+                        
+                        <div className="flex justify-center items-baseline gap-0.5 mt-0.5">
+                          <input
+                            type="number"
+                            min={min}
+                            max={max}
+                            step="0.5"
+                            value={temperature}
+                            onChange={(e) => setTemperature(parseFloat(e.target.value) || 0)}
+                            className={`w-14 sm:w-16 text-center bg-transparent border-b-2 border-transparent hover:border-slate-300 dark:hover:border-slate-600 focus:border-emerald-500 outline-none transition-all text-base sm:text-lg font-black p-0 m-0 ${isViolation ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}
+                          />
+                          <span className={`text-[9px] font-bold ${isViolation ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>°C</span>
+                        </div>
+                        
                         <span className="text-[7.5px] text-slate-500 dark:text-slate-400 block mt-0.5 font-medium">
                           Limite: {idealMin}°C a {idealMax}°C
                         </span>
                       </div>
 
-                      {/* Visual Progress / Range Indicator */}
+                      {/* Interactive Visual Progress / Range Slider */}
                       <div className="mt-1 pt-1 border-t border-slate-200/60 dark:border-slate-800">
-                        <div className="flex justify-between items-center text-[7px] text-slate-400 font-semibold mb-0.5">
+                        <div className="flex justify-between items-center text-[7px] text-slate-400 font-semibold mb-1">
                           <span>{min}°C</span>
                           <span className={isViolation ? 'text-rose-500 font-bold' : 'text-emerald-600 font-bold'}>
                             {isViolation ? 'FORA' : 'IDEAL'}
                           </span>
                           <span>{max}°C</span>
                         </div>
-                        <div className="h-1 w-full bg-slate-200 dark:bg-slate-800 rounded-full relative overflow-hidden">
+                        
+                        <div className="relative h-1.5 w-full mt-0.5">
+                          <div className="absolute inset-0 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                            <div 
+                              className={`h-full transition-all duration-200 ${isViolation ? 'bg-rose-500' : 'bg-emerald-500'}`}
+                              style={{ width: `${percent}%` }}
+                            />
+                          </div>
+                          <input
+                            type="range"
+                            min={min}
+                            max={max}
+                            step="0.5"
+                            value={temperature}
+                            onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                            title="Deslize para ajustar a temperatura"
+                          />
                           <div 
-                            className={`h-full transition-all duration-500 rounded-full ${
-                              isViolation ? 'bg-rose-500' : 'bg-emerald-500'
-                            }`}
-                            style={{ width: `${percent}%` }}
+                            className={`absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 border-white shadow-sm pointer-events-none transition-colors group-hover:scale-110 z-0 ${isViolation ? 'bg-rose-500' : 'bg-emerald-500'}`}
+                            style={{ left: `clamp(0%, calc(${percent}% - 6px), 100% - 12px)` }}
                           />
                         </div>
                       </div>
@@ -1056,38 +1097,62 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                   const percent = Math.min(Math.max(((humidity - min) / (max - min)) * 100, 0), 100);
                   const isViolation = humidity < idealMin;
                   return (
-                    <div className={`p-2 rounded-xl border transition-all flex flex-col justify-between shadow-2xs ${
+                    <div className={`p-2 rounded-xl border transition-all flex flex-col justify-between shadow-2xs group hover:shadow-md ${
                       isViolation 
                         ? 'bg-rose-50/80 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800/60 text-rose-800 dark:text-rose-300' 
                         : 'bg-slate-50/80 dark:bg-slate-950 border-slate-200/80 dark:border-slate-800'
                     }`}>
                       <div className="text-center">
                         <span className="text-[8.5px] font-bold text-slate-500 dark:text-slate-400 block uppercase tracking-tight">UMIDADE</span>
-                        <span className={`text-base sm:text-lg font-black block mt-0.5 ${
-                          isViolation ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
-                        }`}>
-                          {humidity}%
-                        </span>
+                        
+                        <div className="flex justify-center items-baseline gap-0.5 mt-0.5">
+                          <input
+                            type="number"
+                            min={min}
+                            max={max}
+                            step="1"
+                            value={humidity}
+                            onChange={(e) => setHumidity(parseInt(e.target.value) || 0)}
+                            className={`w-14 sm:w-16 text-center bg-transparent border-b-2 border-transparent hover:border-slate-300 dark:hover:border-slate-600 focus:border-emerald-500 outline-none transition-all text-base sm:text-lg font-black p-0 m-0 ${isViolation ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}
+                          />
+                          <span className={`text-[9px] font-bold ${isViolation ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>%</span>
+                        </div>
+                        
                         <span className="text-[7.5px] text-slate-500 dark:text-slate-400 block mt-0.5 font-medium">
                           Limite: &gt; {idealMin}%
                         </span>
                       </div>
 
-                      {/* Visual Progress / Range Indicator */}
+                      {/* Interactive Visual Progress / Range Slider */}
                       <div className="mt-1 pt-1 border-t border-slate-200/60 dark:border-slate-800">
-                        <div className="flex justify-between items-center text-[7px] text-slate-400 font-semibold mb-0.5">
+                        <div className="flex justify-between items-center text-[7px] text-slate-400 font-semibold mb-1">
                           <span>{min}%</span>
                           <span className={isViolation ? 'text-rose-500 font-bold' : 'text-emerald-600 font-bold'}>
                             {isViolation ? 'BAIXA' : 'OK'}
                           </span>
                           <span>{max}%</span>
                         </div>
-                        <div className="h-1 w-full bg-slate-200 dark:bg-slate-800 rounded-full relative overflow-hidden">
+                        
+                        <div className="relative h-1.5 w-full mt-0.5">
+                          <div className="absolute inset-0 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                            <div 
+                              className={`h-full transition-all duration-200 ${isViolation ? 'bg-rose-500' : 'bg-emerald-500'}`}
+                              style={{ width: `${percent}%` }}
+                            />
+                          </div>
+                          <input
+                            type="range"
+                            min={min}
+                            max={max}
+                            step="1"
+                            value={humidity}
+                            onChange={(e) => setHumidity(parseInt(e.target.value))}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                            title="Deslize para ajustar a umidade"
+                          />
                           <div 
-                            className={`h-full transition-all duration-500 rounded-full ${
-                              isViolation ? 'bg-rose-500' : 'bg-emerald-500'
-                            }`}
-                            style={{ width: `${percent}%` }}
+                            className={`absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 border-white shadow-sm pointer-events-none transition-colors group-hover:scale-110 z-0 ${isViolation ? 'bg-rose-500' : 'bg-emerald-500'}`}
+                            style={{ left: `clamp(0%, calc(${percent}% - 6px), 100% - 12px)` }}
                           />
                         </div>
                       </div>
@@ -1101,38 +1166,62 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                   const percent = Math.min(Math.max(((windSpeed - min) / (max - min)) * 100, 0), 100);
                   const isViolation = windSpeed > idealMax || windSpeed < idealMin;
                   return (
-                    <div className={`p-2 rounded-xl border transition-all flex flex-col justify-between shadow-2xs ${
+                    <div className={`p-2 rounded-xl border transition-all flex flex-col justify-between shadow-2xs group hover:shadow-md ${
                       isViolation
                         ? 'bg-rose-50/80 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800/60 text-rose-800 dark:text-rose-300' 
                         : 'bg-slate-50/80 dark:bg-slate-950 border-slate-200/80 dark:border-slate-800'
                     }`}>
                       <div className="text-center">
                         <span className="text-[8.5px] font-bold text-slate-500 dark:text-slate-400 block uppercase tracking-tight">VENTO</span>
-                        <span className={`text-base sm:text-lg font-black block mt-0.5 ${
-                          isViolation ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
-                        }`}>
-                          {windSpeed.toFixed(1).replace('.', ',')} <span className="text-[9px] font-bold">km/h</span>
-                        </span>
+                        
+                        <div className="flex justify-center items-baseline gap-0.5 mt-0.5">
+                          <input
+                            type="number"
+                            min={min}
+                            max={max}
+                            step="0.5"
+                            value={windSpeed}
+                            onChange={(e) => setWindSpeed(parseFloat(e.target.value) || 0)}
+                            className={`w-14 sm:w-16 text-center bg-transparent border-b-2 border-transparent hover:border-slate-300 dark:hover:border-slate-600 focus:border-emerald-500 outline-none transition-all text-base sm:text-lg font-black p-0 m-0 ${isViolation ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}
+                          />
+                          <span className={`text-[9px] font-bold ${isViolation ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>km/h</span>
+                        </div>
+                        
                         <span className="text-[7.5px] text-slate-500 dark:text-slate-400 block mt-0.5 font-medium">
                           Limite: {idealMin} a {idealMax} km/h
                         </span>
                       </div>
 
-                      {/* Visual Progress / Range Indicator */}
+                      {/* Interactive Visual Progress / Range Slider */}
                       <div className="mt-1 pt-1 border-t border-slate-200/60 dark:border-slate-800">
-                        <div className="flex justify-between items-center text-[7px] text-slate-400 font-semibold mb-0.5">
+                        <div className="flex justify-between items-center text-[7px] text-slate-400 font-semibold mb-1">
                           <span>{min}</span>
                           <span className={isViolation ? 'text-rose-500 font-bold' : 'text-emerald-600 font-bold'}>
                             {windSpeed > idealMax ? 'FORTE' : windSpeed < idealMin ? 'CALMO' : 'IDEAL'}
                           </span>
                           <span>{max}</span>
                         </div>
-                        <div className="h-1 w-full bg-slate-200 dark:bg-slate-800 rounded-full relative overflow-hidden">
+                        
+                        <div className="relative h-1.5 w-full mt-0.5">
+                          <div className="absolute inset-0 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                            <div 
+                              className={`h-full transition-all duration-200 ${isViolation ? 'bg-rose-500' : 'bg-emerald-500'}`}
+                              style={{ width: `${percent}%` }}
+                            />
+                          </div>
+                          <input
+                            type="range"
+                            min={min}
+                            max={max}
+                            step="0.5"
+                            value={windSpeed}
+                            onChange={(e) => setWindSpeed(parseFloat(e.target.value))}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                            title="Deslize para ajustar a velocidade do vento"
+                          />
                           <div 
-                            className={`h-full transition-all duration-500 rounded-full ${
-                              isViolation ? 'bg-rose-500' : 'bg-emerald-500'
-                            }`}
-                            style={{ width: `${percent}%` }}
+                            className={`absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 border-white shadow-sm pointer-events-none transition-colors group-hover:scale-110 z-0 ${isViolation ? 'bg-rose-500' : 'bg-emerald-500'}`}
+                            style={{ left: `clamp(0%, calc(${percent}% - 6px), 100% - 12px)` }}
                           />
                         </div>
                       </div>
@@ -1499,129 +1588,7 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
               </div>
             )}
 
-            {/* Unified Quick Instrument Adjustment & Recording Bar */}
-            <div className="bg-slate-50/70 dark:bg-slate-950/70 p-2.5 sm:p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-2xs space-y-2">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="p-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                    <Sliders className="w-3.5 h-3.5" />
-                  </span>
-                  <div>
-                    <span className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-wider block">
-                      Ajuste & Registro dos Instrumentos de Campo
-                    </span>
-                    <span className="text-[9.5px] text-slate-500 dark:text-slate-400 block">
-                      {recordingMode === 'auto' 
-                        ? '⚡ Coleta Automática: Sensores integrados sincronizando de forma contínua no prontuário.' 
-                        : `✋ Entrada Manual: Calibre os valores medidos pela equipe para a OS ${orderCode || ''}.`}
-                    </span>
-                  </div>
-                </div>
 
-                <button
-                  type="button"
-                  onClick={handleRecordMeasurement}
-                  className={`w-full sm:w-auto px-3.5 py-1.5 font-bold text-xs rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1.5 shrink-0 ${
-                    recordingMode === 'auto'
-                      ? 'bg-slate-200 hover:bg-slate-300 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700'
-                      : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-2xs font-black'
-                  }`}
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>{recordingMode === 'auto' ? 'Registrar Leitura Pontual' : 'Salvar no Prontuário'}</span>
-                </button>
-              </div>
-
-              {/* Sliders in compact 3-column row */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-                {/* Temperature slider */}
-                <div className="bg-white dark:bg-slate-900/60 p-2 rounded-xl border border-slate-200/60 dark:border-slate-800/60 shadow-2xs space-y-1">
-                  <div className="flex items-center justify-between text-[9.5px] gap-2">
-                    <span className="font-bold text-slate-600 dark:text-slate-400 uppercase tracking-tight flex items-center gap-1">Temperatura <span className="text-[9px] text-slate-400 normal-case">(°C)</span></span>
-                    <input
-                      type="number"
-                      min="10"
-                      max="40"
-                      step="0.5"
-                      value={temperature}
-                      onChange={(e) => setTemperature(parseFloat(e.target.value) || 0)}
-                      className={`w-16 px-1.5 py-0.5 text-right rounded bg-white dark:bg-slate-950 border font-mono text-[10.5px] focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors ${
-                        temperature > 30.0 
-                          ? 'text-rose-600 dark:text-rose-400 font-black border-rose-300 dark:border-rose-700' 
-                          : 'text-slate-800 dark:text-slate-200 border-slate-300 dark:border-slate-700'
-                      }`}
-                    />
-                  </div>
-                  <input
-                    type="range"
-                    min="10"
-                    max="40"
-                    step="0.5"
-                    value={temperature}
-                    onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                    className="w-full h-1 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-600"
-                  />
-                </div>
-
-                {/* Humidity slider */}
-                <div className="bg-white dark:bg-slate-900/60 p-2 rounded-xl border border-slate-200/60 dark:border-slate-800/60 shadow-2xs space-y-1">
-                  <div className="flex items-center justify-between text-[9.5px] gap-2">
-                    <span className="font-bold text-slate-600 dark:text-slate-400 uppercase tracking-tight flex items-center gap-1">Umidade <span className="text-[9px] text-slate-400 normal-case">(%)</span></span>
-                    <input
-                      type="number"
-                      min="30"
-                      max="90"
-                      step="1"
-                      value={humidity}
-                      onChange={(e) => setHumidity(parseInt(e.target.value) || 0)}
-                      className={`w-16 px-1.5 py-0.5 text-right rounded bg-white dark:bg-slate-950 border font-mono text-[10.5px] focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors ${
-                        humidity < 50 
-                          ? 'text-rose-600 dark:text-rose-400 font-black border-rose-300 dark:border-rose-700' 
-                          : 'text-slate-800 dark:text-slate-200 border-slate-300 dark:border-slate-700'
-                      }`}
-                    />
-                  </div>
-                  <input
-                    type="range"
-                    min="30"
-                    max="90"
-                    step="1"
-                    value={humidity}
-                    onChange={(e) => setHumidity(parseInt(e.target.value))}
-                    className="w-full h-1 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-600"
-                  />
-                </div>
-
-                {/* Wind speed slider */}
-                <div className="bg-white dark:bg-slate-900/60 p-2 rounded-xl border border-slate-200/60 dark:border-slate-800/60 shadow-2xs space-y-1">
-                  <div className="flex items-center justify-between text-[9.5px] gap-2">
-                    <span className="font-bold text-slate-600 dark:text-slate-400 uppercase tracking-tight flex items-center gap-1">Vento <span className="text-[9px] text-slate-400 normal-case">(km/h)</span></span>
-                    <input
-                      type="number"
-                      min="0"
-                      max="20"
-                      step="0.5"
-                      value={windSpeed}
-                      onChange={(e) => setWindSpeed(parseFloat(e.target.value) || 0)}
-                      className={`w-16 px-1.5 py-0.5 text-right rounded bg-white dark:bg-slate-950 border font-mono text-[10.5px] focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors ${
-                        windSpeed > 12.0 || windSpeed < 3.0 
-                          ? 'text-rose-600 dark:text-rose-400 font-black border-rose-300 dark:border-rose-700' 
-                          : 'text-slate-800 dark:text-slate-200 border-slate-300 dark:border-slate-700'
-                      }`}
-                    />
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="20"
-                    step="0.5"
-                    value={windSpeed}
-                    onChange={(e) => setWindSpeed(parseFloat(e.target.value))}
-                    className="w-full h-1 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-600"
-                  />
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Alert Config Controls (Right Side - 5 Cols, Visible when isSettingsOpen is true) */}
