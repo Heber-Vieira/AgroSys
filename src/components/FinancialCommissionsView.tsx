@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { UserProfile, FinancialEntry, ServiceOrder } from '../types';
+import { canUserAccessView } from '../utils/userPermissions';
 import { 
   DollarSign, 
   ArrowDownLeft, 
@@ -30,7 +31,7 @@ export const FinancialCommissionsView: React.FC<FinancialCommissionsViewProps> =
   const [filterType, setFilterType] = useState<string>('ALL');
 
   // Strict Admin & Master Role Guard
-  const hasAccess = currentUser.role === 'ADMIN' || currentUser.role === 'MASTER' || currentUser.isMaster;
+  const hasAccess = canUserAccessView(currentUser, 'financial');
   if (!hasAccess) {
     return (
       <div className="max-w-2xl mx-auto my-12 p-8 bg-white dark:bg-emerald-950/80 border border-emerald-200 dark:border-emerald-800 rounded-3xl shadow-xl text-center space-y-4 animate-in fade-in">

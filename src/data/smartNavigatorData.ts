@@ -4,7 +4,7 @@
  * Ensures strict role isolation: users only see and navigate to features they are authorized to use.
  */
 
-import { UserRole, AppViewMode } from '../types';
+import { UserRole, AppViewMode, UserProfile } from '../types';
 
 export interface SmartFeatureItem {
   id: string;
@@ -261,12 +261,14 @@ export const SMART_FEATURES_REGISTRY: SmartFeatureItem[] = [
   },
 ];
 
-/**
- * Filter feature items according to the current user's role and authorization.
- */
-export function getAuthorizedFeatures(userRole: UserRole, isMaster: boolean = false): SmartFeatureItem[] {
+import { canUserAccessView } from '../utils/userPermissions';
+
+export function getAuthorizedFeatures(userOrRole: UserRole | UserProfile, isMaster: boolean = false): SmartFeatureItem[] {
   return SMART_FEATURES_REGISTRY.filter(item => {
+    if (typeof userOrRole === 'object' && userOrRole !== null) {
+      return canUserAccessView(userOrRole, item.targetView);
+    }
     if (isMaster) return true;
-    return item.allowedRoles.includes(userRole);
+    return item.allowedRoles.includes(userOrRole as UserRole);
   });
 }

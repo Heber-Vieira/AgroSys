@@ -30,10 +30,11 @@ import { SprayReportModal } from './components/SprayReportModal';
 import { QuotationsView } from './components/QuotationsView';
 import { HomeHubView } from './components/HomeHubView';
 import { SprayWorkflowGuideView } from './components/SprayWorkflowGuideView';
+import { EmployeeAccessControlModal } from './components/EmployeeAccessControlModal';
 import { DraggableHelpButton } from './components/DraggableHelpButton';
 import { AgroSysToastContainer } from './components/common/AgroSysToastContainer';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
-import { HelpCircle, ArrowLeft, ArrowRight } from 'lucide-react';
+import { HelpCircle, ArrowLeft, ArrowRight, Lock, LayoutGrid } from 'lucide-react';
 
 import { 
   ThemeMode, 
@@ -54,7 +55,7 @@ import {
   SprayQuotation
 } from './types';
 import { PRESET_COMPANIES, generateToneScale } from './data/themeTokensData';
-import { isMasterUser, normalizeUserProfile } from './utils/userPermissions';
+import { isMasterUser, normalizeUserProfile, canUserAccessView } from './utils/userPermissions';
 import { 
   getStoredConfiguredLogoUrl, 
   setStoredConfiguredLogoUrl, 
@@ -93,7 +94,7 @@ import {
   formatTimestampToDate 
 } from './utils/batteryAlertUtils';
 import { showToast } from './services/notificationService';
-import { loadTenantBrandingFromSupabase, loadUserPhotosFromSupabase } from './services/supabase';
+import { loadTenantBrandingFromSupabase, loadUserPhotosFromSupabase, saveAppDataToSupabase, saveUserProfileToSupabase } from './services/supabase';
 import { USER_PHOTO_STORAGE_KEY } from './components/UserAvatar';
 import { hydrateAllCloudData, saveBatteryAlertSettingsToCloud } from './services/cloudSyncService';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
@@ -193,11 +194,14 @@ export default function App() {
   });
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
+  const [isAccessControlModalOpen, setIsAccessControlModalOpen] = useState<boolean>(false);
 
-  // Sync users to localStorage
+  // Sync users to localStorage and Supabase Cloud
   useEffect(() => {
     try {
       localStorage.setItem('agrodrone_users_fleet', JSON.stringify(allUsers));
+      saveAppDataToSupabase('users_fleet', allUsers).catch(e => console.warn('Aviso ao sincronizar usuários com Supabase:', e));
+      allUsers.forEach(u => saveUserProfileToSupabase(u).catch(() => {}));
     } catch (e) {
       console.warn('Falha ao salvar usuários no localStorage:', e);
     }
@@ -895,64 +899,93 @@ export default function App() {
             }}
             onOpenReportModal={handleOpenReportModal}
             onStartLiveTour={startLiveTour}
+            onOpenAccessControl={() => setIsAccessControlModalOpen(true)}
           />
         )}
 
-        {/* Integrated End-to-End Spraying Process Workflow Guide */}
-        {currentView === 'spray-workflow' && (
-          <ErrorBoundary 
-            fallbackTitle="Guia Passo a Passo de Pulverização" 
-            onReset={() => setCurrentView('hub')}
-          >
-            <SprayWorkflowGuideView
-              currentUser={currentUser}
-              theme={theme}
-              orders={orders}
-              plots={plots}
-              drones={drones}
-              quotations={quotations}
-              financials={financials}
-              onNavigate={(view) => setCurrentView(view as AppViewMode)}
-              onOpenNewOS={() => {
-                setCurrentView('orders');
-                setShowNewOSModal(true);
-              }}
-              onOpenReportModal={handleOpenReportModal}
-            />
-          </ErrorBoundary>
-        )}
+        {/* Access Restricted Barrier Guard */}
+        {!canUserAccessView(currentUser, currentView) && currentView !== 'hub' ? (
+          <div className="max-w-4xl mx-auto p-6 sm:p-12 my-8 text-center bg-slate-900/90 border border-amber-500/40 rounded-3xl shadow-2xl space-y-4 text-white">
+            <div className="w-16 h-16 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/30 shadow-lg text-center">
+              <Lock className="w-8 h-8 mx-auto" />
+            </div>
+            <h2 className="text-xl sm:text-2xl font-black text-white">Acesso Restrito ao Módulo</h2>
+            <p className="text-sm text-slate-300 max-w-lg mx-auto leading-relaxed">
+              Seu perfil de colaborador não possui autorização para acessar o módulo <strong className="text-amber-400 font-mono">{getViewTitle(currentView)}</strong>.
+            </p>
+            <p className="text-xs text-slate-400 max-w-md mx-auto">
+              Caso necessite utilizar esta funcionalidade, entre em contato com o Administrador da sua empresa para solicitar liberação no painel de <strong>Gestão de Acessos</strong>.
+            </p>
+            <div className="pt-2 flex justify-center gap-3">
+              <button
+                onClick={() => setCurrentView('hub')}
+                className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg transition-transform active:scale-95 cursor-pointer flex items-center gap-2"
+              >
+                <LayoutGrid className="w-4 h-4" />
+                <span>Voltar à Central de Módulos</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Integrated End-to-End Spraying Process Workflow Guide */}
+            {currentView === 'spray-workflow' && (
+              <ErrorBoundary 
+                fallbackTitle="Guia Passo a Passo de Pulverização" 
+                onReset={() => setCurrentView('hub')}
+              >
+                <SprayWorkflowGuideView
+                  currentUser={currentUser}
+                  theme={theme}
+                  orders={orders}
+                  plots={plots}
+                  drones={drones}
+                  quotations={quotations}
+                  financials={financials}
+                  onNavigate={(view) => setCurrentView(view as AppViewMode)}
+                  onOpenNewOS={() => {
+                    setCurrentView('orders');
+                    setShowNewOSModal(true);
+                  }}
+                  onOpenReportModal={handleOpenReportModal}
+                />
+              </ErrorBoundary>
+            )}
 
-        {/* Operational Modules */}
-        {currentView === 'dashboard' && (
-          <DashboardView
-            currentUser={currentUser}
-            orders={orders}
-            plots={plots}
-            drones={drones}
-            batteries={batteries}
-            clients={clients}
-            pilots={pilots}
-            assistants={assistants}
-            financials={financials}
-            allUsers={allUsers}
-            onSaveUserPermissions={(userId, allowedViews) => {
-              setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, allowedViews } : u));
-            }}
-            registeredCompanies={getStoredRegisteredCompanies()}
-            activeCompanyId={theme.tenantId}
-            onNavigate={(view) => setCurrentView(view as AppViewMode)}
-            onOpenNewOSModal={() => {
-              setCurrentView('orders');
-              setShowNewOSModal(true);
-            }}
-            onOpenNewOS={() => {
-              setCurrentView('orders');
-              setShowNewOSModal(true);
-            }}
-            onStartLiveTour={startLiveTour}
-            onOpenReportModal={handleOpenReportModal}
-          />
-        )}
+            {/* Operational Modules */}
+            {currentView === 'dashboard' && (
+              <DashboardView
+                currentUser={currentUser}
+                orders={orders}
+                plots={plots}
+                drones={drones}
+                batteries={batteries}
+                clients={clients}
+                pilots={pilots}
+                assistants={assistants}
+                financials={financials}
+                allUsers={allUsers}
+                onSaveUserPermissions={(userId, allowedViews) => {
+                  setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, allowedViews } : u));
+                  if (currentUser.id === userId) {
+                    setCurrentUser(prev => ({ ...prev, allowedViews }));
+                  }
+                }}
+                registeredCompanies={getStoredRegisteredCompanies()}
+                activeCompanyId={theme.tenantId}
+                onNavigate={(view) => setCurrentView(view as AppViewMode)}
+                onOpenNewOSModal={() => {
+                  setCurrentView('orders');
+                  setShowNewOSModal(true);
+                }}
+                onOpenNewOS={() => {
+                  setCurrentView('orders');
+                  setShowNewOSModal(true);
+                }}
+                onStartLiveTour={startLiveTour}
+                onOpenReportModal={handleOpenReportModal}
+              />
+            )}
 
         {currentView === 'orders' && (
           <ServiceOrdersView
@@ -1104,6 +1137,7 @@ export default function App() {
               setCurrentUser(adminUser);
             }}
             onNavigate={(view) => setCurrentView(view as AppViewMode)}
+            onOpenAccessControl={() => setIsAccessControlModalOpen(true)}
             pricingRules={pricingRules}
             setPricingRules={setPricingRules}
             maintenanceLogs={maintenanceLogs}
@@ -1175,6 +1209,8 @@ export default function App() {
             onStartLiveTour={startLiveTour}
           />
         )}
+      </>
+    )}
 
       {/* Persistent Floating Draggable Help/Tour Button (Hidden on initial home page 'hub' and full help views) */}
       {currentView !== 'hub' && currentView !== 'help' && currentView !== 'virtual-tour' && (
@@ -1309,6 +1345,24 @@ export default function App() {
         currentUser={currentUser}
         theme={theme}
       />
+
+      {/* GLOBAL EMPLOYEE ACCESS CONTROL MODAL */}
+      {isAccessControlModalOpen && (
+        <EmployeeAccessControlModal
+          isOpen={isAccessControlModalOpen}
+          onClose={() => setIsAccessControlModalOpen(false)}
+          currentUser={currentUser}
+          allUsers={allUsers}
+          onSaveUserPermissions={(userId, allowedViews) => {
+            setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, allowedViews } : u));
+            if (currentUser.id === userId) {
+              setCurrentUser(prev => ({ ...prev, allowedViews }));
+            }
+          }}
+          registeredCompanies={getStoredRegisteredCompanies()}
+          activeCompanyId={theme.tenantId}
+        />
+      )}
 
       {/* Global Toast and Notification Container */}
       <AgroSysToastContainer />

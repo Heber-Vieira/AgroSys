@@ -783,6 +783,155 @@ export async function loadUserPhotosFromSupabase(): Promise<Record<string, strin
   }
 }
 
+/**
+ * Persists a UserProfile object to Supabase cloud database.
+ */
+export async function saveUserProfileToSupabase(user: UserProfile) {
+  try {
+    if (!user || (!user.id && !user.email)) return { success: false, error: 'Usuário inválido' };
+    const now = new Date().toISOString();
+
+    const isValidUuid = UUID_REGEX.test(user.id);
+
+    // 1. Primary: Upsert to user_profiles table in Supabase
+    try {
+      if (isValidUuid) {
+        await supabase.from('user_profiles').upsert({
+          id: user.id,
+          company_id: user.companyId || 'ciclodrone',
+          name: user.name,
+          role: user.role,
+          role_label: user.roleLabel,
+          email: user.email,
+          document_number: user.documentNumber || null,
+          phone: user.phone || null,
+          farm_name: user.farmName || null,
+          license_code: user.licenseCode || null,
+          status: user.status || 'ACTIVE',
+          salary_base: user.salaryBase || 0,
+          password: user.password || null,
+          hired_date: user.hiredDate || null,
+          photo_url: user.photoUrl || user.avatarUrl || null,
+          avatar_url: user.photoUrl || user.avatarUrl || null,
+          badge: user.badge || user.roleLabel,
+          is_master: user.isMaster || false,
+          allowed_views: user.allowedViews || null,
+          updated_at: now,
+        }, { onConflict: 'id' });
+      } else if (user.email) {
+        await supabase.from('user_profiles').upsert({
+          email: user.email,
+          company_id: user.companyId || 'ciclodrone',
+          name: user.name,
+          role: user.role,
+          role_label: user.roleLabel,
+          document_number: user.documentNumber || null,
+          phone: user.phone || null,
+          farm_name: user.farmName || null,
+          license_code: user.licenseCode || null,
+          status: user.status || 'ACTIVE',
+          salary_base: user.salaryBase || 0,
+          password: user.password || null,
+          hired_date: user.hiredDate || null,
+          photo_url: user.photoUrl || user.avatarUrl || null,
+          avatar_url: user.photoUrl || user.avatarUrl || null,
+          badge: user.badge || user.roleLabel,
+          is_master: user.isMaster || false,
+          allowed_views: user.allowedViews || null,
+          updated_at: now,
+        }, { onConflict: 'email' });
+      }
+    } catch (e) {
+      console.warn('Aviso ao salvar perfil de usuário na tabela user_profiles:', e);
+    }
+
+    // 2. Secondary: Mirror payload in app_settings table
+    try {
+      const key = user.id || `user_${user.email.replace(/[^a-zA-Z0-9]/g, '_')}`;
+      await supabase.from('app_settings').upsert({
+        key: `agro_user_${key}`,
+        value: JSON.stringify(user),
+        updated_at: now,
+      }, { onConflict: 'key' });
+    } catch (e) {}
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('Erro ao salvar usuário no Supabase:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Loads user profiles stored in Supabase cloud database.
+ */
+export async function loadUserProfilesFromSupabase(): Promise<UserProfile[]> {
+  try {
+    const userMap = new Map<string, UserProfile>();
+
+    // 1. Load from app_settings (agro_user_*)
+    try {
+      const { data: settingsData } = await supabase
+        .from('app_settings')
+        .select('key, value')
+        .like('key', 'agro_user_%');
+
+      if (settingsData && Array.isArray(settingsData)) {
+        settingsData.forEach(item => {
+          try {
+            const parsed = JSON.parse(item.value) as UserProfile;
+            if (parsed && parsed.id && parsed.name) {
+              userMap.set(parsed.id, parsed);
+            }
+          } catch (e) {}
+        });
+      }
+    } catch (e) {}
+
+    // 2. Load from user_profiles table
+    try {
+      const { data: dbProfiles } = await supabase
+        .from('user_profiles')
+        .select('*');
+
+      if (dbProfiles && Array.isArray(dbProfiles)) {
+        dbProfiles.forEach(p => {
+          const id = p.id || `user-${p.email}`;
+          if (!userMap.has(id)) {
+            userMap.set(id, {
+              id,
+              companyId: p.company_id || 'ciclodrone',
+              name: p.name,
+              role: p.role,
+              roleLabel: p.role_label,
+              email: p.email,
+              documentNumber: p.document_number,
+              phone: p.phone,
+              farmName: p.farm_name,
+              licenseCode: p.license_code,
+              status: p.status || 'ACTIVE',
+              salaryBase: p.salary_base,
+              password: p.password,
+              hiredDate: p.hired_date,
+              photoUrl: p.photo_url || p.avatar_url,
+              avatarUrl: p.avatar_url || p.photo_url,
+              badge: p.badge || p.role_label,
+              isMaster: p.is_master,
+              allowedViews: p.allowed_views,
+            });
+          }
+        });
+      }
+    } catch (e) {}
+
+    return Array.from(userMap.values());
+  } catch (err) {
+    console.warn('Erro ao carregar perfis de usuários do Supabase:', err);
+    return [];
+  }
+}
+
+
 
 /**
  * Persists a registered company to Supabase cloud database.

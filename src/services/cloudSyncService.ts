@@ -5,7 +5,7 @@
  * persisted in the Supabase database and reliably restored even after total browser cache clears.
  */
 
-import { BatteryAlertSettings, WeatherAlertSettings, WhiteLabelTheme, RegisteredCompany } from '../types';
+import { BatteryAlertSettings, WeatherAlertSettings, WhiteLabelTheme, RegisteredCompany, UserProfile } from '../types';
 import { 
   supabase, 
   saveAppDataToSupabase, 
@@ -14,6 +14,7 @@ import {
   loadCompaniesFromSupabase,
   saveCompanyToSupabase,
   loadUserPhotosFromSupabase,
+  loadUserProfilesFromSupabase,
   loadSystemBrandingFromSupabase,
   extractThemeFromDescription
 } from './supabase';
@@ -367,6 +368,27 @@ export async function hydrateAllCloudData(): Promise<CloudHydrationResult> {
           window.dispatchEvent(new CustomEvent('agrodrone-user-photo-updated', { detail: { photos: mergedPhotos } }));
         }
       } catch (e) {}
+    }
+
+    // 6. Hydrate User Profiles & New Registrations
+    try {
+      const cloudProfiles = await loadUserProfilesFromSupabase();
+      if (cloudProfiles && cloudProfiles.length > 0) {
+        const rawUsers = localStorage.getItem('agrodrone_users_fleet');
+        const localUsers: UserProfile[] = rawUsers ? JSON.parse(rawUsers) : [];
+        const userMap = new Map<string, UserProfile>();
+        localUsers.forEach(u => { if (u.id) userMap.set(u.id, u); });
+        cloudProfiles.forEach(u => {
+          if (u.id) {
+            userMap.set(u.id, { ...(userMap.get(u.id) || ({} as UserProfile)), ...u });
+          }
+        });
+        const mergedUsers = Array.from(userMap.values());
+        localStorage.setItem('agrodrone_users_fleet', JSON.stringify(mergedUsers));
+        await saveToDurableStorage('agrodrone_users_fleet', mergedUsers, STORES.SETTINGS);
+      }
+    } catch (e) {
+      console.warn('Aviso ao hidratar perfis de usuários:', e);
     }
   } catch (err) {
     console.warn('Aviso durante hidratação da nuvem:', err);

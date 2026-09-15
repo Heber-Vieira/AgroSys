@@ -45,6 +45,7 @@ import { showToast } from '../services/notificationService';
 import { ChemicalLeafletModal } from './ChemicalLeafletModal';
 import { BrandLogo } from './BrandLogo';
 import { formatDecimal, formatBRL, formatHectares, formatNumber, formatPercent, toSafeNumber } from '../utils/formatters';
+import { canUserAccessView } from '../utils/userPermissions';
 
 interface QuotationsViewProps {
   currentUser: UserProfile;
@@ -208,7 +209,7 @@ export const QuotationsView: React.FC<QuotationsViewProps> = ({
   const [newProdSupplied, setNewProdSupplied] = useState(true);
 
   // Strict Admin & Master Role Guard
-  const hasAccess = currentUser.role === 'ADMIN' || currentUser.role === 'MASTER' || currentUser.isMaster;
+  const hasAccess = canUserAccessView(currentUser, 'quotations');
   if (!hasAccess) {
     return (
       <div className="max-w-2xl mx-auto my-12 p-8 bg-white dark:bg-emerald-950/80 border border-emerald-200 dark:border-emerald-800 rounded-3xl shadow-xl text-center space-y-4 animate-in fade-in">

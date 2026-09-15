@@ -57,16 +57,16 @@ export function getDefaultRoleViews(role: UserRole): AppViewMode[] {
     case 'PILOT':
       return [
         'hub', 'dashboard', 'orders', 'spray-workflow', 'gis', 'schedule', 'telemetry',
-        'weather', 'spray-mix', 'fleet', 'reports', 'financial', 'docs', 'virtual-tour', 'help'
+        'weather', 'spray-mix', 'fleet', 'reports', 'docs', 'virtual-tour', 'help'
       ];
     case 'ASSISTANT':
       return [
         'hub', 'dashboard', 'orders', 'spray-workflow', 'schedule', 'weather',
-        'spray-mix', 'fleet', 'financial', 'docs', 'virtual-tour', 'help'
+        'spray-mix', 'fleet', 'docs', 'virtual-tour', 'help'
       ];
     case 'USER':
       return [
-        'hub', 'dashboard', 'orders', 'gis', 'weather', 'reports', 'financial',
+        'hub', 'dashboard', 'orders', 'gis', 'weather', 'reports',
         'docs', 'virtual-tour', 'help'
       ];
     default:
@@ -81,13 +81,14 @@ export function getDefaultRoleViews(role: UserRole): AppViewMode[] {
 export function canUserAccessView(user: UserProfile | null | undefined, view: AppViewMode): boolean {
   if (!user) return false;
   if (isMasterUser(user)) return true;
+  if (view === 'hub' || view === 'help') return true;
 
-  // If custom allowed views are set on this user profile, use them
-  if (user.allowedViews && Array.isArray(user.allowedViews) && user.allowedViews.length > 0) {
+  // If custom allowed views array is defined on this user profile (even if empty []), use it strictly
+  if (user.allowedViews && Array.isArray(user.allowedViews)) {
     return user.allowedViews.includes(view);
   }
 
-  // Fallback to default role permissions
+  // Fallback to default role permissions ONLY if allowedViews was never configured
   return getDefaultRoleViews(user.role).includes(view);
 }
 

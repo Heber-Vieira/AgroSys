@@ -99,6 +99,7 @@ interface AdminManagementHubViewProps {
   setCompensation: React.Dispatch<React.SetStateAction<CompensationPolicy>>;
   onSwitchToAdmin?: () => void;
   onNavigate?: (view: string) => void;
+  onOpenAccessControl?: () => void;
   pricingRules?: PricingMatrixRule[];
   setPricingRules?: React.Dispatch<React.SetStateAction<PricingMatrixRule[]>>;
   maintenanceLogs?: DroneMaintenanceLog[];
@@ -130,6 +131,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
   setCompensation,
   onSwitchToAdmin,
   onNavigate,
+  onOpenAccessControl,
   pricingRules = [],
   setPricingRules = () => {},
   maintenanceLogs = [],
@@ -899,7 +901,18 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-2 self-start md:self-auto">
+          <div className="flex items-center gap-2 self-start md:self-auto flex-wrap">
+            {hasAdminAccess && onOpenAccessControl && (
+              <button
+                onClick={onOpenAccessControl}
+                className="px-3 py-1.5 rounded-xl font-bold bg-purple-600 hover:bg-purple-500 text-white shadow-2xs transition-transform active:scale-95 flex items-center gap-1.5 text-xs cursor-pointer"
+                title="Configurar permissões e acessos dos funcionários da empresa"
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>Gestão de Acessos</span>
+              </button>
+            )}
+
             <button
               onClick={() => {
                 if (activeTab === 'users') handleOpenNewUser();

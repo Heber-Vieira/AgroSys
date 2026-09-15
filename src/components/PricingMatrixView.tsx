@@ -63,12 +63,14 @@ const CROP_OPTIONS = [
   'Outra Cultura'
 ];
 
+import { canUserAccessView } from '../utils/userPermissions';
+
 export const PricingMatrixView: React.FC<PricingMatrixViewProps> = ({
   currentUser,
   pricingRules,
   setPricingRules,
 }) => {
-  const isAdmin = currentUser.role === 'ADMIN' || currentUser.role === 'MASTER' || currentUser.isMaster;
+  const isAdmin = canUserAccessView(currentUser, 'pricing');
 
   // Strict Admin & Master Role Guard
   if (!isAdmin) {

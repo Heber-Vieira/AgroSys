@@ -9,37 +9,40 @@ import {
   SprayQuotation,
   FinancialEntry
 } from '../types';
+import { showToast as showAgroToast } from '../services/notificationService';
+import { canUserAccessView, hasAdminPrivileges, isMasterUser } from '../utils/userPermissions';
+import { formatInteger } from '../utils/formatters';
 import { 
   ClipboardList, 
+  Workflow, 
+  Calendar, 
   MapPin, 
+  Activity, 
   Droplets, 
   Wind, 
-  Activity, 
-  DollarSign, 
-  Calendar, 
-  Printer, 
-  FileText, 
   Plane, 
-  ShieldCheck, 
-  LayoutDashboard, 
-  Palette, 
+  FileCheck2, 
+  DollarSign, 
+  BookOpen, 
   HelpCircle, 
-  Compass, 
   Search, 
   ArrowRight, 
-  Sparkles,
-  TrendingUp,
-  Workflow,
-  ListOrdered,
-  Database,
-  BookOpen,
-  Sliders,
-  Info
+  Sparkles, 
+  Sliders, 
+  Palette, 
+  Database, 
+  Compass, 
+  ShieldCheck, 
+  TrendingUp, 
+  Zap,
+  Users,
+  Lock,
+  LayoutDashboard,
+  Printer,
+  FileText
 } from 'lucide-react';
 import { UserAvatar } from './UserAvatar';
 import { ModuleSummaryBalloon } from './ModuleSummaryBalloon';
-import { formatInteger } from '../utils/formatters';
-import { isMasterUser, hasAdminPrivileges } from '../utils/userPermissions';
 
 interface HomeHubViewProps {
   currentUser: UserProfile;
@@ -53,6 +56,7 @@ interface HomeHubViewProps {
   onOpenNewOS?: () => void;
   onOpenReportModal?: (orderId?: string) => void;
   onStartLiveTour?: () => void;
+  onOpenAccessControl?: () => void;
 }
 
 interface HubItem {
@@ -75,6 +79,7 @@ export const HomeHubView: React.FC<HomeHubViewProps> = ({
   quotations = [],
   onNavigate,
   onStartLiveTour,
+  onOpenAccessControl,
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -310,9 +315,14 @@ export const HomeHubView: React.FC<HomeHubViewProps> = ({
     currentUser.role
   ]);
 
-  // Filter items
+  // Filter items allowed for current user strictly
+  const userAllowedItems = useMemo(() => {
+    return allItems.filter(item => canUserAccessView(currentUser, item.id));
+  }, [allItems, currentUser]);
+
+  // Filter items by category and search term
   const filteredItems = useMemo(() => {
-    return allItems.filter(item => {
+    return userAllowedItems.filter(item => {
       if (selectedCategory !== 'all' && item.category !== selectedCategory) {
         return false;
       }
@@ -324,15 +334,15 @@ export const HomeHubView: React.FC<HomeHubViewProps> = ({
       }
       return true;
     });
-  }, [allItems, selectedCategory, searchTerm]);
+  }, [userAllowedItems, selectedCategory, searchTerm]);
 
   const categories = [
-    { id: 'all', label: 'Todos', count: allItems.length },
-    { id: 'operacoes', label: 'Operações', count: allItems.filter(c => c.category === 'operacoes').length },
-    { id: 'agronomia', label: 'Agronomia', count: allItems.filter(c => c.category === 'agronomia').length },
-    { id: 'comercial', label: 'Comercial', count: allItems.filter(c => c.category === 'comercial').length },
-    { id: 'frota', label: 'Frota & BI', count: allItems.filter(c => c.category === 'frota').length },
-    { id: 'sistema', label: 'Sistema & Suporte', count: allItems.filter(c => c.category === 'sistema').length },
+    { id: 'all', label: 'Todos', count: userAllowedItems.length },
+    { id: 'operacoes', label: 'Operações', count: userAllowedItems.filter(c => c.category === 'operacoes').length },
+    { id: 'agronomia', label: 'Agronomia', count: userAllowedItems.filter(c => c.category === 'agronomia').length },
+    { id: 'comercial', label: 'Comercial', count: userAllowedItems.filter(c => c.category === 'comercial').length },
+    { id: 'frota', label: 'Frota & BI', count: userAllowedItems.filter(c => c.category === 'frota').length },
+    { id: 'sistema', label: 'Sistema & Suporte', count: userAllowedItems.filter(c => c.category === 'sistema').length },
   ];
 
   return (
@@ -378,17 +388,32 @@ export const HomeHubView: React.FC<HomeHubViewProps> = ({
           </div>
         </div>
 
-        {/* Direct Button to Spray Workflow Esteira */}
-        <button
-          onClick={() => onNavigate('spray-workflow')}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs transition-all hover:scale-105 active:scale-95 cursor-pointer shrink-0"
-          title="Abrir Esteira do Processo & Passo a Passo MAPA (10 Etapas)"
-        >
-          <Workflow className="w-3.5 h-3.5" />
-          <span className="hidden xs:inline">Esteira (10 Passos)</span>
-          <span className="xs:hidden">Esteira</span>
-          <ArrowRight className="w-3 h-3" />
-        </button>
+        {/* Action Buttons: Gestão de Acessos for Admins + Esteira */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {hasAdminPrivileges(currentUser) && onOpenAccessControl && (
+            <button
+              onClick={onOpenAccessControl}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white shadow-2xs transition-all hover:scale-105 active:scale-95 cursor-pointer shrink-0"
+              title="Configurar permissões e acessos dos funcionários da empresa"
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Gestão de Acessos</span>
+            </button>
+          )}
+
+          {canUserAccessView(currentUser, 'spray-workflow') && (
+            <button
+              onClick={() => onNavigate('spray-workflow')}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs transition-all hover:scale-105 active:scale-95 cursor-pointer shrink-0"
+              title="Abrir Esteira do Processo & Passo a Passo MAPA (10 Etapas)"
+            >
+              <Workflow className="w-3.5 h-3.5" />
+              <span className="hidden xs:inline">Esteira (10 Passos)</span>
+              <span className="xs:hidden">Esteira</span>
+              <ArrowRight className="w-3 h-3" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Minimalist Search & Category Chips (Responsive flow) */}
@@ -439,62 +464,76 @@ export const HomeHubView: React.FC<HomeHubViewProps> = ({
         </div>
       </div>
 
-      {/* 4 Complete Rows x 5 Complete Columns Grid (20 Modules Total) with Compact Heights */}
-      <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-2 sm:gap-2.5 flex-1 min-h-0 content-start">
-        {filteredItems.map((item) => {
-          return (
-            <div
-              key={item.id}
-              id={`module-card-${item.id}`}
-              onClick={() => onNavigate(item.id)}
-              className="group relative p-2.5 sm:p-3 rounded-xl sm:rounded-2xl bg-white dark:bg-[#072a1e] border border-emerald-200/80 dark:border-emerald-800/80 hover:border-emerald-500 dark:hover:border-emerald-500 hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col justify-between min-h-[80px] sm:min-h-[86px] lg:min-h-[90px] active:scale-[0.98]"
-              title={`Abrir ${item.title}`}
-            >
-              <div>
-                {/* Top row: Icon + Title + Arrow */}
-                <div className="flex items-center justify-between gap-1.5 mb-1">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className={`w-7 h-7 sm:w-7.5 sm:h-7.5 rounded-lg flex items-center justify-center shrink-0 shadow-2xs ${item.iconBg}`}>
-                      {item.icon}
+      {/* Grid of Allowed Modules */}
+      {filteredItems.length === 0 ? (
+        <div className="p-8 my-4 text-center bg-white dark:bg-[#072a1e] border border-emerald-200/80 dark:border-emerald-800/80 rounded-2xl space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto border border-amber-500/20">
+            <Lock className="w-6 h-6" />
+          </div>
+          <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+            Nenhum módulo disponível nesta categoria
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+            Não há módulos liberados para o seu perfil no momento ou nenhum atende aos critérios de busca digitados.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-2 sm:gap-2.5 flex-1 min-h-0 content-start">
+          {filteredItems.map((item) => {
+            return (
+              <div
+                key={item.id}
+                id={`module-card-${item.id}`}
+                onClick={() => onNavigate(item.id)}
+                className="group relative p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border transition-all duration-200 cursor-pointer flex flex-col justify-between min-h-[80px] sm:min-h-[86px] lg:min-h-[90px] active:scale-[0.98] bg-white dark:bg-[#072a1e] border-emerald-200/80 dark:border-emerald-800/80 hover:border-emerald-500 dark:hover:border-emerald-500 hover:shadow-md"
+                title={`Abrir ${item.title}`}
+              >
+                <div>
+                  {/* Top row: Icon + Title + Arrow */}
+                  <div className="flex items-center justify-between gap-1.5 mb-1">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className={`w-7 h-7 sm:w-7.5 sm:h-7.5 rounded-lg flex items-center justify-center shrink-0 shadow-2xs ${item.iconBg}`}>
+                        {item.icon}
+                      </div>
+                      <h3 className="text-xs font-black text-emerald-950 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors leading-tight truncate">
+                        {item.title}
+                      </h3>
                     </div>
-                    <h3 className="text-xs font-black text-emerald-950 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors leading-tight truncate">
-                      {item.title}
-                    </h3>
+
+                    <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 transition-colors bg-slate-50 dark:bg-emerald-950/60 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/60">
+                      <ArrowRight className="w-3 h-3 text-slate-400 dark:text-slate-500 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all" />
+                    </div>
                   </div>
 
-                  <div className="w-4 h-4 rounded-full bg-slate-50 dark:bg-emerald-950/60 flex items-center justify-center shrink-0 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/60 transition-colors">
-                    <ArrowRight className="w-3 h-3 text-slate-400 dark:text-slate-500 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all" />
-                  </div>
+                  {/* Subtitle */}
+                  <p className="text-[10.5px] text-slate-500 dark:text-slate-400 truncate leading-normal">
+                    {item.subtitle}
+                  </p>
                 </div>
 
-                {/* Subtitle */}
-                <p className="text-[10.5px] text-slate-500 dark:text-slate-400 truncate leading-normal">
-                  {item.subtitle}
-                </p>
+                {/* Bottom badge + Ver Resumo action */}
+                <div className="mt-1 pt-1 border-t border-slate-100 dark:border-emerald-900/50 flex items-center justify-between">
+                  <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded border truncate max-w-full text-emerald-700 dark:text-emerald-300 bg-emerald-50/90 dark:bg-emerald-950/90 border-emerald-200/60 dark:border-emerald-800/60">
+                    {item.statBadge}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedSummaryModule(item.id);
+                    }}
+                    className="text-[8.5px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors cursor-pointer hover:underline flex items-center gap-0.5"
+                    title="Abrir balão com resumo explicativo do módulo"
+                  >
+                    <span>Resumo</span>
+                    <Sparkles className="w-2.5 h-2.5" />
+                  </button>
+                </div>
               </div>
-
-              {/* Bottom badge + Ver Resumo action */}
-              <div className="mt-1 pt-1 border-t border-slate-100 dark:border-emerald-900/50 flex items-center justify-between">
-                <span className="text-[9.5px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50/90 dark:bg-emerald-950/90 px-1.5 py-0.5 rounded border border-emerald-200/60 dark:border-emerald-800/60 truncate max-w-full">
-                  {item.statBadge}
-                </span>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedSummaryModule(item.id);
-                  }}
-                  className="text-[8.5px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors cursor-pointer hover:underline flex items-center gap-0.5"
-                  title="Abrir balão com resumo explicativo do módulo"
-                >
-                  <span>Resumo</span>
-                  <Sparkles className="w-2.5 h-2.5" />
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Ultra-compact Footer line */}
       <div className="py-1 flex items-center justify-between gap-2 text-[10px] text-slate-500 dark:text-slate-400 px-1 border-t border-emerald-200/60 dark:border-emerald-800/60 shrink-0">
