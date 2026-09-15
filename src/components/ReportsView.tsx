@@ -88,7 +88,6 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   const [customStartDate, setCustomStartDate] = useState<string>('');
   const [customEndDate, setCustomEndDate] = useState<string>('');
   const [sortBy, setSortBy] = useState<ReportSortOption>('COMPLETION_DESC');
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState<boolean>(false);
 
   // Unified clients list
   const availableClients = useMemo(() => {
@@ -548,72 +547,18 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         </div>
       </div>
 
-      {/* QUICK STATUS SEGMENTED PILLS */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-        <button
-          onClick={() => setStatusFilter('ALL')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-            statusFilter === 'ALL'
-              ? 'bg-emerald-700 text-white shadow-xs'
-              : 'bg-white dark:bg-emerald-950/70 text-slate-700 dark:text-slate-300 border border-emerald-200/80 dark:border-emerald-800 hover:bg-emerald-50'
-          }`}
-        >
-          <span>Todos os Laudos</span>
-          <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-black/10 dark:bg-white/10">{totalReportsCount}</span>
-        </button>
-
-        <button
-          onClick={() => setStatusFilter('COMPLETED')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-            statusFilter === 'COMPLETED'
-              ? 'bg-emerald-600 text-white shadow-xs ring-2 ring-emerald-400'
-              : 'bg-white dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50'
-          }`}
-        >
-          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-          <span>Concluídas (Prontos)</span>
-          <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-700 text-white">{completedReportsCount}</span>
-        </button>
-
-        <button
-          onClick={() => setStatusFilter('OPERATING')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-            statusFilter === 'OPERATING'
-              ? 'bg-blue-600 text-white shadow-xs'
-              : 'bg-white dark:bg-emerald-950/70 text-slate-700 dark:text-slate-300 border border-emerald-200/80 dark:border-emerald-800 hover:bg-emerald-50'
-          }`}
-        >
-          <Activity className="w-3.5 h-3.5 text-blue-500" />
-          <span>Em Operação</span>
-          <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-black/10 dark:bg-white/10">{operatingReportsCount}</span>
-        </button>
-
-        <button
-          onClick={() => setStatusFilter('SCHEDULED')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-            statusFilter === 'SCHEDULED'
-              ? 'bg-amber-600 text-white shadow-xs'
-              : 'bg-white dark:bg-emerald-950/70 text-slate-700 dark:text-slate-300 border border-emerald-200/80 dark:border-emerald-800 hover:bg-emerald-50'
-          }`}
-        >
-          <Clock className="w-3.5 h-3.5 text-amber-500" />
-          <span>Agendadas</span>
-          <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-black/10 dark:bg-white/10">{scheduledReportsCount}</span>
-        </button>
-      </div>
-
-      {/* Advanced Filter and Search Bar */}
-      <div className="p-3 rounded-xl bg-white dark:bg-[#072a1e] border border-emerald-200/80 dark:border-emerald-800/80 shadow-2xs space-y-2.5">
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2.5">
+      {/* Single Unified Filter Bar */}
+      <div className="p-2.5 sm:p-3 rounded-xl bg-white dark:bg-[#072a1e] border border-emerald-200/80 dark:border-emerald-800/80 shadow-2xs space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Search Input */}
-          <div className="relative flex-1">
+          <div className="relative flex-1 min-w-[200px]">
             <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar por código OS, produtor, fazenda, talhão, cultura, piloto ou drone..."
-              className="w-full pl-8 pr-8 py-2 rounded-lg bg-emerald-50/60 dark:bg-emerald-950/70 border border-emerald-200/80 dark:border-emerald-800 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-emerald-500 text-emerald-950 dark:text-white placeholder:text-slate-400"
+              placeholder="Buscar por código OS, produtor, fazenda, cultura, piloto..."
+              className="w-full pl-8 pr-8 py-1.5 rounded-lg bg-emerald-50/60 dark:bg-emerald-950/70 border border-emerald-200/80 dark:border-emerald-800 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-emerald-500 text-emerald-950 dark:text-white placeholder:text-slate-400"
             />
             {searchTerm && (
               <button 
@@ -625,184 +570,193 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             )}
           </div>
 
-          {/* Quick Controls */}
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Sort Dropdown */}
-            <div className="flex items-center gap-1.5 bg-emerald-50/60 dark:bg-emerald-950/70 border border-emerald-200/80 dark:border-emerald-800 rounded-lg px-2.5 py-1.5 shadow-2xs">
-              <ArrowUpDown className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as ReportSortOption)}
-                className="bg-transparent text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer"
-                aria-label="Ordenar laudos"
-              >
-                <option value="COMPLETION_DESC" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
-                  Encerramento (Mais recentes)
-                </option>
-                <option value="COMPLETION_ASC" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
-                  Encerramento (Mais antigos)
-                </option>
-                <option value="CREATION_DESC" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
-                  Criação (Mais recentes)
-                </option>
-                <option value="HECTARES_DESC" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
-                  Área Aplicada (Maior p/ Menor)
-                </option>
-                <option value="VALUE_DESC" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
-                  Faturamento (Maior p/ Menor)
-                </option>
-                <option value="CODE_ASC" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
-                  Código da OS (A-Z)
-                </option>
-              </select>
-            </div>
-
-            {/* Toggle Advanced Filters Button */}
-            <button
-              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors cursor-pointer shadow-2xs ${
-                showAdvancedFilters || (selectedCrop !== 'ALL' || selectedPilotId !== 'ALL' || datePreset !== 'ALL')
-                  ? 'bg-emerald-600 text-white border-emerald-500'
-                  : 'bg-emerald-50/60 dark:bg-emerald-950/70 text-slate-700 dark:text-slate-200 border-emerald-200/80 dark:border-emerald-800 hover:bg-emerald-100/60'
-              }`}
+          {/* Status Filter */}
+          <div className="flex items-center gap-1.5 bg-emerald-50/60 dark:bg-emerald-950/70 border border-emerald-200/80 dark:border-emerald-800 rounded-lg px-2.5 py-1.5 shrink-0">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="bg-transparent text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer"
+              aria-label="Filtrar por Status"
             >
-              <SlidersHorizontal className="w-3.5 h-3.5" />
-              <span>Filtros Avançados</span>
-              <ChevronDown className={`w-3 h-3 transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`} />
+              <option value="ALL" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                Status: Todos ({totalReportsCount})
+              </option>
+              <option value="COMPLETED" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                Concluídas ({completedReportsCount})
+              </option>
+              <option value="OPERATING" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                Em Operação ({operatingReportsCount})
+              </option>
+              <option value="SCHEDULED" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                Agendadas ({scheduledReportsCount})
+              </option>
+              <option value="PAUSED" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                Pausadas
+              </option>
+              <option value="CANCELLED" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                Canceladas
+              </option>
+            </select>
+          </div>
+
+          {/* Client Filter */}
+          <div className="flex items-center gap-1.5 bg-emerald-50/60 dark:bg-emerald-950/70 border border-emerald-200/80 dark:border-emerald-800 rounded-lg px-2.5 py-1.5 shrink-0">
+            <User className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+            <select
+              value={selectedClientId}
+              onChange={(e) => setSelectedClientId(e.target.value)}
+              className="bg-transparent text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer max-w-[140px] truncate"
+              aria-label="Filtrar por Produtor / Cliente"
+            >
+              <option value="ALL" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                Todos os Clientes
+              </option>
+              {availableClients.map(c => (
+                <option key={c.id} value={c.id} className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Crop Filter */}
+          <div className="flex items-center gap-1.5 bg-emerald-50/60 dark:bg-emerald-950/70 border border-emerald-200/80 dark:border-emerald-800 rounded-lg px-2.5 py-1.5 shrink-0">
+            <Wheat className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+            <select
+              value={selectedCrop}
+              onChange={(e) => setSelectedCrop(e.target.value)}
+              className="bg-transparent text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer max-w-[130px] truncate"
+              aria-label="Filtrar por Cultura Agrícola"
+            >
+              <option value="ALL" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                Todas as Culturas
+              </option>
+              {availableCrops.map(crop => (
+                <option key={crop} value={crop} className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                  {crop}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Pilot Filter */}
+          <div className="flex items-center gap-1.5 bg-emerald-50/60 dark:bg-emerald-950/70 border border-emerald-200/80 dark:border-emerald-800 rounded-lg px-2.5 py-1.5 shrink-0">
+            <Plane className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+            <select
+              value={selectedPilotId}
+              onChange={(e) => setSelectedPilotId(e.target.value)}
+              className="bg-transparent text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer max-w-[130px] truncate"
+              aria-label="Filtrar por Piloto Remoto"
+            >
+              <option value="ALL" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                Todos os Pilotos
+              </option>
+              {availablePilots.map(p => (
+                <option key={p.id} value={p.id} className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Date Preset Filter */}
+          <div className="flex items-center gap-1.5 bg-emerald-50/60 dark:bg-emerald-950/70 border border-emerald-200/80 dark:border-emerald-800 rounded-lg px-2.5 py-1.5 shrink-0">
+            <CalendarRange className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+            <select
+              value={datePreset}
+              onChange={(e) => setDatePreset(e.target.value as DatePresetOption)}
+              className="bg-transparent text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer"
+              aria-label="Filtrar por Período de Data"
+            >
+              <option value="ALL" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                Todo Período
+              </option>
+              <option value="TODAY" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                Hoje
+              </option>
+              <option value="LAST_7_DAYS" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                Últimos 7 Dias
+              </option>
+              <option value="LAST_30_DAYS" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                Últimos 30 Dias
+              </option>
+              <option value="THIS_MONTH" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                Mês Atual
+              </option>
+              <option value="CUSTOM" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                Personalizado...
+              </option>
+            </select>
+          </div>
+
+          {/* Custom Date Range (when CUSTOM is selected) */}
+          {datePreset === 'CUSTOM' && (
+            <div className="flex items-center gap-1.5 shrink-0 bg-emerald-50/60 dark:bg-emerald-950/70 border border-emerald-200/80 dark:border-emerald-800 rounded-lg px-2 py-1">
+              <input
+                type="date"
+                value={customStartDate}
+                onChange={(e) => setCustomStartDate(e.target.value)}
+                className="bg-transparent text-xs font-semibold text-emerald-950 dark:text-white focus:outline-none"
+                aria-label="Data inicial"
+              />
+              <span className="text-slate-400 text-xs font-bold">até</span>
+              <input
+                type="date"
+                value={customEndDate}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+                className="bg-transparent text-xs font-semibold text-emerald-950 dark:text-white focus:outline-none"
+                aria-label="Data final"
+              />
+            </div>
+          )}
+
+          {/* Sort Dropdown */}
+          <div className="flex items-center gap-1.5 bg-emerald-50/60 dark:bg-emerald-950/70 border border-emerald-200/80 dark:border-emerald-800 rounded-lg px-2.5 py-1.5 shrink-0">
+            <ArrowUpDown className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as ReportSortOption)}
+              className="bg-transparent text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer max-w-[145px] truncate"
+              aria-label="Ordenar laudos"
+            >
+              <option value="COMPLETION_DESC" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                Encerramento (Mais recentes)
+              </option>
+              <option value="COMPLETION_ASC" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                Encerramento (Mais antigos)
+              </option>
+              <option value="CREATION_DESC" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                Criação (Mais recentes)
+              </option>
+              <option value="HECTARES_DESC" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                Área (Maior p/ Menor)
+              </option>
+              <option value="VALUE_DESC" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                Faturamento (Maior p/ Menor)
+              </option>
+              <option value="CODE_ASC" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                Código OS (A-Z)
+              </option>
+            </select>
+          </div>
+
+          {/* Reset Filters Button */}
+          {hasActiveFilters && (
+            <button
+              onClick={handleResetFilters}
+              title="Limpar todos os filtros"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60 font-bold text-xs shrink-0 hover:bg-rose-100 dark:hover:bg-rose-900/80 transition-colors cursor-pointer"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Limpar</span>
             </button>
-
-            {/* Reset Filters Button */}
-            {hasActiveFilters && (
-              <button
-                onClick={handleResetFilters}
-                title="Limpar todos os filtros"
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60 font-bold text-xs hover:bg-rose-100 dark:hover:bg-rose-900/80 transition-colors cursor-pointer"
-              >
-                <RotateCcw className="w-3 h-3" />
-                <span>Limpar</span>
-              </button>
-            )}
-          </div>
+          )}
         </div>
-
-        {/* Extended Filter Selectors Row (Collapsible or Active) */}
-        {(showAdvancedFilters || (selectedCrop !== 'ALL' || selectedPilotId !== 'ALL' || datePreset !== 'ALL' || selectedClientId !== 'ALL')) && (
-          <div className="pt-2 border-t border-emerald-100 dark:border-emerald-900/50 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 animate-in fade-in duration-200">
-            {/* Client Filter */}
-            <div className="flex items-center gap-1.5 bg-emerald-50/60 dark:bg-emerald-950/70 border border-emerald-200/80 dark:border-emerald-800 rounded-lg px-2.5 py-1.5">
-              <User className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-              <select
-                value={selectedClientId}
-                onChange={(e) => setSelectedClientId(e.target.value)}
-                className="w-full bg-transparent text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer"
-                aria-label="Filtrar por Produtor / Cliente"
-              >
-                <option value="ALL" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
-                  Todos os Clientes
-                </option>
-                {availableClients.map(c => (
-                  <option key={c.id} value={c.id} className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Crop Filter */}
-            <div className="flex items-center gap-1.5 bg-emerald-50/60 dark:bg-emerald-950/70 border border-emerald-200/80 dark:border-emerald-800 rounded-lg px-2.5 py-1.5">
-              <Wheat className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-              <select
-                value={selectedCrop}
-                onChange={(e) => setSelectedCrop(e.target.value)}
-                className="w-full bg-transparent text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer"
-                aria-label="Filtrar por Cultura Agrícola"
-              >
-                <option value="ALL" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
-                  Todas as Culturas
-                </option>
-                {availableCrops.map(crop => (
-                  <option key={crop} value={crop} className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
-                    {crop}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Pilot Filter */}
-            <div className="flex items-center gap-1.5 bg-emerald-50/60 dark:bg-emerald-950/70 border border-emerald-200/80 dark:border-emerald-800 rounded-lg px-2.5 py-1.5">
-              <Plane className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-              <select
-                value={selectedPilotId}
-                onChange={(e) => setSelectedPilotId(e.target.value)}
-                className="w-full bg-transparent text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer"
-                aria-label="Filtrar por Piloto Remoto"
-              >
-                <option value="ALL" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
-                  Todos os Pilotos
-                </option>
-                {availablePilots.map(p => (
-                  <option key={p.id} value={p.id} className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Date Preset Filter */}
-            <div className="flex items-center gap-1.5 bg-emerald-50/60 dark:bg-emerald-950/70 border border-emerald-200/80 dark:border-emerald-800 rounded-lg px-2.5 py-1.5">
-              <CalendarRange className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-              <select
-                value={datePreset}
-                onChange={(e) => setDatePreset(e.target.value as DatePresetOption)}
-                className="w-full bg-transparent text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer"
-                aria-label="Filtrar por Período de Data"
-              >
-                <option value="ALL" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
-                  Todo o Período
-                </option>
-                <option value="TODAY" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
-                  Hoje (Data Atual)
-                </option>
-                <option value="LAST_7_DAYS" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
-                  Últimos 7 Dias
-                </option>
-                <option value="LAST_30_DAYS" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
-                  Últimos 30 Dias
-                </option>
-                <option value="THIS_MONTH" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
-                  Mês Atual
-                </option>
-                <option value="CUSTOM" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
-                  Intervalo Personalizado...
-                </option>
-              </select>
-            </div>
-          </div>
-        )}
-
-        {/* Custom Date Range Inputs (when datePreset is CUSTOM) */}
-        {datePreset === 'CUSTOM' && (
-          <div className="flex items-center gap-2 pt-1.5 text-xs">
-            <span className="text-slate-500 font-bold">De:</span>
-            <input
-              type="date"
-              value={customStartDate}
-              onChange={(e) => setCustomStartDate(e.target.value)}
-              className="px-2.5 py-1 rounded-lg bg-emerald-50/60 dark:bg-emerald-950/70 border border-emerald-200/80 dark:border-emerald-800 text-xs font-semibold text-emerald-950 dark:text-white"
-            />
-            <span className="text-slate-500 font-bold">Até:</span>
-            <input
-              type="date"
-              value={customEndDate}
-              onChange={(e) => setCustomEndDate(e.target.value)}
-              className="px-2.5 py-1 rounded-lg bg-emerald-50/60 dark:bg-emerald-950/70 border border-emerald-200/80 dark:border-emerald-800 text-xs font-semibold text-emerald-950 dark:text-white"
-            />
-          </div>
-        )}
 
         {/* ACTIVE FILTER CHIPS */}
         {hasActiveFilters && (
-          <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-emerald-100 dark:border-emerald-900/40 text-[11px]">
+          <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-emerald-100 dark:border-emerald-900/40 text-[11px]">
             <span className="text-slate-400 font-bold text-[10px] uppercase mr-1">Filtros Ativos:</span>
 
             {searchTerm && (
@@ -842,7 +796,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
             {datePreset !== 'ALL' && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-200 font-semibold border border-emerald-300 dark:border-emerald-800">
-                Período: {datePreset}
+                Período: {datePreset === 'TODAY' ? 'Hoje' : datePreset === 'LAST_7_DAYS' ? 'Últimos 7 dias' : datePreset === 'LAST_30_DAYS' ? 'Últimos 30 dias' : datePreset === 'THIS_MONTH' ? 'Mês atual' : 'Personalizado'}
                 <X className="w-3 h-3 cursor-pointer hover:text-rose-600" onClick={() => { setDatePreset('ALL'); setCustomStartDate(''); setCustomEndDate(''); }} />
               </span>
             )}
