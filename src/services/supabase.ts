@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { WhiteLabelTheme, UserProfile } from '../types';
+import { WhiteLabelTheme, UserProfile, ServiceOrder } from '../types';
 import { USER_PROFILES, INITIAL_PILOTS, INITIAL_ASSISTANTS } from '../data/mockAppState';
 
 const env = (import.meta as any).env || {};
@@ -1286,4 +1286,129 @@ export async function loadSystemBrandingFromSupabase(): Promise<Partial<WhiteLab
     return null;
   }
 }
+
+/**
+ * Persists Service Orders (OS) list to Supabase database (service_orders table or app_settings fallback).
+ */
+export async function saveServiceOrdersToSupabase(orders: ServiceOrder[]): Promise<{ success: boolean; error?: string }> {
+  try {
+    const now = new Date().toISOString();
+
+    // 1. Try upserting into service_orders table
+    try {
+      const rows = orders.map(order => ({
+        id: order.id,
+        company_id: order.companyId || 'ciclodrone',
+        code: order.code,
+        client_id: order.clientId,
+        client_name: order.clientName,
+        farm_name: order.farmName,
+        plot_id: order.plotId,
+        plot_name: order.plotName,
+        crop: order.crop,
+        service_type: order.targetPestOrGoal,
+        status: order.status,
+        scheduled_date: order.scheduledDate,
+        start_time: order.startTime || '08:00',
+        end_time: order.endTime || '12:00',
+        target_hectares: order.targetHectares,
+        sprayed_hectares: order.sprayedHectares,
+        drone_id: order.droneId,
+        pilot_id: order.pilotId,
+        assistant_id: order.assistantId,
+        spray_rate_l_ha: order.sprayRateLHa,
+        total_gross_value: order.totalGrossValue || 0,
+        weather_safe_approved: order.weatherSafeApproved || false,
+        mix_prepared_approved: order.mixPreparedApproved || false,
+        digital_signed: order.digitalSigned || false,
+        created_at: order.createdAt || now,
+        completed_at: order.completedAt || null,
+        full_json: JSON.stringify(order)
+      }));
+
+      const { error } = await supabase.from('service_orders').upsert(rows, { onConflict: 'id' });
+      if (!error) {
+        await saveAppDataToSupabase('orders_fleet', orders);
+        return { success: true };
+      }
+    } catch (e) {}
+
+    // 2. Fallback to app_settings storage
+    return await saveAppDataToSupabase('orders_fleet', orders);
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Loads Service Orders from Supabase cloud storage (service_orders table or app_settings fallback).
+ */
+export async function loadServiceOrdersFromSupabase(): Promise<ServiceOrder[] | null> {
+  try {
+    // 1. Try querying service_orders table
+    try {
+      const { data, error } = await supabase.from('service_orders').select('*');
+      if (!error && data && data.length > 0) {
+        return data.map((row: any) => {
+          if (row.full_json) {
+            try {
+              const parsed = JSON.parse(row.full_json);
+              return {
+                ...parsed,
+                status: row.status || parsed.status,
+                sprayedHectares: row.sprayed_hectares !== undefined && row.sprayed_hectares !== null ? Number(row.sprayed_hectares) : parsed.sprayedHectares,
+                completedAt: row.completed_at || parsed.completedAt,
+                createdAt: row.created_at || parsed.createdAt,
+              };
+            } catch (e) {}
+          }
+          return {
+            id: row.id,
+            companyId: row.company_id || 'ciclodrone',
+            code: row.code || row.order_code,
+            clientId: row.client_id,
+            clientName: row.client_name,
+            farmName: row.farm_name,
+            plotId: row.plot_id,
+            plotName: row.plot_name,
+            crop: row.crop,
+            targetHectares: Number(row.target_hectares || row.planned_target_hectares || 0),
+            sprayedHectares: Number(row.sprayed_hectares || row.actual_sprayed_hectares || 0),
+            targetPestOrGoal: row.service_type || row.target_pest_or_goal || 'Pulverização Agrícola',
+            status: row.status,
+            scheduledDate: row.scheduled_date || row.scheduled_start_date,
+            sprayRateLHa: Number(row.spray_rate_l_ha || row.planned_spray_rate_l_ha || 10),
+            droneId: row.drone_id,
+            droneModel: row.drone_model || 'Drone Agrícola',
+            droneAnac: row.drone_anac || 'ANAC-AGRO',
+            pilotId: row.pilot_id,
+            pilotName: row.pilot_name || 'Piloto Agrícola',
+            assistantId: row.assistant_id,
+            assistantName: row.assistant_name || 'Auxiliar de Campo',
+            pricingModel: 'PER_HECTARE',
+            baseRatePerHa: 75.00,
+            totalGrossValue: Number(row.total_gross_value || 0),
+            pilotCommission: Number(row.pilot_commission || 0),
+            assistantCommission: Number(row.assistant_commission || 0),
+            weatherSafeApproved: Boolean(row.weather_safe_approved),
+            mixPreparedApproved: Boolean(row.mix_prepared_approved),
+            digitalSigned: Boolean(row.digital_signed),
+            createdAt: row.created_at || new Date().toISOString(),
+            completedAt: row.completed_at || row.finished_at || undefined,
+          } as ServiceOrder;
+        });
+      }
+    } catch (e) {}
+
+    // 2. Try app_settings fallback
+    const appSettingsOrders = await loadAppDataFromSupabase<ServiceOrder[]>('orders_fleet');
+    if (appSettingsOrders && Array.isArray(appSettingsOrders) && appSettingsOrders.length > 0) {
+      return appSettingsOrders;
+    }
+  } catch (err) {
+    console.warn('Erro ao carregar Ordens de Serviço do Supabase:', err);
+  }
+  return null;
+}
+
 

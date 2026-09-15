@@ -1091,7 +1091,7 @@ export const INITIAL_ORDERS: ServiceOrder[] = [
     targetHectares: 120.0,
     sprayedHectares: 75.0,
     targetPestOrGoal: 'Dessecação Pré-Colheita & Maturador (Ciclodrone Heavy)',
-    status: 'OPERATING',
+    status: 'COMPLETED',
     scheduledDate: '2026-09-10',
     startTime: '06:30',
     endTime: '10:30',
@@ -1114,7 +1114,9 @@ export const INITIAL_ORDERS: ServiceOrder[] = [
     assistantCommission: 420.00, // 120 * 3.50
     weatherSafeApproved: true,
     mixPreparedApproved: true,
-    digitalSigned: false,
+    digitalSigned: true,
+    createdAt: '2026-09-10T08:00:00.000Z',
+    completedAt: '2026-09-14T10:30:00.000Z',
   },
   {
     id: 'os-ciclo-002',
@@ -1191,6 +1193,8 @@ export const INITIAL_ORDERS: ServiceOrder[] = [
     weatherSafeApproved: true,
     mixPreparedApproved: true,
     digitalSigned: true,
+    createdAt: '2026-09-08T06:00:00.000Z',
+    completedAt: '2026-09-08T09:45:00.000Z',
   },
   {
     id: 'os-ciclo-004',
@@ -1229,6 +1233,8 @@ export const INITIAL_ORDERS: ServiceOrder[] = [
     weatherSafeApproved: true,
     mixPreparedApproved: true,
     digitalSigned: true,
+    createdAt: '2026-09-06T06:15:00.000Z',
+    completedAt: '2026-09-06T11:30:00.000Z',
   },
   {
     id: 'os-ciclo-005',
@@ -1267,6 +1273,7 @@ export const INITIAL_ORDERS: ServiceOrder[] = [
     weatherSafeApproved: true,
     mixPreparedApproved: true,
     digitalSigned: false,
+    createdAt: '2026-09-10T14:20:00.000Z',
   },
 
   // AeroAgro Orders
@@ -1307,6 +1314,7 @@ export const INITIAL_ORDERS: ServiceOrder[] = [
     weatherSafeApproved: true,
     mixPreparedApproved: true,
     digitalSigned: false,
+    createdAt: '2026-09-09T07:00:00.000Z',
   },
   {
     id: 'os-002',
@@ -1345,6 +1353,7 @@ export const INITIAL_ORDERS: ServiceOrder[] = [
     weatherSafeApproved: false,
     mixPreparedApproved: false,
     digitalSigned: false,
+    createdAt: '2026-09-09T08:30:00.000Z',
   },
   {
     id: 'os-003',
@@ -1383,6 +1392,8 @@ export const INITIAL_ORDERS: ServiceOrder[] = [
     weatherSafeApproved: true,
     mixPreparedApproved: true,
     digitalSigned: true,
+    createdAt: '2026-09-07T06:30:00.000Z',
+    completedAt: '2026-09-07T10:00:00.000Z',
   },
 ];
 

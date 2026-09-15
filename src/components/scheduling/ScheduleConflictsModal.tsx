@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { ServiceOrder, ScheduleConflict, CrewPilot, AgriculturalDrone } from '../../types';
 import { findAvailableTimeSlots, timeStringToMinutes } from '../../services/scheduleConflictService';
+import { formatDateBR } from '../../utils/formatters';
 
 interface ScheduleConflictsModalProps {
   isOpen: boolean;
@@ -165,7 +166,7 @@ export const ScheduleConflictsModal: React.FC<ScheduleConflictsModalProps> = ({
                       className="text-[11px] font-extrabold text-emerald-700 dark:text-emerald-300 hover:underline flex items-center gap-1 cursor-pointer"
                     >
                       <CalendarIcon className="w-3.5 h-3.5" />
-                      Ir para {orderA.scheduledDate}
+                      Ir para {formatDateBR(orderA.scheduledDate)}
                     </button>
                   </div>
 

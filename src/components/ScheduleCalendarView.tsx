@@ -52,6 +52,7 @@ import {
 } from '../utils/audioAlerts';
 import { ScheduleOrderModal } from './scheduling/ScheduleOrderModal';
 import { ScheduleConflictsModal } from './scheduling/ScheduleConflictsModal';
+import { formatDateBR } from '../utils/formatters';
 
 interface ScheduleCalendarViewProps {
   currentUser: UserProfile;
@@ -234,12 +235,20 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
 
   // Order CRUD handlers
   const handleSaveOrder = (newOrUpdatedOrder: ServiceOrder) => {
+    const isCompleting = newOrUpdatedOrder.status === 'COMPLETED';
+    const preparedOrder: ServiceOrder = {
+      ...newOrUpdatedOrder,
+      createdAt: newOrUpdatedOrder.createdAt || new Date().toISOString(),
+      completedAt: isCompleting ? (newOrUpdatedOrder.completedAt || new Date().toISOString()) : newOrUpdatedOrder.completedAt,
+      sprayedHectares: isCompleting ? newOrUpdatedOrder.targetHectares : newOrUpdatedOrder.sprayedHectares,
+      digitalSigned: isCompleting ? true : newOrUpdatedOrder.digitalSigned,
+    };
     setOrders(prev => {
-      const exists = prev.some(o => o.id === newOrUpdatedOrder.id);
+      const exists = prev.some(o => o.id === preparedOrder.id);
       if (exists) {
-        return prev.map(o => o.id === newOrUpdatedOrder.id ? newOrUpdatedOrder : o);
+        return prev.map(o => o.id === preparedOrder.id ? preparedOrder : o);
       }
-      return [newOrUpdatedOrder, ...prev];
+      return [preparedOrder, ...prev];
     });
   };
 
@@ -974,7 +983,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                       </div>
 
                       <div className="text-[11px]">
-                        <span className="font-bold text-slate-900 dark:text-emerald-100 block">📅 {order.scheduledDate}</span>
+                        <span className="font-bold text-slate-900 dark:text-emerald-100 block">📅 {formatDateBR(order.scheduledDate)}</span>
                         <span className="text-emerald-700 dark:text-emerald-400 font-extrabold text-[10px]">⏰ {order.startTime || '07:00'} - {order.endTime || '09:30'}</span>
                       </div>
 

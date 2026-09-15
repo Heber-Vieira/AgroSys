@@ -538,6 +538,7 @@ export const QuotationsView: React.FC<QuotationsViewProps> = ({
       targetPestOrGoal: q.targetPestOrGoal,
       status: 'SCHEDULED',
       scheduledDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Day after tomorrow
+      createdAt: new Date().toISOString(),
       sprayRateLHa: 10,
       droneId: matchingDrone?.id || 'drone-1',
       droneModel: matchingDrone?.modelName || 'DJI Agras T40',

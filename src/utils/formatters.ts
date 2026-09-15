@@ -143,3 +143,100 @@ export function formatVolume(val: number | string | null | undefined, decimals =
 export function formatHours(val: number | string | null | undefined, decimals = 1): string {
   return `${formatDecimal(val, decimals)} h`;
 }
+
+/**
+ * Formata data no padrão oficial brasileiro (DD/MM/AAAA) a partir de string ISO (YYYY-MM-DD), Date ou timestamp.
+ * Respeita corretamente o fuso horário local do navegador (GMT-3) para timestamps com 'T'.
+ * Ex: formatDateBR('2026-09-15T02:37:00Z') -> "14/09/2026" (Horário de Brasília)
+ * Ex: formatDateBR('2026-09-14') -> "14/09/2026"
+ */
+export function formatDateBR(val: string | number | Date | null | undefined): string {
+  if (!val) return '—';
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (!trimmed) return '—';
+    // Se já estiver no padrão DD/MM/AAAA
+    if (/^\d{2}\/\d{2}\/\d{4}/.test(trimmed)) {
+      return trimmed.substring(0, 10);
+    }
+    // Se tiver 'T' (timestamp ISO completo), converter respeitando o fuso local do navegador
+    if (trimmed.includes('T')) {
+      try {
+        const d = new Date(trimmed);
+        if (!isNaN(d.getTime())) {
+          const day = String(d.getDate()).padStart(2, '0');
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const year = d.getFullYear();
+          return `${day}/${month}/${year}`;
+        }
+      } catch (e) {}
+    }
+    // Se for formato apenas de data YYYY-MM-DD sem componente de hora
+    const isoDateOnly = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (isoDateOnly) {
+      const [, year, month, day] = isoDateOnly;
+      return `${day}/${month}/${year}`;
+    }
+  }
+  try {
+    const d = new Date(val);
+    if (!isNaN(d.getTime())) {
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}/${month}/${year}`;
+    }
+  } catch (e) {}
+  return String(val);
+}
+
+/**
+ * Formata data e hora no padrão oficial brasileiro (DD/MM/AAAA às HH:MM).
+ * Respeita corretamente o fuso horário local do navegador (GMT-3).
+ * Ex: formatDateTimeBR('2026-09-15T02:37:00Z') -> "14/09/2026 às 23:37"
+ * Ex: formatDateTimeBR('2026-09-14', '08:00') -> "14/09/2026 às 08:00"
+ */
+export function formatDateTimeBR(val: string | number | Date | null | undefined, defaultTime = '08:00'): string {
+  if (!val) return '—';
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (!trimmed) return '—';
+    // Se já tiver formato DD/MM/AAAA às HH:MM
+    if (/^\d{2}\/\d{2}\/\d{4}\s+às\s+\d{2}:\d{2}/.test(trimmed)) {
+      return trimmed;
+    }
+    // Se tiver formato ISO completo com 'T'
+    if (trimmed.includes('T')) {
+      try {
+        const d = new Date(trimmed);
+        if (!isNaN(d.getTime())) {
+          const day = String(d.getDate()).padStart(2, '0');
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const year = d.getFullYear();
+          const hours = String(d.getHours()).padStart(2, '0');
+          const minutes = String(d.getMinutes()).padStart(2, '0');
+          return `${day}/${month}/${year} às ${hours}:${minutes}`;
+        }
+      } catch (e) {}
+    }
+    // Se for formato apenas de data YYYY-MM-DD
+    const isoDateOnly = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (isoDateOnly) {
+      const [, year, month, day] = isoDateOnly;
+      return `${day}/${month}/${year} às ${defaultTime}`;
+    }
+  }
+  try {
+    const d = new Date(val);
+    if (!isNaN(d.getTime())) {
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      const hours = String(d.getHours()).padStart(2, '0');
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      return `${day}/${month}/${year} às ${hours}:${minutes}`;
+    }
+  } catch (e) {}
+  return String(val);
+}
+

@@ -37,7 +37,7 @@ import {
 } from 'lucide-react';
 import { BrandLogo } from './BrandLogo';
 import { DroneBadge } from './DronePhotoBadge';
-import { formatBRL, formatHectares, formatDecimal } from '../utils/formatters';
+import { formatBRL, formatHectares, formatDecimal, formatDateBR, formatDateTimeBR } from '../utils/formatters';
 
 export interface ReportSectionsConfig {
   showClientData: boolean;
@@ -121,6 +121,25 @@ export const SprayReportModal: React.FC<SprayReportModalProps> = ({
       createdAt: new Date().toLocaleDateString('pt-BR'),
     }
   ]);
+
+  // Helper formatting creation date of OS (Padrão Oficial DD/MM/AAAA às HH:MM)
+  const formatCreationDate = (os: ServiceOrder) => {
+    return formatDateTimeBR(os.createdAt || os.scheduledDate, os.startTime || '08:00');
+  };
+
+  // Helper formatting completion/closure date of OS (Padrão Oficial DD/MM/AAAA às HH:MM)
+  const formatCompletionDate = (os: ServiceOrder) => {
+    if (os.completedAt) {
+      return formatDateTimeBR(os.completedAt);
+    }
+    if (os.status === 'COMPLETED') {
+      return formatDateTimeBR(new Date().toISOString());
+    }
+    if (os.status === 'CANCELLED') {
+      return 'OS Cancelada';
+    }
+    return 'Pendente (Em andamento)';
+  };
 
   // Additional customizable fields
   const [reportTitle, setReportTitle] = useState<string>('RELATÓRIO TÉCNICO DE PULVERIZAÇÃO AGRÍCOLA');
@@ -652,8 +671,14 @@ export const SprayReportModal: React.FC<SprayReportModalProps> = ({
                 <p className="text-xs font-mono font-bold text-slate-700 mt-1">
                   CÓDIGO: {activeOrder.code}
                 </p>
-                <p className="text-[11px] text-slate-500">
-                  Data de Emissão: {new Date().toLocaleDateString('pt-BR')}
+                <p className="text-[11px] text-slate-700 font-medium">
+                  Criação da OS: <strong className="text-slate-900 font-mono">{formatCreationDate(activeOrder)}</strong>
+                </p>
+                <p className="text-[11px] text-slate-700 font-medium">
+                  Encerramento (Conclusão): <strong className={activeOrder.status === 'COMPLETED' ? 'text-emerald-800 font-mono font-bold' : 'text-amber-800 font-mono'}>{formatCompletionDate(activeOrder)}</strong>
+                </p>
+                <p className="text-[10.5px] text-slate-500 mt-0.5">
+                  Data de Emissão do Laudo: {new Date().toLocaleDateString('pt-BR')}
                 </p>
               </div>
             </div>

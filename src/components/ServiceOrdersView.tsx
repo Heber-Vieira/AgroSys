@@ -45,7 +45,7 @@ import { DronePhoto, DroneBadge, getDronePhotoUrl } from './DronePhotoBadge';
 import { UserAvatar, getStoredUserPhoto } from './UserAvatar';
 import { SprayReportModal } from './SprayReportModal';
 import { WeatherAlertOperatorPanel } from './weather/WeatherAlertOperatorPanel';
-import { formatBRL, formatHectares, formatDecimal } from '../utils/formatters';
+import { formatBRL, formatHectares, formatDecimal, formatDateBR, formatDateTimeBR } from '../utils/formatters';
 
 interface ServiceOrdersViewProps {
   currentUser: UserProfile;
@@ -90,9 +90,12 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
     setOrders(prevOrders => prevOrders.map(order => {
       if (order.id === orderId) {
         const readings = order.weatherReadings || [];
+        const updatedReadings = [...readings, reading];
+        const isSafe = reading.windKmH <= 15 && reading.temperatureC <= 32 && reading.humidityPct >= 50;
         return {
           ...order,
-          weatherReadings: [...readings, reading]
+          weatherReadings: updatedReadings,
+          weatherSafeApproved: isSafe ? true : order.weatherSafeApproved
         };
       }
       return order;
@@ -136,6 +139,7 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
     const newOrder: ServiceOrder = {
       id: `os-${Date.now()}`,
       code: `OS-2026-0${orders.length + 42}`,
+      createdAt: new Date().toISOString(),
       clientId: currentUser.role === 'USER' ? currentUser.id : 'user-client',
       clientName: currentUser.role === 'USER' ? currentUser.name : selectedPlot.clientName,
       farmName: selectedPlot.farmName,
@@ -173,13 +177,16 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
   const updateOrderStatus = (orderId: string, newStatus: OSStatus) => {
     setOrders(orders.map(order => {
       if (order.id === orderId) {
-        let sprayed = order.sprayedHectares;
-        if (newStatus === 'COMPLETED') sprayed = order.targetHectares;
+        const isCompleting = newStatus === 'COMPLETED';
+        const sprayed = isCompleting ? order.targetHectares : order.sprayedHectares;
         return {
           ...order,
           status: newStatus,
           sprayedHectares: sprayed,
-          digitalSigned: newStatus === 'COMPLETED' ? true : order.digitalSigned,
+          completedAt: isCompleting ? (order.completedAt || new Date().toISOString()) : order.completedAt,
+          digitalSigned: isCompleting ? true : order.digitalSigned,
+          weatherSafeApproved: isCompleting ? true : order.weatherSafeApproved,
+          mixPreparedApproved: isCompleting ? true : order.mixPreparedApproved,
         };
       }
       return order;
@@ -366,7 +373,7 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
                         {order.status === 'PAUSED' && '⚠️ PAUSADO (CLIMA)'}
                       </span>
                       <span className="text-[11px] text-emerald-800/80 dark:text-emerald-300/80 font-medium">
-                        Data: {order.scheduledDate} {order.startTime ? `(${order.startTime} às ${order.endTime || '09:30'})` : ''}
+                        Data: {formatDateBR(order.scheduledDate)} {order.startTime ? `(${order.startTime} às ${order.endTime || '09:30'})` : ''}
                       </span>
                     </div>
 
@@ -933,7 +940,7 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
                 </div>
                 <div>
                   <span className="text-emerald-800/70 block text-[10px] font-semibold">DATA DA OPERAÇÃO</span>
-                  <span className="font-bold text-slate-900">{selectedCertificateOrder.scheduledDate}</span>
+                  <span className="font-bold text-slate-900">{formatDateBR(selectedCertificateOrder.completedAt || selectedCertificateOrder.scheduledDate)}</span>
                 </div>
               </div>
 

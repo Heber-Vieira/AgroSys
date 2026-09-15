@@ -313,6 +313,8 @@ export interface ServiceOrder {
   targetPestOrGoal: string;
   status: OSStatus;
   scheduledDate: string;
+  createdAt?: string;   // Data e hora de criação da OS
+  completedAt?: string; // Data e hora de encerramento/conclusão da pulverização
   sprayRateLHa: number;
   droneId: string;
   droneModel: string;

@@ -27,7 +27,7 @@ import {
   Activity,
   AlertCircle
 } from 'lucide-react';
-import { formatBRL } from '../utils/formatters';
+import { formatBRL, formatDateBR, formatDateTimeBR } from '../utils/formatters';
 
 interface ReportsViewProps {
   currentUser: UserProfile;
@@ -81,66 +81,99 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     return list.sort((a, b) => a.name.localeCompare(b.name));
   }, [clients, orders]);
 
-  // Filtered Orders Logic with complete multi-criteria support
+  // Helper to extract numeric timestamp of completion for strict sorting
+  const getCompletionTimestamp = (os: ServiceOrder): number => {
+    if (os.completedAt) {
+      const t = new Date(os.completedAt).getTime();
+      if (!isNaN(t)) return t;
+    }
+    if (os.status === 'COMPLETED') {
+      if (os.createdAt) {
+        const t = new Date(os.createdAt).getTime();
+        if (!isNaN(t)) return t;
+      }
+      if (os.scheduledDate) {
+        const dateStr = os.endTime ? `${os.scheduledDate}T${os.endTime}:00` : `${os.scheduledDate}T17:00:00`;
+        const t = new Date(dateStr).getTime();
+        if (!isNaN(t)) return t;
+      }
+    }
+    if (os.createdAt) {
+      const t = new Date(os.createdAt).getTime();
+      if (!isNaN(t)) return t;
+    }
+    return 0;
+  };
+
+  // Filtered and sorted Orders Logic by real completion date descending
   const filteredOrders = useMemo(() => {
-    return orders.filter(os => {
-      // 1. Text Search matching
-      const term = searchTerm.trim().toLowerCase();
-      const matchesSearch = !term || (
-        (os.code || '').toLowerCase().includes(term) ||
-        (os.clientName || '').toLowerCase().includes(term) ||
-        (os.farmName || '').toLowerCase().includes(term) ||
-        (os.plotName || '').toLowerCase().includes(term) ||
-        (os.pilotName || '').toLowerCase().includes(term) ||
-        (os.droneModel || '').toLowerCase().includes(term) ||
-        (os.droneAnac || '').toLowerCase().includes(term) ||
-        (os.crop || '').toLowerCase().includes(term) ||
-        (os.targetPestOrGoal || '').toLowerCase().includes(term) ||
-        (os.cityState || '').toLowerCase().includes(term)
-      );
+    return orders
+      .filter(os => {
+        // 1. Text Search matching
+        const term = searchTerm.trim().toLowerCase();
+        const matchesSearch = !term || (
+          (os.code || '').toLowerCase().includes(term) ||
+          (os.clientName || '').toLowerCase().includes(term) ||
+          (os.farmName || '').toLowerCase().includes(term) ||
+          (os.plotName || '').toLowerCase().includes(term) ||
+          (os.pilotName || '').toLowerCase().includes(term) ||
+          (os.droneModel || '').toLowerCase().includes(term) ||
+          (os.droneAnac || '').toLowerCase().includes(term) ||
+          (os.crop || '').toLowerCase().includes(term) ||
+          (os.targetPestOrGoal || '').toLowerCase().includes(term) ||
+          (os.cityState || '').toLowerCase().includes(term)
+        );
 
-      // 2. Client Filter matching (by ID, Name, or Trade Name)
-      let matchesClient = true;
-      if (selectedClientId !== 'ALL') {
-        const clientObj = availableClients.find(c => c.id === selectedClientId) 
-          || clients.find(c => c.id === selectedClientId);
+        // 2. Client Filter matching (by ID, Name, or Trade Name)
+        let matchesClient = true;
+        if (selectedClientId !== 'ALL') {
+          const clientObj = availableClients.find(c => c.id === selectedClientId) 
+            || clients.find(c => c.id === selectedClientId);
 
-        const targetClientName = (clientObj ? clientObj.name : selectedClientId).toLowerCase().trim();
-        const osClientName = (os.clientName || '').toLowerCase().trim();
-        const osClientId = (os.clientId || '').toLowerCase().trim();
-        const selectedIdLower = selectedClientId.toLowerCase().trim();
+          const targetClientName = (clientObj ? clientObj.name : selectedClientId).toLowerCase().trim();
+          const osClientName = (os.clientName || '').toLowerCase().trim();
+          const osClientId = (os.clientId || '').toLowerCase().trim();
+          const selectedIdLower = selectedClientId.toLowerCase().trim();
 
-        matchesClient = 
-          osClientId === selectedIdLower ||
-          (clientObj && osClientId === clientObj.id.toLowerCase()) ||
-          osClientName === targetClientName ||
-          osClientName.includes(targetClientName) ||
-          targetClientName.includes(osClientName) ||
-          (clientObj && 'tradeName' in clientObj && Boolean((clientObj as any).tradeName) && osClientName === ((clientObj as any).tradeName || '').toLowerCase().trim());
-      }
-
-      // 3. Status Filter matching
-      let matchesStatus = true;
-      if (statusFilter !== 'ALL') {
-        if (statusFilter === 'COMPLETED') {
-          matchesStatus = os.status === 'COMPLETED';
-        } else if (statusFilter === 'SCHEDULED') {
-          matchesStatus = os.status === 'SCHEDULED';
-        } else if (statusFilter === 'OPERATING' || statusFilter === 'IN_PROGRESS') {
-          matchesStatus = os.status === 'OPERATING' || os.status === 'IN_TRANSIT';
-        } else if (statusFilter === 'IN_TRANSIT') {
-          matchesStatus = os.status === 'IN_TRANSIT';
-        } else if (statusFilter === 'PAUSED') {
-          matchesStatus = os.status === 'PAUSED';
-        } else if (statusFilter === 'CANCELLED') {
-          matchesStatus = os.status === 'CANCELLED';
-        } else {
-          matchesStatus = os.status === statusFilter;
+          matchesClient = 
+            osClientId === selectedIdLower ||
+            (clientObj && osClientId === clientObj.id.toLowerCase()) ||
+            osClientName === targetClientName ||
+            osClientName.includes(targetClientName) ||
+            targetClientName.includes(osClientName) ||
+            (clientObj && 'tradeName' in clientObj && Boolean((clientObj as any).tradeName) && osClientName === ((clientObj as any).tradeName || '').toLowerCase().trim());
         }
-      }
 
-      return matchesSearch && matchesClient && matchesStatus;
-    });
+        // 3. Status Filter matching
+        let matchesStatus = true;
+        if (statusFilter !== 'ALL') {
+          if (statusFilter === 'COMPLETED') {
+            matchesStatus = os.status === 'COMPLETED';
+          } else if (statusFilter === 'SCHEDULED') {
+            matchesStatus = os.status === 'SCHEDULED';
+          } else if (statusFilter === 'OPERATING' || statusFilter === 'IN_PROGRESS') {
+            matchesStatus = os.status === 'OPERATING' || os.status === 'IN_TRANSIT';
+          } else if (statusFilter === 'IN_TRANSIT') {
+            matchesStatus = os.status === 'IN_TRANSIT';
+          } else if (statusFilter === 'PAUSED') {
+            matchesStatus = os.status === 'PAUSED';
+          } else if (statusFilter === 'CANCELLED') {
+            matchesStatus = os.status === 'CANCELLED';
+          } else {
+            matchesStatus = os.status === statusFilter;
+          }
+        }
+
+        return matchesSearch && matchesClient && matchesStatus;
+      })
+      .sort((a, b) => {
+        const timeA = getCompletionTimestamp(a);
+        const timeB = getCompletionTimestamp(b);
+        if (timeA !== timeB) {
+          return timeB - timeA; // Descending: data de encerramento mais recente primeiro
+        }
+        return (b.code || '').localeCompare(a.code || '');
+      });
   }, [orders, searchTerm, selectedClientId, statusFilter, availableClients, clients]);
 
   // Reset all active filters helper
@@ -151,6 +184,25 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   };
 
   const hasActiveFilters = searchTerm !== '' || selectedClientId !== 'ALL' || statusFilter !== 'ALL';
+
+  // Helper formatting creation date of OS (Padrão Oficial DD/MM/AAAA às HH:MM)
+  const formatCreationDate = (os: ServiceOrder) => {
+    return formatDateTimeBR(os.createdAt || os.scheduledDate, os.startTime || '08:00');
+  };
+
+  // Helper formatting real completion/closure date of OS (Padrão Oficial DD/MM/AAAA às HH:MM)
+  const formatCompletionDate = (os: ServiceOrder) => {
+    if (os.completedAt) {
+      return formatDateTimeBR(os.completedAt);
+    }
+    if (os.status === 'COMPLETED') {
+      return formatDateTimeBR(new Date().toISOString());
+    }
+    if (os.status === 'CANCELLED') {
+      return 'OS Cancelada';
+    }
+    return 'Pendente (Em andamento)';
+  };
 
   // Statistics KPIs
   const totalReportsCount = orders.length;
@@ -421,9 +473,9 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
                     {renderStatusBadge(os.status)}
 
-                    <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                    <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1 font-mono">
                       <Calendar className="w-3 h-3 text-slate-400" />
-                      {os.scheduledDate}
+                      {formatDateBR(os.status === 'COMPLETED' ? (os.completedAt || os.scheduledDate) : os.scheduledDate)}
                     </span>
                   </div>
 
@@ -435,6 +487,17 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                       <MapPin className="w-3 h-3 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
                       <span>{os.farmName} — <strong>{os.plotName}</strong> ({os.crop} - {os.targetHectares} ha)</span>
                     </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[11px] text-slate-600 dark:text-slate-300 pt-1 border-t border-slate-100 dark:border-emerald-900/40">
+                    <span className="flex items-center gap-1">
+                      <Calendar className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                      Criação da OS: <strong className="text-slate-800 dark:text-slate-100 font-mono">{formatCreationDate(os)}</strong>
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-teal-600 dark:text-teal-400" />
+                      Encerramento da OS: <strong className={os.status === 'COMPLETED' ? 'text-emerald-700 dark:text-emerald-300 font-mono font-bold' : 'text-amber-700 dark:text-amber-400 font-mono'}>{formatCompletionDate(os)}</strong>
+                    </span>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-x-3.5 gap-y-0.5 text-[10px] text-slate-500 dark:text-slate-400 pt-0.5">

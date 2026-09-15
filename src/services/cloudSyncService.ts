@@ -5,7 +5,7 @@
  * persisted in the Supabase database and reliably restored even after total browser cache clears.
  */
 
-import { BatteryAlertSettings, WeatherAlertSettings, WhiteLabelTheme, RegisteredCompany, UserProfile } from '../types';
+import { BatteryAlertSettings, WeatherAlertSettings, WhiteLabelTheme, RegisteredCompany, UserProfile, ServiceOrder } from '../types';
 import { 
   supabase, 
   saveAppDataToSupabase, 
@@ -16,7 +16,9 @@ import {
   loadUserPhotosFromSupabase,
   loadUserProfilesFromSupabase,
   loadSystemBrandingFromSupabase,
-  extractThemeFromDescription
+  extractThemeFromDescription,
+  saveServiceOrdersToSupabase,
+  loadServiceOrdersFromSupabase
 } from './supabase';
 import { 
   setStoredConfiguredLogoUrl, 
@@ -396,3 +398,49 @@ export async function hydrateAllCloudData(): Promise<CloudHydrationResult> {
 
   return result;
 }
+
+/**
+ * Persists Service Orders (OS) list to local storage, IndexedDB, and Supabase cloud.
+ */
+export async function saveServiceOrdersToCloud(orders: ServiceOrder[]): Promise<{ success: boolean; error?: string }> {
+  try {
+    // 1. Save to local durable storage (localStorage + IndexedDB)
+    try {
+      localStorage.setItem('agrodrone_orders_fleet', JSON.stringify(orders));
+      await saveToDurableStorage('agrodrone_orders_fleet', orders, STORES.SETTINGS);
+    } catch (e) {}
+
+    // 2. Save to Supabase cloud
+    return await saveServiceOrdersToSupabase(orders);
+  } catch (err: any) {
+    console.warn('Erro ao sincronizar OS na nuvem:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Loads Service Orders from Supabase cloud or local durable IndexedDB storage.
+ */
+export async function loadServiceOrdersFromCloud(): Promise<ServiceOrder[] | null> {
+  try {
+    // 1. Fetch from Supabase Cloud
+    const cloudOrders = await loadServiceOrdersFromSupabase();
+    if (cloudOrders && cloudOrders.length > 0) {
+      try {
+        localStorage.setItem('agrodrone_orders_fleet', JSON.stringify(cloudOrders));
+        await saveToDurableStorage('agrodrone_orders_fleet', cloudOrders, STORES.SETTINGS);
+      } catch (e) {}
+      return cloudOrders;
+    }
+
+    // 2. Fallback to IndexedDB durable storage
+    const durableOrders = await getDurableSetting<ServiceOrder[]>('agrodrone_orders_fleet', STORES.SETTINGS);
+    if (durableOrders && Array.isArray(durableOrders) && durableOrders.length > 0) {
+      return durableOrders;
+    }
+  } catch (err) {
+    console.warn('Erro ao carregar OS do armazenamento cloud/dúravel:', err);
+  }
+  return null;
+}
+
