@@ -395,13 +395,22 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     return 'Pendente (Em andamento)';
   };
 
-  // Statistics KPIs
-  const totalReportsCount = orders.length;
-  const completedReportsCount = orders.filter(o => o.status === 'COMPLETED').length;
-  const operatingReportsCount = orders.filter(o => o.status === 'OPERATING' || o.status === 'IN_TRANSIT').length;
-  const scheduledReportsCount = orders.filter(o => o.status === 'SCHEDULED').length;
-  const totalHectaresSprayed = orders.reduce((acc, o) => acc + (o.sprayedHectares || o.targetHectares || 0), 0);
-  const totalGrossValueSum = orders.reduce((acc, o) => acc + (o.totalGrossValue || 0), 0);
+  // Statistics KPIs based on filtered results
+  const totalReportsCount = filteredOrders.length;
+  const completedReportsCount = filteredOrders.filter(o => o.status === 'COMPLETED').length;
+  const operatingReportsCount = filteredOrders.filter(o => o.status === 'OPERATING' || o.status === 'IN_TRANSIT').length;
+  const scheduledReportsCount = filteredOrders.filter(o => o.status === 'SCHEDULED').length;
+  const totalHectaresSprayed = filteredOrders.reduce((acc, o) => acc + (o.sprayedHectares || o.targetHectares || 0), 0);
+  const totalGrossValueSum = filteredOrders.reduce((acc, o) => acc + (o.totalGrossValue || 0), 0);
+  const filteredClientsCount = useMemo(() => {
+    const uniqueClients = new Set<string>();
+    filteredOrders.forEach(o => {
+      const name = (o.clientName || '').trim().toLowerCase();
+      if (name) uniqueClients.add(name);
+      else if (o.clientId) uniqueClients.add(o.clientId.trim().toLowerCase());
+    });
+    return uniqueClients.size;
+  }, [filteredOrders]);
 
   // Status Badge Renderer Helper
   const renderStatusBadge = (status: string) => {
@@ -489,11 +498,13 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         </div>
       </div>
 
-      {/* Compact KPI Cards */}
+      {/* Dynamic KPI Cards synced with Filters */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
         <div 
-          onClick={() => setStatusFilter('COMPLETED')}
-          className="p-2.5 sm:p-3 rounded-xl bg-white dark:bg-[#072a1e] border border-emerald-200/80 dark:border-emerald-800/80 shadow-2xs space-y-0.5 cursor-pointer hover:border-emerald-500 transition-colors"
+          onClick={() => setStatusFilter(statusFilter === 'COMPLETED' ? 'ALL' : 'COMPLETED')}
+          className={`p-2.5 sm:p-3 rounded-xl bg-white dark:bg-[#072a1e] border transition-colors shadow-2xs space-y-0.5 cursor-pointer hover:border-emerald-500 ${
+            statusFilter === 'COMPLETED' ? 'border-emerald-500 ring-1 ring-emerald-500/40' : 'border-emerald-200/80 dark:border-emerald-800/80'
+          }`}
         >
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
             <span className="text-[10px] font-bold uppercase tracking-wider">Laudos Prontos</span>
@@ -503,20 +514,20 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             {completedReportsCount} <span className="text-[10px] font-normal text-slate-400">/ {totalReportsCount} OS</span>
           </div>
           <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
-            <CheckCircle2 className="w-2.5 h-2.5" /> Prontos p/ Emissão PDF
+            <CheckCircle2 className="w-2.5 h-2.5" /> {hasActiveFilters ? 'Laudos filtrados emitíveis' : 'Prontos p/ Emissão PDF'}
           </p>
         </div>
 
         <div className="p-2.5 sm:p-3 rounded-xl bg-white dark:bg-[#072a1e] border border-emerald-200/80 dark:border-emerald-800/80 shadow-2xs space-y-0.5">
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-            <span className="text-[10px] font-bold uppercase tracking-wider">Área Certificada</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider">Área Aplicada</span>
             <MapPin className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
           </div>
           <div className="text-lg sm:text-xl font-black text-emerald-950 dark:text-white">
-            {totalHectaresSprayed.toLocaleString('pt-BR')} <span className="text-[10px] font-normal text-slate-400">ha</span>
+            {totalHectaresSprayed.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} <span className="text-[10px] font-normal text-slate-400">ha</span>
           </div>
           <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-            Pulverização Efetiva
+            {hasActiveFilters ? 'Total no Filtro' : 'Pulverização Efetiva'}
           </p>
         </div>
 
@@ -526,10 +537,10 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             <User className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
           </div>
           <div className="text-lg sm:text-xl font-black text-emerald-950 dark:text-white">
-            {availableClients.length || clients.length || new Set(orders.map(o => o.clientName)).size} <span className="text-[10px] font-normal text-slate-400">propriedades</span>
+            {filteredClientsCount} <span className="text-[10px] font-normal text-slate-400">{filteredClientsCount === 1 ? 'propriedade' : 'propriedades'}</span>
           </div>
           <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-            Clientes Atendidos
+            {hasActiveFilters ? 'Produtores no Filtro' : 'Clientes Atendidos'}
           </p>
         </div>
 
@@ -542,7 +553,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             {formatBRL(totalGrossValueSum)}
           </div>
           <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-            Total em Ordens de Serviço
+            {hasActiveFilters ? 'Total nas OS Filtradas' : 'Total em Ordens de Serviço'}
           </p>
         </div>
       </div>
@@ -580,16 +591,16 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
               aria-label="Filtrar por Status"
             >
               <option value="ALL" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
-                Status: Todos ({totalReportsCount})
+                Status: Todos ({orders.length})
               </option>
               <option value="COMPLETED" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
-                Concluídas ({completedReportsCount})
+                Concluídas ({orders.filter(o => o.status === 'COMPLETED').length})
               </option>
               <option value="OPERATING" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
-                Em Operação ({operatingReportsCount})
+                Em Operação ({orders.filter(o => o.status === 'OPERATING' || o.status === 'IN_TRANSIT').length})
               </option>
               <option value="SCHEDULED" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
-                Agendadas ({scheduledReportsCount})
+                Agendadas ({orders.filter(o => o.status === 'SCHEDULED').length})
               </option>
               <option value="PAUSED" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
                 Pausadas
