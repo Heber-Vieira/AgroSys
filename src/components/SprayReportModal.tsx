@@ -33,7 +33,9 @@ import {
   ClipboardCheck, 
   Eye, 
   Sparkles,
-  Info
+  Info,
+  Lock,
+  AlertTriangle
 } from 'lucide-react';
 import { BrandLogo } from './BrandLogo';
 import { DroneBadge } from './DronePhotoBadge';
@@ -317,16 +319,16 @@ export const SprayReportModal: React.FC<SprayReportModalProps> = ({
                 const found = serviceOrders.find(o => o.id === e.target.value);
                 if (found) setCurrentOrder(found);
               }}
-              className="bg-transparent text-xs font-bold text-emerald-400 focus:outline-none cursor-pointer max-w-[220px] truncate"
+              className="bg-transparent text-xs font-bold text-emerald-400 focus:outline-none cursor-pointer max-w-[240px] truncate"
             >
               {serviceOrders.map(os => (
                 <option key={os.id} value={os.id} className="bg-slate-900 text-slate-200">
-                  {os.code} - {os.clientName} ({os.plotName})
+                  {os.status === 'COMPLETED' ? '✓ ' : '⏳ '}{os.code} - {os.clientName} ({os.status === 'COMPLETED' ? 'Concluída' : 'Em Aberto'})
                 </option>
               ))}
               {serviceOrders.length === 0 && (
                 <option value={DEMO_FALLBACK_ORDER.id} className="bg-slate-900 text-slate-200">
-                  {DEMO_FALLBACK_ORDER.code} - {DEMO_FALLBACK_ORDER.clientName} ({DEMO_FALLBACK_ORDER.plotName})
+                  ✓ {DEMO_FALLBACK_ORDER.code} - {DEMO_FALLBACK_ORDER.clientName} (Concluída)
                 </option>
               )}
             </select>
@@ -345,14 +347,26 @@ export const SprayReportModal: React.FC<SprayReportModalProps> = ({
             <span>Painel de Opções</span>
           </button>
 
-          <button
-            type="button"
-            onClick={handlePrint}
-            className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
-          >
-            <Printer className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Imprimir / Salvar PDF</span>
-          </button>
+          {activeOrder.status === 'COMPLETED' ? (
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Imprimir / Salvar PDF</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled
+              title="Emissão bloqueada: relatórios oficiais só podem ser emitidos para pulverizações concluídas"
+              className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-500 border border-slate-700 flex items-center gap-1.5 cursor-not-allowed select-none"
+            >
+              <Lock className="w-3.5 h-3.5 text-slate-500" />
+              <span className="hidden sm:inline">Emissão Bloqueada</span>
+            </button>
+          )}
 
           <button
             type="button"
@@ -636,6 +650,16 @@ export const SprayReportModal: React.FC<SprayReportModalProps> = ({
         {/* Right Printable Preview Canvas */}
         <div className="flex-1 bg-slate-950 p-4 sm:p-8 overflow-y-auto print:p-0 print:bg-white print:overflow-visible">
           
+          {activeOrder.status !== 'COMPLETED' && (
+            <div className="print:hidden max-w-4xl mx-auto mb-4 p-3.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-200 flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0" />
+              <div className="text-xs">
+                <strong className="block text-amber-300 font-bold">Emissão de Laudo Bloqueada — Ordem de Serviço Pendente</strong>
+                <span>A OS <strong>{activeOrder.code}</strong> encontra-se com status <strong>{activeOrder.status}</strong>. Conforme as normas técnicas do MAPA, laudos certificados e termos de responsabilidade só podem ser emitidos após a conclusão e assinatura digital da aplicação.</span>
+              </div>
+            </div>
+          )}
+
           <div 
             id="printable-report-document"
             className="max-w-4xl mx-auto bg-white text-slate-900 rounded-2xl shadow-2xl p-6 sm:p-10 space-y-6 border border-slate-200 print:shadow-none print:border-none print:p-0 print:max-w-none print:rounded-none"

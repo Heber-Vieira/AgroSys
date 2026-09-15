@@ -25,7 +25,15 @@ import {
   RotateCcw,
   Clock,
   Activity,
-  AlertCircle
+  AlertCircle,
+  Lock,
+  X,
+  SlidersHorizontal,
+  ChevronDown,
+  Wheat,
+  CalendarRange,
+  ArrowUpDown,
+  Sparkles
 } from 'lucide-react';
 import { formatBRL, formatDateBR, formatDateTimeBR } from '../utils/formatters';
 
@@ -42,6 +50,22 @@ interface ReportsViewProps {
   onNavigate: (view: string) => void;
 }
 
+export type ReportSortOption = 
+  | 'COMPLETION_DESC' 
+  | 'COMPLETION_ASC' 
+  | 'CREATION_DESC' 
+  | 'HECTARES_DESC' 
+  | 'VALUE_DESC' 
+  | 'CODE_ASC';
+
+export type DatePresetOption = 
+  | 'ALL' 
+  | 'TODAY' 
+  | 'LAST_7_DAYS' 
+  | 'LAST_30_DAYS' 
+  | 'THIS_MONTH' 
+  | 'CUSTOM';
+
 export const ReportsView: React.FC<ReportsViewProps> = ({
   currentUser,
   theme,
@@ -56,10 +80,17 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 }) => {
   // Search & Filters state
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [selectedClientId, setSelectedClientId] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [selectedClientId, setSelectedClientId] = useState<string>('ALL');
+  const [selectedCrop, setSelectedCrop] = useState<string>('ALL');
+  const [selectedPilotId, setSelectedPilotId] = useState<string>('ALL');
+  const [datePreset, setDatePreset] = useState<DatePresetOption>('ALL');
+  const [customStartDate, setCustomStartDate] = useState<string>('');
+  const [customEndDate, setCustomEndDate] = useState<string>('');
+  const [sortBy, setSortBy] = useState<ReportSortOption>('COMPLETION_DESC');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState<boolean>(false);
 
-  // Unified clients list (combining clients registry and any extra client found in orders)
+  // Unified clients list
   const availableClients = useMemo(() => {
     const list: { id: string; name: string }[] = [];
     const addedNames = new Set<string>();
@@ -81,7 +112,37 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     return list.sort((a, b) => a.name.localeCompare(b.name));
   }, [clients, orders]);
 
-  // Helper to extract numeric timestamp of completion for strict sorting
+  // Unique Crops list
+  const availableCrops = useMemo(() => {
+    const crops = new Set<string>();
+    orders.forEach(o => { if (o.crop) crops.add(o.crop.trim()); });
+    plots.forEach(p => { if (p.crop) crops.add(p.crop.trim()); });
+    return Array.from(crops).sort((a, b) => a.localeCompare(b));
+  }, [orders, plots]);
+
+  // Unique Pilots list
+  const availablePilots = useMemo(() => {
+    const list: { id: string; name: string }[] = [];
+    const seen = new Set<string>();
+
+    pilots.forEach(p => {
+      if (p && p.name && !seen.has(p.name)) {
+        list.push({ id: p.id, name: p.name });
+        seen.add(p.name);
+      }
+    });
+
+    orders.forEach(o => {
+      if (o.pilotName && !seen.has(o.pilotName)) {
+        list.push({ id: o.pilotId || `pilot-${o.pilotName}`, name: o.pilotName });
+        seen.add(o.pilotName);
+      }
+    });
+
+    return list.sort((a, b) => a.name.localeCompare(b.name));
+  }, [pilots, orders]);
+
+  // Helper to extract numeric timestamp of completion for sorting and date range checking
   const getCompletionTimestamp = (os: ServiceOrder): number => {
     if (os.completedAt) {
       const t = new Date(os.completedAt).getTime();
@@ -102,10 +163,78 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       const t = new Date(os.createdAt).getTime();
       if (!isNaN(t)) return t;
     }
+    if (os.scheduledDate) {
+      const t = new Date(os.scheduledDate).getTime();
+      if (!isNaN(t)) return t;
+    }
     return 0;
   };
 
-  // Filtered and sorted Orders Logic by real completion date descending
+  const getCreationTimestamp = (os: ServiceOrder): number => {
+    if (os.createdAt) {
+      const t = new Date(os.createdAt).getTime();
+      if (!isNaN(t)) return t;
+    }
+    if (os.scheduledDate) {
+      const t = new Date(os.scheduledDate).getTime();
+      if (!isNaN(t)) return t;
+    }
+    return 0;
+  };
+
+  // Helper date checking for presets
+  const matchesDatePreset = (os: ServiceOrder): boolean => {
+    if (datePreset === 'ALL') return true;
+
+    const ts = getCompletionTimestamp(os);
+    if (!ts) return false;
+
+    const targetDate = new Date(ts);
+    const now = new Date();
+
+    if (datePreset === 'TODAY') {
+      return (
+        targetDate.getDate() === now.getDate() &&
+        targetDate.getMonth() === now.getMonth() &&
+        targetDate.getFullYear() === now.getFullYear()
+      );
+    }
+
+    if (datePreset === 'LAST_7_DAYS') {
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(now.getDate() - 7);
+      return targetDate >= sevenDaysAgo && targetDate <= now;
+    }
+
+    if (datePreset === 'LAST_30_DAYS') {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(now.getDate() - 30);
+      return targetDate >= thirtyDaysAgo && targetDate <= now;
+    }
+
+    if (datePreset === 'THIS_MONTH') {
+      return (
+        targetDate.getMonth() === now.getMonth() &&
+        targetDate.getFullYear() === now.getFullYear()
+      );
+    }
+
+    if (datePreset === 'CUSTOM') {
+      if (customStartDate) {
+        const start = new Date(`${customStartDate}T00:00:00`).getTime();
+        if (ts < start) return false;
+      }
+      if (customEndDate) {
+        const end = new Date(`${customEndDate}T23:59:59`).getTime();
+        if (ts > end) return false;
+      }
+      return true;
+    }
+
+    return true;
+  };
+
+  // Filtered and sorted Orders Logic
   const filteredOrders = useMemo(() => {
     return orders
       .filter(os => {
@@ -124,7 +253,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           (os.cityState || '').toLowerCase().includes(term)
         );
 
-        // 2. Client Filter matching (by ID, Name, or Trade Name)
+        // 2. Client Filter matching
         let matchesClient = true;
         if (selectedClientId !== 'ALL') {
           const clientObj = availableClients.find(c => c.id === selectedClientId) 
@@ -164,26 +293,89 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           }
         }
 
-        return matchesSearch && matchesClient && matchesStatus;
+        // 4. Crop Filter matching
+        let matchesCrop = true;
+        if (selectedCrop !== 'ALL') {
+          matchesCrop = (os.crop || '').toLowerCase().trim() === selectedCrop.toLowerCase().trim();
+        }
+
+        // 5. Pilot Filter matching
+        let matchesPilot = true;
+        if (selectedPilotId !== 'ALL') {
+          const pilotObj = availablePilots.find(p => p.id === selectedPilotId);
+          const targetPilotName = pilotObj ? pilotObj.name.toLowerCase().trim() : selectedPilotId.toLowerCase().trim();
+          const osPilotName = (os.pilotName || '').toLowerCase().trim();
+          const osPilotId = (os.pilotId || '').toLowerCase().trim();
+          matchesPilot = osPilotId === selectedPilotId.toLowerCase().trim() || osPilotName.includes(targetPilotName);
+        }
+
+        // 6. Date Preset matching
+        const matchesDate = matchesDatePreset(os);
+
+        return matchesSearch && matchesClient && matchesStatus && matchesCrop && matchesPilot && matchesDate;
       })
       .sort((a, b) => {
-        const timeA = getCompletionTimestamp(a);
-        const timeB = getCompletionTimestamp(b);
-        if (timeA !== timeB) {
-          return timeB - timeA; // Descending: data de encerramento mais recente primeiro
+        switch (sortBy) {
+          case 'COMPLETION_DESC': {
+            const timeA = getCompletionTimestamp(a);
+            const timeB = getCompletionTimestamp(b);
+            if (timeA !== timeB) return timeB - timeA;
+            return (b.code || '').localeCompare(a.code || '');
+          }
+          case 'COMPLETION_ASC': {
+            const timeA = getCompletionTimestamp(a);
+            const timeB = getCompletionTimestamp(b);
+            if (timeA !== timeB) return timeA - timeB;
+            return (a.code || '').localeCompare(b.code || '');
+          }
+          case 'CREATION_DESC': {
+            const timeA = getCreationTimestamp(a);
+            const timeB = getCreationTimestamp(b);
+            if (timeA !== timeB) return timeB - timeA;
+            return (b.code || '').localeCompare(a.code || '');
+          }
+          case 'HECTARES_DESC': {
+            const haA = a.sprayedHectares || a.targetHectares || 0;
+            const haB = b.sprayedHectares || b.targetHectares || 0;
+            return haB - haA;
+          }
+          case 'VALUE_DESC': {
+            const valA = a.totalGrossValue || 0;
+            const valB = b.totalGrossValue || 0;
+            return valB - valA;
+          }
+          case 'CODE_ASC': {
+            return (a.code || '').localeCompare(b.code || '');
+          }
+          default:
+            return 0;
         }
-        return (b.code || '').localeCompare(a.code || '');
       });
-  }, [orders, searchTerm, selectedClientId, statusFilter, availableClients, clients]);
+  }, [orders, searchTerm, selectedClientId, statusFilter, selectedCrop, selectedPilotId, datePreset, customStartDate, customEndDate, sortBy, availableClients, clients, availablePilots]);
 
   // Reset all active filters helper
   const handleResetFilters = () => {
     setSearchTerm('');
     setSelectedClientId('ALL');
     setStatusFilter('ALL');
+    setSelectedCrop('ALL');
+    setSelectedPilotId('ALL');
+    setDatePreset('ALL');
+    setCustomStartDate('');
+    setCustomEndDate('');
+    setSortBy('COMPLETION_DESC');
   };
 
-  const hasActiveFilters = searchTerm !== '' || selectedClientId !== 'ALL' || statusFilter !== 'ALL';
+  const hasActiveFilters = 
+    searchTerm !== '' || 
+    selectedClientId !== 'ALL' || 
+    statusFilter !== 'ALL' || 
+    selectedCrop !== 'ALL' || 
+    selectedPilotId !== 'ALL' || 
+    datePreset !== 'ALL' || 
+    customStartDate !== '' || 
+    customEndDate !== '' ||
+    sortBy !== 'COMPLETION_DESC';
 
   // Helper formatting creation date of OS (Padrão Oficial DD/MM/AAAA às HH:MM)
   const formatCreationDate = (os: ServiceOrder) => {
@@ -207,6 +399,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   // Statistics KPIs
   const totalReportsCount = orders.length;
   const completedReportsCount = orders.filter(o => o.status === 'COMPLETED').length;
+  const operatingReportsCount = orders.filter(o => o.status === 'OPERATING' || o.status === 'IN_TRANSIT').length;
+  const scheduledReportsCount = orders.filter(o => o.status === 'SCHEDULED').length;
   const totalHectaresSprayed = orders.reduce((acc, o) => acc + (o.sprayedHectares || o.targetHectares || 0), 0);
   const totalGrossValueSum = orders.reduce((acc, o) => acc + (o.totalGrossValue || 0), 0);
 
@@ -277,14 +471,31 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             Relatórios Técnicos e Laudos
           </h1>
           <p className="text-[11px] text-emerald-800/80 dark:text-emerald-300/80">
-            Laudos certificados, rastreabilidade de telemetria, receitas de calda e assinaturas digitais.
+            Emissão restrita a pulverizações concluídas com laudos certificados, telemetria e assinaturas digitais.
           </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setStatusFilter(statusFilter === 'COMPLETED' ? 'ALL' : 'COMPLETED')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs ${
+              statusFilter === 'COMPLETED'
+                ? 'bg-emerald-600 text-white border-emerald-500'
+                : 'bg-white dark:bg-emerald-950/80 text-emerald-900 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700 hover:bg-emerald-50'
+            }`}
+          >
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span>{statusFilter === 'COMPLETED' ? 'Exibindo Somente Concluídas' : 'Filtrar Prontas p/ Emissão'}</span>
+          </button>
         </div>
       </div>
 
       {/* Compact KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
-        <div className="p-2.5 sm:p-3 rounded-xl bg-white dark:bg-[#072a1e] border border-emerald-200/80 dark:border-emerald-800/80 shadow-2xs space-y-0.5">
+        <div 
+          onClick={() => setStatusFilter('COMPLETED')}
+          className="p-2.5 sm:p-3 rounded-xl bg-white dark:bg-[#072a1e] border border-emerald-200/80 dark:border-emerald-800/80 shadow-2xs space-y-0.5 cursor-pointer hover:border-emerald-500 transition-colors"
+        >
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
             <span className="text-[10px] font-bold uppercase tracking-wider">Laudos Prontos</span>
             <FileText className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
@@ -293,7 +504,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             {completedReportsCount} <span className="text-[10px] font-normal text-slate-400">/ {totalReportsCount} OS</span>
           </div>
           <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
-            <CheckCircle2 className="w-2.5 h-2.5" /> Prontos p/ Envio
+            <CheckCircle2 className="w-2.5 h-2.5" /> Prontos p/ Emissão PDF
           </p>
         </div>
 
@@ -337,85 +548,306 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="p-2.5 sm:px-3 sm:py-2.5 rounded-xl bg-white dark:bg-[#072a1e] border border-emerald-200/80 dark:border-emerald-800/80 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-2.5">
-        <div className="relative w-full md:w-80">
-          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar por OS, cliente, fazenda, piloto..."
-            className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-emerald-50/60 dark:bg-emerald-950/70 border border-emerald-200/80 dark:border-emerald-800 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-emerald-500 text-emerald-950 dark:text-white"
-          />
-        </div>
+      {/* QUICK STATUS SEGMENTED PILLS */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+        <button
+          onClick={() => setStatusFilter('ALL')}
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+            statusFilter === 'ALL'
+              ? 'bg-emerald-700 text-white shadow-xs'
+              : 'bg-white dark:bg-emerald-950/70 text-slate-700 dark:text-slate-300 border border-emerald-200/80 dark:border-emerald-800 hover:bg-emerald-50'
+          }`}
+        >
+          <span>Todos os Laudos</span>
+          <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-black/10 dark:bg-white/10">{totalReportsCount}</span>
+        </button>
 
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end text-xs">
-          {/* Client Filter */}
-          <div className="flex items-center gap-1 bg-emerald-50/60 dark:bg-emerald-950/70 border border-emerald-200/80 dark:border-emerald-800 rounded-lg px-2.5 py-1.5 shadow-2xs">
-            <User className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-            <select
-              value={selectedClientId}
-              onChange={(e) => setSelectedClientId(e.target.value)}
-              className="bg-transparent text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer max-w-[180px] sm:max-w-xs"
-              aria-label="Filtrar por Produtor / Cliente"
-            >
-              <option value="ALL" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
-                Todos os Clientes
-              </option>
-              {availableClients.map(c => (
-                <option key={c.id} value={c.id} className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
-                  {c.name}
+        <button
+          onClick={() => setStatusFilter('COMPLETED')}
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+            statusFilter === 'COMPLETED'
+              ? 'bg-emerald-600 text-white shadow-xs ring-2 ring-emerald-400'
+              : 'bg-white dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50'
+          }`}
+        >
+          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+          <span>Concluídas (Prontos)</span>
+          <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-700 text-white">{completedReportsCount}</span>
+        </button>
+
+        <button
+          onClick={() => setStatusFilter('OPERATING')}
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+            statusFilter === 'OPERATING'
+              ? 'bg-blue-600 text-white shadow-xs'
+              : 'bg-white dark:bg-emerald-950/70 text-slate-700 dark:text-slate-300 border border-emerald-200/80 dark:border-emerald-800 hover:bg-emerald-50'
+          }`}
+        >
+          <Activity className="w-3.5 h-3.5 text-blue-500" />
+          <span>Em Operação</span>
+          <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-black/10 dark:bg-white/10">{operatingReportsCount}</span>
+        </button>
+
+        <button
+          onClick={() => setStatusFilter('SCHEDULED')}
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+            statusFilter === 'SCHEDULED'
+              ? 'bg-amber-600 text-white shadow-xs'
+              : 'bg-white dark:bg-emerald-950/70 text-slate-700 dark:text-slate-300 border border-emerald-200/80 dark:border-emerald-800 hover:bg-emerald-50'
+          }`}
+        >
+          <Clock className="w-3.5 h-3.5 text-amber-500" />
+          <span>Agendadas</span>
+          <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-black/10 dark:bg-white/10">{scheduledReportsCount}</span>
+        </button>
+      </div>
+
+      {/* Advanced Filter and Search Bar */}
+      <div className="p-3 rounded-xl bg-white dark:bg-[#072a1e] border border-emerald-200/80 dark:border-emerald-800/80 shadow-2xs space-y-2.5">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2.5">
+          {/* Search Input */}
+          <div className="relative flex-1">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Buscar por código OS, produtor, fazenda, talhão, cultura, piloto ou drone..."
+              className="w-full pl-8 pr-8 py-2 rounded-lg bg-emerald-50/60 dark:bg-emerald-950/70 border border-emerald-200/80 dark:border-emerald-800 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-emerald-500 text-emerald-950 dark:text-white placeholder:text-slate-400"
+            />
+            {searchTerm && (
+              <button 
+                onClick={() => setSearchTerm('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Quick Controls */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Sort Dropdown */}
+            <div className="flex items-center gap-1.5 bg-emerald-50/60 dark:bg-emerald-950/70 border border-emerald-200/80 dark:border-emerald-800 rounded-lg px-2.5 py-1.5 shadow-2xs">
+              <ArrowUpDown className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as ReportSortOption)}
+                className="bg-transparent text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer"
+                aria-label="Ordenar laudos"
+              >
+                <option value="COMPLETION_DESC" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                  Encerramento (Mais recentes)
                 </option>
-              ))}
-            </select>
-          </div>
+                <option value="COMPLETION_ASC" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                  Encerramento (Mais antigos)
+                </option>
+                <option value="CREATION_DESC" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                  Criação (Mais recentes)
+                </option>
+                <option value="HECTARES_DESC" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                  Área Aplicada (Maior p/ Menor)
+                </option>
+                <option value="VALUE_DESC" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                  Faturamento (Maior p/ Menor)
+                </option>
+                <option value="CODE_ASC" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                  Código da OS (A-Z)
+                </option>
+              </select>
+            </div>
 
-          {/* Status Filter */}
-          <div className="flex items-center gap-1 bg-emerald-50/60 dark:bg-emerald-950/70 border border-emerald-200/80 dark:border-emerald-800 rounded-lg px-2.5 py-1.5 shadow-2xs">
-            <Filter className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-transparent text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer"
-              aria-label="Filtrar por Status da OS"
-            >
-              <option value="ALL" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
-                Todos os Status
-              </option>
-              <option value="COMPLETED" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
-                Concluídas (Laudos Prontos)
-              </option>
-              <option value="OPERATING" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
-                Em Operação / Execução
-              </option>
-              <option value="SCHEDULED" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
-                Agendadas
-              </option>
-              <option value="IN_TRANSIT" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
-                Em Deslocamento
-              </option>
-              <option value="PAUSED" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
-                Pausadas
-              </option>
-              <option value="CANCELLED" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
-                Canceladas
-              </option>
-            </select>
-          </div>
-
-          {/* Reset Filters Button */}
-          {hasActiveFilters && (
+            {/* Toggle Advanced Filters Button */}
             <button
-              onClick={handleResetFilters}
-              title="Limpar todos os filtros"
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60 font-bold text-xs hover:bg-rose-100 dark:hover:bg-rose-900/80 transition-colors cursor-pointer"
+              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors cursor-pointer shadow-2xs ${
+                showAdvancedFilters || (selectedCrop !== 'ALL' || selectedPilotId !== 'ALL' || datePreset !== 'ALL')
+                  ? 'bg-emerald-600 text-white border-emerald-500'
+                  : 'bg-emerald-50/60 dark:bg-emerald-950/70 text-slate-700 dark:text-slate-200 border-emerald-200/80 dark:border-emerald-800 hover:bg-emerald-100/60'
+              }`}
             >
-              <RotateCcw className="w-3 h-3" />
-              <span>Limpar</span>
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span>Filtros Avançados</span>
+              <ChevronDown className={`w-3 h-3 transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`} />
             </button>
-          )}
+
+            {/* Reset Filters Button */}
+            {hasActiveFilters && (
+              <button
+                onClick={handleResetFilters}
+                title="Limpar todos os filtros"
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60 font-bold text-xs hover:bg-rose-100 dark:hover:bg-rose-900/80 transition-colors cursor-pointer"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>Limpar</span>
+              </button>
+            )}
+          </div>
         </div>
+
+        {/* Extended Filter Selectors Row (Collapsible or Active) */}
+        {(showAdvancedFilters || (selectedCrop !== 'ALL' || selectedPilotId !== 'ALL' || datePreset !== 'ALL' || selectedClientId !== 'ALL')) && (
+          <div className="pt-2 border-t border-emerald-100 dark:border-emerald-900/50 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 animate-in fade-in duration-200">
+            {/* Client Filter */}
+            <div className="flex items-center gap-1.5 bg-emerald-50/60 dark:bg-emerald-950/70 border border-emerald-200/80 dark:border-emerald-800 rounded-lg px-2.5 py-1.5">
+              <User className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+              <select
+                value={selectedClientId}
+                onChange={(e) => setSelectedClientId(e.target.value)}
+                className="w-full bg-transparent text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer"
+                aria-label="Filtrar por Produtor / Cliente"
+              >
+                <option value="ALL" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                  Todos os Clientes
+                </option>
+                {availableClients.map(c => (
+                  <option key={c.id} value={c.id} className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Crop Filter */}
+            <div className="flex items-center gap-1.5 bg-emerald-50/60 dark:bg-emerald-950/70 border border-emerald-200/80 dark:border-emerald-800 rounded-lg px-2.5 py-1.5">
+              <Wheat className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+              <select
+                value={selectedCrop}
+                onChange={(e) => setSelectedCrop(e.target.value)}
+                className="w-full bg-transparent text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer"
+                aria-label="Filtrar por Cultura Agrícola"
+              >
+                <option value="ALL" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                  Todas as Culturas
+                </option>
+                {availableCrops.map(crop => (
+                  <option key={crop} value={crop} className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                    {crop}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Pilot Filter */}
+            <div className="flex items-center gap-1.5 bg-emerald-50/60 dark:bg-emerald-950/70 border border-emerald-200/80 dark:border-emerald-800 rounded-lg px-2.5 py-1.5">
+              <Plane className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+              <select
+                value={selectedPilotId}
+                onChange={(e) => setSelectedPilotId(e.target.value)}
+                className="w-full bg-transparent text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer"
+                aria-label="Filtrar por Piloto Remoto"
+              >
+                <option value="ALL" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                  Todos os Pilotos
+                </option>
+                {availablePilots.map(p => (
+                  <option key={p.id} value={p.id} className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Date Preset Filter */}
+            <div className="flex items-center gap-1.5 bg-emerald-50/60 dark:bg-emerald-950/70 border border-emerald-200/80 dark:border-emerald-800 rounded-lg px-2.5 py-1.5">
+              <CalendarRange className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+              <select
+                value={datePreset}
+                onChange={(e) => setDatePreset(e.target.value as DatePresetOption)}
+                className="w-full bg-transparent text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer"
+                aria-label="Filtrar por Período de Data"
+              >
+                <option value="ALL" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                  Todo o Período
+                </option>
+                <option value="TODAY" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                  Hoje (Data Atual)
+                </option>
+                <option value="LAST_7_DAYS" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                  Últimos 7 Dias
+                </option>
+                <option value="LAST_30_DAYS" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                  Últimos 30 Dias
+                </option>
+                <option value="THIS_MONTH" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                  Mês Atual
+                </option>
+                <option value="CUSTOM" className="text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                  Intervalo Personalizado...
+                </option>
+              </select>
+            </div>
+          </div>
+        )}
+
+        {/* Custom Date Range Inputs (when datePreset is CUSTOM) */}
+        {datePreset === 'CUSTOM' && (
+          <div className="flex items-center gap-2 pt-1.5 text-xs">
+            <span className="text-slate-500 font-bold">De:</span>
+            <input
+              type="date"
+              value={customStartDate}
+              onChange={(e) => setCustomStartDate(e.target.value)}
+              className="px-2.5 py-1 rounded-lg bg-emerald-50/60 dark:bg-emerald-950/70 border border-emerald-200/80 dark:border-emerald-800 text-xs font-semibold text-emerald-950 dark:text-white"
+            />
+            <span className="text-slate-500 font-bold">Até:</span>
+            <input
+              type="date"
+              value={customEndDate}
+              onChange={(e) => setCustomEndDate(e.target.value)}
+              className="px-2.5 py-1 rounded-lg bg-emerald-50/60 dark:bg-emerald-950/70 border border-emerald-200/80 dark:border-emerald-800 text-xs font-semibold text-emerald-950 dark:text-white"
+            />
+          </div>
+        )}
+
+        {/* ACTIVE FILTER CHIPS */}
+        {hasActiveFilters && (
+          <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-emerald-100 dark:border-emerald-900/40 text-[11px]">
+            <span className="text-slate-400 font-bold text-[10px] uppercase mr-1">Filtros Ativos:</span>
+
+            {searchTerm && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-200 font-semibold border border-emerald-300 dark:border-emerald-800">
+                Busca: "{searchTerm}"
+                <X className="w-3 h-3 cursor-pointer hover:text-rose-600" onClick={() => setSearchTerm('')} />
+              </span>
+            )}
+
+            {statusFilter !== 'ALL' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-200 font-semibold border border-emerald-300 dark:border-emerald-800">
+                Status: {statusFilter}
+                <X className="w-3 h-3 cursor-pointer hover:text-rose-600" onClick={() => setStatusFilter('ALL')} />
+              </span>
+            )}
+
+            {selectedClientId !== 'ALL' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-200 font-semibold border border-emerald-300 dark:border-emerald-800">
+                Cliente: {availableClients.find(c => c.id === selectedClientId)?.name || selectedClientId}
+                <X className="w-3 h-3 cursor-pointer hover:text-rose-600" onClick={() => setSelectedClientId('ALL')} />
+              </span>
+            )}
+
+            {selectedCrop !== 'ALL' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-200 font-semibold border border-emerald-300 dark:border-emerald-800">
+                Cultura: {selectedCrop}
+                <X className="w-3 h-3 cursor-pointer hover:text-rose-600" onClick={() => setSelectedCrop('ALL')} />
+              </span>
+            )}
+
+            {selectedPilotId !== 'ALL' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-200 font-semibold border border-emerald-300 dark:border-emerald-800">
+                Piloto: {availablePilots.find(p => p.id === selectedPilotId)?.name || selectedPilotId}
+                <X className="w-3 h-3 cursor-pointer hover:text-rose-600" onClick={() => setSelectedPilotId('ALL')} />
+              </span>
+            )}
+
+            {datePreset !== 'ALL' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-200 font-semibold border border-emerald-300 dark:border-emerald-800">
+                Período: {datePreset}
+                <X className="w-3 h-3 cursor-pointer hover:text-rose-600" onClick={() => { setDatePreset('ALL'); setCustomStartDate(''); setCustomEndDate(''); }} />
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Reports Master List */}
@@ -428,12 +860,12 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             </h2>
             {hasActiveFilters && (
               <span className="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 text-[10px] font-bold border border-amber-300 dark:border-amber-800">
-                Filtro Ativo
+                Filtros Ativos
               </span>
             )}
           </div>
           <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium hidden sm:inline">
-            Clique para visualizar e exportar em PDF
+            Emissão oficial liberada exclusivamente para Ordens de Serviço concluídas
           </span>
         </div>
 
@@ -445,7 +877,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                 Nenhuma Ordem de Serviço encontrada para os filtros selecionados.
               </p>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Tente ajustar a busca, alterar o produtor ou selecionar outro status.
+                Tente ajustar os filtros, buscar por outro termo ou limpar os parâmetros.
               </p>
             </div>
             {hasActiveFilters && (
@@ -460,73 +892,92 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           </div>
         ) : (
           <div className="divide-y divide-emerald-100 dark:divide-emerald-900/40">
-            {filteredOrders.map((os) => (
-              <div 
-                key={os.id} 
-                className="p-3 sm:px-4 sm:py-3 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/40 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-3"
-              >
-                <div className="space-y-1.5 max-w-xl">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-mono font-black text-xs border border-emerald-200 dark:border-emerald-800">
-                      {os.code}
-                    </span>
+            {filteredOrders.map((os) => {
+              const isCompleted = os.status === 'COMPLETED';
 
-                    {renderStatusBadge(os.status)}
+              return (
+                <div 
+                  key={os.id} 
+                  className={`p-3 sm:px-4 sm:py-3 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-3 ${
+                    isCompleted 
+                      ? 'hover:bg-emerald-50/50 dark:hover:bg-emerald-950/40' 
+                      : 'bg-slate-50/50 dark:bg-emerald-950/20 opacity-85 hover:opacity-100'
+                  }`}
+                >
+                  <div className="space-y-1.5 max-w-xl">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-mono font-black text-xs border border-emerald-200 dark:border-emerald-800">
+                        {os.code}
+                      </span>
 
-                    <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1 font-mono">
-                      <Calendar className="w-3 h-3 text-slate-400" />
-                      {formatDateBR(os.status === 'COMPLETED' ? (os.completedAt || os.scheduledDate) : os.scheduledDate)}
-                    </span>
+                      {renderStatusBadge(os.status)}
+
+                      <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1 font-mono">
+                        <Calendar className="w-3 h-3 text-slate-400" />
+                        {formatDateBR(isCompleted ? (os.completedAt || os.scheduledDate) : os.scheduledDate)}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h3 className="font-bold text-xs sm:text-sm text-emerald-950 dark:text-white flex items-center gap-1.5">
+                        {os.clientName}
+                      </h3>
+                      <p className="text-[11px] text-slate-600 dark:text-slate-300 flex items-center gap-1 mt-0.5">
+                        <MapPin className="w-3 h-3 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                        <span>{os.farmName} — <strong>{os.plotName}</strong> ({os.crop} - {os.targetHectares} ha)</span>
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[11px] text-slate-600 dark:text-slate-300 pt-1 border-t border-slate-100 dark:border-emerald-900/40">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                        Criação da OS: <strong className="text-slate-800 dark:text-slate-100 font-mono">{formatCreationDate(os)}</strong>
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-teal-600 dark:text-teal-400" />
+                        Encerramento da OS: <strong className={isCompleted ? 'text-emerald-700 dark:text-emerald-300 font-mono font-bold' : 'text-amber-700 dark:text-amber-400 font-mono'}>{formatCompletionDate(os)}</strong>
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-x-3.5 gap-y-0.5 text-[10px] text-slate-500 dark:text-slate-400 pt-0.5">
+                      <span className="flex items-center gap-1">
+                        <User className="w-2.5 h-2.5 text-slate-400" />
+                        Piloto: <strong className="text-slate-700 dark:text-slate-300">{os.pilotName}</strong>
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Plane className="w-2.5 h-2.5 text-slate-400" />
+                        Drone: <strong className="text-slate-700 dark:text-slate-300">{os.droneModel}</strong>
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Droplets className="w-2.5 h-2.5 text-slate-400" />
+                        Calda: <strong className="text-slate-700 dark:text-slate-300">{os.sprayRateLHa} L/ha</strong>
+                      </span>
+                    </div>
                   </div>
 
-                  <div>
-                    <h3 className="font-bold text-xs sm:text-sm text-emerald-950 dark:text-white flex items-center gap-1.5">
-                      {os.clientName}
-                    </h3>
-                    <p className="text-[11px] text-slate-600 dark:text-slate-300 flex items-center gap-1 mt-0.5">
-                      <MapPin className="w-3 h-3 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-                      <span>{os.farmName} — <strong>{os.plotName}</strong> ({os.crop} - {os.targetHectares} ha)</span>
-                    </p>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[11px] text-slate-600 dark:text-slate-300 pt-1 border-t border-slate-100 dark:border-emerald-900/40">
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                      Criação da OS: <strong className="text-slate-800 dark:text-slate-100 font-mono">{formatCreationDate(os)}</strong>
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-teal-600 dark:text-teal-400" />
-                      Encerramento da OS: <strong className={os.status === 'COMPLETED' ? 'text-emerald-700 dark:text-emerald-300 font-mono font-bold' : 'text-amber-700 dark:text-amber-400 font-mono'}>{formatCompletionDate(os)}</strong>
-                    </span>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-x-3.5 gap-y-0.5 text-[10px] text-slate-500 dark:text-slate-400 pt-0.5">
-                    <span className="flex items-center gap-1">
-                      <User className="w-2.5 h-2.5 text-slate-400" />
-                      Piloto: <strong className="text-slate-700 dark:text-slate-300">{os.pilotName}</strong>
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Plane className="w-2.5 h-2.5 text-slate-400" />
-                      Drone: <strong className="text-slate-700 dark:text-slate-300">{os.droneModel}</strong>
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Droplets className="w-2.5 h-2.5 text-slate-400" />
-                      Calda: <strong className="text-slate-700 dark:text-slate-300">{os.sprayRateLHa} L/ha</strong>
-                    </span>
+                  <div className="flex items-center gap-2 self-end md:self-center flex-shrink-0">
+                    {isCompleted ? (
+                      <button
+                        onClick={() => onOpenReportModal(os.id)}
+                        className="px-3.5 py-2 rounded-lg font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs transition-transform active:scale-95 flex items-center gap-1.5 text-xs cursor-pointer"
+                        title="Emitir laudo técnico completo e termo em PDF"
+                      >
+                        <Printer className="w-3.5 h-3.5 text-white" />
+                        <span>Emitir Relatório / PDF</span>
+                      </button>
+                    ) : (
+                      <div 
+                        title="A emissão de relatórios oficiais e laudos é permitida apenas após a conclusão e assinatura digital da aplicação."
+                        className="px-3 py-2 rounded-lg bg-slate-100 dark:bg-emerald-950/60 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-emerald-900/60 text-xs font-semibold flex items-center gap-1.5 select-none"
+                      >
+                        <Lock className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+                        <span>Disponível pós-Conclusão</span>
+                      </div>
+                    )}
                   </div>
                 </div>
-
-                <div className="flex items-center gap-2 self-end md:self-center flex-shrink-0">
-                  <button
-                    onClick={() => onOpenReportModal(os.id)}
-                    className="px-3 py-1.5 rounded-lg font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs transition-transform active:scale-95 flex items-center gap-1.5 text-xs cursor-pointer"
-                  >
-                    <Printer className="w-3.5 h-3.5 text-white" />
-                    <span>Emitir Relatório / PDF</span>
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
