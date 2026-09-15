@@ -30,7 +30,9 @@ import {
   Radio,
   Database,
   Globe,
-  ExternalLink
+  ExternalLink,
+  LayoutGrid,
+  Maximize2
 } from 'lucide-react';
 import { 
   CityLocation, 
@@ -47,6 +49,7 @@ import { WeatherCurrentHUD } from './weather/WeatherCurrentHUD';
 import { HourlySprayPlanner } from './weather/HourlySprayPlanner';
 import { SevenDayForecastGrid } from './weather/SevenDayForecastGrid';
 import { WeatherReportModal } from './weather/WeatherReportModal';
+import { DeltaTMatrixChart } from './weather/DeltaTMatrixChart';
 
 interface WeatherGateViewProps {
   currentUser: UserProfile;
@@ -71,6 +74,36 @@ export const WeatherGateView: React.FC<WeatherGateViewProps> = ({ currentUser, p
   const [manualHumidity, setManualHumidity] = useState<number>(62.0);
   const [manualWind, setManualWind] = useState<number>(9.2);
   const [manualWindDir, setManualWindDir] = useState<string>('SE (Sudeste)');
+
+  // Delta T Scale Preference State ('matrix' = 2D Chart, 'ruler' = 1D MAPA Linear Bar, 'both' = Combined View Side-by-Side)
+  const [deltaTScale, setDeltaTScale] = useState<'matrix' | 'ruler' | 'both'>(() => {
+    try {
+      const saved = localStorage.getItem('agrosys_delta_t_scale_preference');
+      if (saved === 'matrix' || saved === 'ruler' || saved === 'both') {
+        return saved;
+      }
+    } catch {
+      // Ignore storage error
+    }
+    return 'both';
+  });
+
+  const handleScaleChange = (scale: 'matrix' | 'ruler' | 'both') => {
+    setDeltaTScale(scale);
+    try {
+      localStorage.setItem('agrosys_delta_t_scale_preference', scale);
+    } catch {
+      // Ignore storage error
+    }
+  };
+
+  const handleMatrixSelectPoint = (temp: number, humidity: number) => {
+    setIsManualMode(true);
+    setManualTemp(temp);
+    setManualHumidity(humidity);
+    setToastType('info');
+    setToastMessage(`Simulação aplicada: ${temp.toFixed(1)}°C e ${humidity.toFixed(0)}% UR.`);
+  };
 
   // Weather Report Modal State
   const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
@@ -458,192 +491,292 @@ export const WeatherGateView: React.FC<WeatherGateViewProps> = ({ currentUser, p
             </div>
           )}
 
-          {/* Psychrometric Gauge & Agronomic Science Track */}
-          <div className="bg-emerald-50/70 dark:bg-[#072a1e]/90 border border-emerald-200/80 dark:border-emerald-800/80 rounded-2xl p-3.5 sm:p-4 shadow-2xs space-y-3 sm:space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div>
-                <h3 className="text-xs sm:text-sm font-black text-emerald-950 dark:text-white flex items-center gap-1.5">
+          {/* DELTA T SCALE SELECTION & DISPLAY CONTAINER */}
+          <div className="space-y-3">
+            {/* View Mode Selector Header */}
+            <div className="bg-white dark:bg-emerald-950/60 border border-emerald-200/80 dark:border-emerald-800/80 rounded-2xl p-3 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300">
+                  <Layers className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs sm:text-sm font-black text-emerald-950 dark:text-white flex items-center gap-1.5">
+                    Modelo de Visualização de Delta T
+                    <span className="text-[10px] font-normal px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/70 text-emerald-800 dark:text-emerald-200">
+                      Personalizável
+                    </span>
+                  </h4>
+                  <p className="text-[11px] text-emerald-800/80 dark:text-emerald-300/80">
+                    Alterne entre a Matriz 2D (T x UR), a Régua Linear EMBRAPA/MAPA ou exiba ambas lado a lado.
+                  </p>
+                </div>
+              </div>
+
+              {/* Toggle Buttons */}
+              <div className="flex items-center p-1 bg-emerald-50 dark:bg-emerald-900/60 rounded-xl border border-emerald-200 dark:border-emerald-800 gap-1 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => handleScaleChange('both')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    deltaTScale === 'both'
+                      ? 'bg-white dark:bg-emerald-800 text-emerald-950 dark:text-white shadow-xs font-black'
+                      : 'text-emerald-800/80 dark:text-emerald-300/80 hover:text-emerald-950 dark:hover:text-white'
+                  }`}
+                  title="Exibir as duas escalas lado a lado no mesmo alinhamento"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Lado a Lado (Ambas)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleScaleChange('matrix')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    deltaTScale === 'matrix'
+                      ? 'bg-white dark:bg-emerald-800 text-emerald-950 dark:text-white shadow-xs font-black'
+                      : 'text-emerald-800/80 dark:text-emerald-300/80 hover:text-emerald-950 dark:hover:text-white'
+                  }`}
+                  title="Escala 1: Matriz 2D clássica de temperatura x umidade com isolinhas de Delta T"
+                >
+                  <LayoutGrid className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>Escala 1 (Matriz 2D)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleScaleChange('ruler')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    deltaTScale === 'ruler'
+                      ? 'bg-white dark:bg-emerald-800 text-emerald-950 dark:text-white shadow-xs font-black'
+                      : 'text-emerald-800/80 dark:text-emerald-300/80 hover:text-emerald-950 dark:hover:text-white'
+                  }`}
+                  title="Escala 2: Régua técnica horizontal padronizada EMBRAPA / MAPA"
+                >
                   <Gauge className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                  Escala Técnica de Delta T (EMBRAPA / MAPA)
-                </h3>
-                <p className="text-[11px] text-emerald-800/80 dark:text-emerald-300/80">
-                  Diferencial entre bulbo seco e bulbo úmido que governa a taxa de evaporação das gotas.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-1.5 font-mono font-bold text-xs bg-white dark:bg-emerald-950 px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-800 shadow-2xs">
-                <span>Delta T:</span>
-                <span className={`px-2 py-0.5 rounded-md font-black ${deltaTStatus.color}`}>
-                  {deltaT.toFixed(1).replace('.', ',')} °C • {deltaT < 2 ? 'Inversão' : deltaT <= 8 ? 'Ideal' : deltaT <= 10 ? 'Atenção' : 'Proibido'}
-                </span>
+                  <span>Escala 2 (Régua EMBRAPA)</span>
+                </button>
               </div>
             </div>
 
-            {/* Graphical Scale Track with Pointer */}
-            <div className="relative pt-7 pb-2 px-1">
-              {/* Pointer with pill badge */}
-              <div
-                className="absolute top-0 -translate-x-1/2 flex flex-col items-center z-10 transition-all duration-300 ease-out"
-                style={{
-                  left: `${Math.min(97, Math.max(3, (deltaT / 12) * 100))}%`,
-                }}
-              >
-                <div className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-black shadow-md flex items-center gap-1 border whitespace-nowrap ${
-                  deltaT < 2 
-                    ? 'bg-sky-600 text-white border-sky-300' 
-                    : deltaT <= 8 
-                    ? 'bg-emerald-600 text-white border-emerald-300' 
-                    : deltaT <= 10 
-                    ? 'bg-amber-600 text-white border-amber-300' 
-                    : 'bg-rose-600 text-white border-rose-300'
-                }`}>
-                  <span>▲ {deltaT.toFixed(1).replace('.', ',')}°C</span>
-                  <span className="opacity-80">({deltaT < 2 ? 'Inversão' : deltaT <= 8 ? 'IDEAL' : deltaT <= 10 ? 'Atenção' : 'Crítico'})</span>
+            {/* DUAL SCALES CONTAINER: SIDE BY SIDE WHEN 'both' */}
+            <div className={deltaTScale === 'both' ? 'grid grid-cols-1 xl:grid-cols-2 gap-4 items-stretch' : 'space-y-4'}>
+              {/* SCALE 1: 2D PSYCHROMETRIC MATRIX CHART (TABELA DELTA T) */}
+              {(deltaTScale === 'matrix' || deltaTScale === 'both') && (
+                <div className="bg-emerald-50/70 dark:bg-[#072a1e]/90 border border-emerald-200/80 dark:border-emerald-800/80 rounded-2xl p-3.5 sm:p-4 shadow-2xs flex flex-col justify-between h-full">
+                  <DeltaTMatrixChart
+                    currentTemp={activeTemp}
+                    currentHumidity={activeHumidity}
+                    cityName={selectedCity.name}
+                    onSelectPoint={handleMatrixSelectPoint}
+                    isSimulating={isManualMode}
+                  />
                 </div>
-                <div className={`w-2.5 h-2.5 rotate-45 -mt-1 ${
-                  deltaT < 2 ? 'bg-sky-600' : deltaT <= 8 ? 'bg-emerald-600' : deltaT <= 10 ? 'bg-amber-600' : 'bg-rose-600'
-                }`} />
-              </div>
+              )}
 
-              {/* 4 Colored Segments Track */}
-              <div className="h-6 w-full rounded-2xl overflow-hidden flex text-[10px] font-extrabold text-white shadow-inner p-0.5 bg-emerald-950/80 border border-emerald-700/60">
-                <div 
-                  style={{ width: '16.66%' }} 
-                  className={`h-full rounded-l-xl flex items-center justify-center transition-all bg-gradient-to-r from-sky-400 to-cyan-500 text-emerald-950 ${
-                    deltaT < 2 ? 'ring-2 ring-white scale-y-110 shadow-md font-black' : 'opacity-85'
-                  }`}
-                  title="< 2°C: Risco de Inversão Térmica e Escorrimento Foliar"
-                >
-                  <span className="truncate px-1">&lt; 2°C</span>
-                </div>
+              {/* SCALE 2: LINEAR TECHNICAL RULER (EMBRAPA / MAPA) */}
+              {(deltaTScale === 'ruler' || deltaTScale === 'both') && (
+                <div className="bg-emerald-50/70 dark:bg-[#072a1e]/90 border border-emerald-200/80 dark:border-emerald-800/80 rounded-2xl p-3.5 sm:p-4 shadow-2xs flex flex-col justify-between h-full space-y-3 sm:space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <h3 className="text-xs sm:text-sm font-black text-emerald-950 dark:text-white flex items-center gap-1.5">
+                        <Gauge className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                        Escala 2: Régua Técnica de Delta T (EMBRAPA / MAPA)
+                      </h3>
+                      <p className="text-[11px] text-emerald-800/80 dark:text-emerald-300/80">
+                        Diferencial entre bulbo seco e bulbo úmido que governa a taxa de evaporação das gotas.
+                      </p>
+                    </div>
 
-                <div 
-                  style={{ width: '50%' }} 
-                  className={`h-full flex items-center justify-center transition-all bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-500 ${
-                    deltaT >= 2 && deltaT <= 8 ? 'ring-2 ring-white scale-y-110 shadow-md font-black' : 'opacity-85'
-                  }`}
-                  title="2° a 8°C: Faixa Ideal de Eficácia e Segurança Aeroagrícola"
-                >
-                  <span className="truncate px-1 flex items-center gap-1">
-                    <Sparkles className="w-3 h-3 text-amber-300 hidden sm:inline" />
-                    2° a 8°C (FAIXA IDEAL)
-                  </span>
-                </div>
+                    <div className="flex items-center gap-1.5 font-mono font-bold text-xs bg-white dark:bg-emerald-950 px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-800 shadow-2xs shrink-0">
+                      <span>Delta T:</span>
+                      <span className={`px-2 py-0.5 rounded-md font-black ${deltaTStatus.color}`}>
+                        {deltaT.toFixed(1).replace('.', ',')} °C • {deltaT < 2 ? 'Inversão' : deltaT <= 8 ? 'Ideal' : deltaT <= 10 ? 'Atenção' : 'Proibido'}
+                      </span>
+                    </div>
+                  </div>
 
-                <div 
-                  style={{ width: '16.66%' }} 
-                  className={`h-full flex items-center justify-center transition-all bg-gradient-to-r from-amber-400 to-orange-500 text-amber-950 ${
-                    deltaT > 8 && deltaT <= 10 ? 'ring-2 ring-white scale-y-110 shadow-md font-black' : 'opacity-85'
-                  }`}
-                  title="8° a 10°C: Evaporação Rápida - Exige Gota Grossa e Adjuvante"
-                >
-                  <span className="truncate px-1">8° a 10°C</span>
-                </div>
+                  {/* Graphical Scale Track with Pointer */}
+                  <div className="relative pt-7 pb-2 px-1">
+                    {/* Pointer with pill badge */}
+                    <div
+                      className="absolute top-0 -translate-x-1/2 flex flex-col items-center z-10 transition-all duration-300 ease-out"
+                      style={{
+                        left: `${Math.min(97, Math.max(3, (deltaT / 12) * 100))}%`,
+                      }}
+                    >
+                      <div className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-black shadow-md flex items-center gap-1 border whitespace-nowrap ${
+                        deltaT < 2 
+                          ? 'bg-sky-600 text-white border-sky-300' 
+                          : deltaT <= 8 
+                          ? 'bg-emerald-600 text-white border-emerald-300' 
+                          : deltaT <= 10 
+                          ? 'bg-amber-600 text-white border-amber-300' 
+                          : 'bg-rose-600 text-white border-rose-300'
+                      }`}>
+                        <span>▲ {deltaT.toFixed(1).replace('.', ',')}°C</span>
+                        <span className="opacity-80">({deltaT < 2 ? 'Inversão' : deltaT <= 8 ? 'IDEAL' : deltaT <= 10 ? 'Atenção' : 'Crítico'})</span>
+                      </div>
+                      <div className={`w-2.5 h-2.5 rotate-45 -mt-1 ${
+                        deltaT < 2 ? 'bg-sky-600' : deltaT <= 8 ? 'bg-emerald-600' : deltaT <= 10 ? 'bg-amber-600' : 'bg-rose-600'
+                      }`} />
+                    </div>
 
-                <div 
-                  style={{ width: '16.66%' }} 
-                  className={`h-full rounded-r-xl flex items-center justify-center transition-all bg-gradient-to-r from-rose-500 to-red-600 ${
-                    deltaT > 10 ? 'ring-2 ring-white scale-y-110 shadow-md font-black' : 'opacity-85'
-                  }`}
-                  title="> 10°C: Evaporação Crítica - Decolagem Bloqueada"
-                >
-                  <span className="truncate px-1">&gt; 10°C</span>
-                </div>
-              </div>
+                    {/* 4 Colored Segments Track */}
+                    <div className="h-6 w-full rounded-2xl overflow-hidden flex text-[10px] font-extrabold text-white shadow-inner p-0.5 bg-emerald-950/80 border border-emerald-700/60">
+                      <div 
+                        style={{ width: '16.66%' }} 
+                        className={`h-full rounded-l-xl flex items-center justify-center transition-all bg-gradient-to-r from-sky-400 to-cyan-500 text-emerald-950 ${
+                          deltaT < 2 ? 'ring-2 ring-white scale-y-110 shadow-md font-black' : 'opacity-85'
+                        }`}
+                        title="< 2°C: Risco de Inversão Térmica e Escorrimento Foliar"
+                      >
+                        <span className="truncate px-1">&lt; 2°C</span>
+                      </div>
 
-              {/* Ruler Ticks */}
-              <div className="flex justify-between text-[10px] text-emerald-800/80 dark:text-emerald-300/80 font-mono font-bold mt-1 px-1">
-                <span>0°C</span>
-                <span>2°C (Mínimo)</span>
-                <span>5°C (Centro)</span>
-                <span>8°C (Máximo)</span>
-                <span>10°C (Limite)</span>
-                <span>12°C+</span>
-              </div>
-            </div>
+                      <div 
+                        style={{ width: '50%' }} 
+                        className={`h-full flex items-center justify-center transition-all bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-500 ${
+                          deltaT >= 2 && deltaT <= 8 ? 'ring-2 ring-white scale-y-110 shadow-md font-black' : 'opacity-85'
+                        }`}
+                        title="2° a 8°C: Faixa Ideal de Eficácia e Segurança Aeroagrícola"
+                      >
+                        <span className="truncate px-1 flex items-center gap-1">
+                          <Sparkles className="w-3 h-3 text-amber-300 hidden sm:inline" />
+                          2° a 8°C (FAIXA IDEAL)
+                        </span>
+                      </div>
 
-            {/* 4 Interactive Agronomic Technical Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs pt-1">
-              <div className={`p-3.5 rounded-2xl border transition-all ${
-                deltaT < 2 
-                  ? 'bg-sky-500/15 border-sky-400 dark:border-sky-500 ring-2 ring-sky-400/50 shadow-md scale-[1.02]' 
-                  : 'bg-white/60 dark:bg-[#041c14]/40 border-emerald-200/60 dark:border-emerald-800/60 opacity-80'
-              }`}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-mono font-black text-xs text-sky-700 dark:text-sky-300">&lt; 2.0 °C</span>
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-800 dark:text-sky-200">
-                    {deltaT < 2 ? '★ ATUAL' : 'Muito Baixo'}
-                  </span>
-                </div>
-                <h5 className="font-bold text-emerald-950 dark:text-white text-xs mb-0.5">Inversão / Escorrimento</h5>
-                <p className="text-[11px] text-emerald-800/80 dark:text-emerald-300/70 leading-snug">
-                  Gotas não evaporam. Risco de névoa flutuante sem deposição no alvo foliar ou escorrimento excessivo.
-                </p>
-                <div className="mt-2 pt-1.5 border-t border-sky-200/60 dark:border-sky-900/60 text-[10px] font-semibold text-sky-800 dark:text-sky-300">
-                  💡 Ação: Reduzir volume de calda e checar vento &gt; 3 km/h.
-                </div>
-              </div>
+                      <div 
+                        style={{ width: '16.66%' }} 
+                        className={`h-full flex items-center justify-center transition-all bg-gradient-to-r from-amber-400 to-orange-500 text-amber-950 ${
+                          deltaT > 8 && deltaT <= 10 ? 'ring-2 ring-white scale-y-110 shadow-md font-black' : 'opacity-85'
+                        }`}
+                        title="8° a 10°C: Evaporação Rápida - Exige Gota Grossa e Adjuvante"
+                      >
+                        <span className="truncate px-1">8° a 10°C</span>
+                      </div>
 
-              <div className={`p-3.5 rounded-2xl border transition-all ${
-                deltaT >= 2 && deltaT <= 8 
-                  ? 'bg-emerald-500/20 border-emerald-400 dark:border-emerald-400 ring-2 ring-emerald-400/60 shadow-md scale-[1.02]' 
-                  : 'bg-white/60 dark:bg-[#041c14]/40 border-emerald-200/60 dark:border-emerald-800/60 opacity-80'
-              }`}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-mono font-black text-xs text-emerald-700 dark:text-emerald-300">2.0° a 8.0 °C</span>
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/30 text-emerald-900 dark:text-emerald-100 flex items-center gap-1">
-                    <Sparkles className="w-2.5 h-2.5 text-amber-400" />
-                    {deltaT >= 2 && deltaT <= 8 ? '★ ATUAL' : 'Faixa de Ouro'}
-                  </span>
-                </div>
-                <h5 className="font-bold text-emerald-950 dark:text-white text-xs mb-0.5">Janela Ideal de Pulverização</h5>
-                <p className="text-[11px] text-emerald-800/80 dark:text-emerald-300/70 leading-snug">
-                  Condição termodinâmica perfeita. Máxima absorção estomática foliar e taxa mínima de perda por deriva.
-                </p>
-                <div className="mt-2 pt-1.5 border-t border-emerald-200/60 dark:border-emerald-800/60 text-[10px] font-semibold text-emerald-800 dark:text-emerald-300">
-                  ✓ Gotas finas e médias (150 a 250 µm) 100% liberadas.
-                </div>
-              </div>
+                      <div 
+                        style={{ width: '16.66%' }} 
+                        className={`h-full rounded-r-xl flex items-center justify-center transition-all bg-gradient-to-r from-rose-500 to-red-600 ${
+                          deltaT > 10 ? 'ring-2 ring-white scale-y-110 shadow-md font-black' : 'opacity-85'
+                        }`}
+                        title="> 10°C: Evaporação Crítica - Decolagem Bloqueada"
+                      >
+                        <span className="truncate px-1">&gt; 10°C</span>
+                      </div>
+                    </div>
 
-              <div className={`p-3.5 rounded-2xl border transition-all ${
-                deltaT > 8 && deltaT <= 10 
-                  ? 'bg-amber-500/20 border-amber-400 dark:border-amber-400 ring-2 ring-amber-400/60 shadow-md scale-[1.02]' 
-                  : 'bg-white/60 dark:bg-[#041c14]/40 border-emerald-200/60 dark:border-emerald-800/60 opacity-80'
-              }`}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-mono font-black text-xs text-amber-700 dark:text-amber-300">8.0° a 10.0 °C</span>
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-900 dark:text-amber-100">
-                    {deltaT > 8 && deltaT <= 10 ? '★ ATUAL' : 'Atenção'}
-                  </span>
-                </div>
-                <h5 className="font-bold text-emerald-950 dark:text-white text-xs mb-0.5">Evaporação Acelerada</h5>
-                <p className="text-[11px] text-emerald-800/80 dark:text-emerald-300/70 leading-snug">
-                  O ar seco e quente evapora as microgotas antes de atingir o baixeiro. Requer ajuste de bico e calda.
-                </p>
-                <div className="mt-2 pt-1.5 border-t border-amber-200/60 dark:border-amber-800/60 text-[10px] font-semibold text-amber-800 dark:text-amber-300">
-                  ⚠ Exigência: Bico de indução de ar + Óleo anti-evaporante.
-                </div>
-              </div>
+                    {/* Ruler Ticks */}
+                    <div className="flex justify-between text-[10px] text-emerald-800/80 dark:text-emerald-300/80 font-mono font-bold mt-1 px-1">
+                      <span>0°C</span>
+                      <span>2°C (Mínimo)</span>
+                      <span>5°C (Centro)</span>
+                      <span>8°C (Máximo)</span>
+                      <span>10°C (Limite)</span>
+                      <span>12°C+</span>
+                    </div>
+                  </div>
 
-              <div className={`p-3.5 rounded-2xl border transition-all ${
-                deltaT > 10 
-                  ? 'bg-rose-500/20 border-rose-400 dark:border-rose-400 ring-2 ring-rose-400/60 shadow-md scale-[1.02]' 
-                  : 'bg-white/60 dark:bg-[#041c14]/40 border-emerald-200/60 dark:border-emerald-800/60 opacity-80'
-              }`}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-mono font-black text-xs text-rose-700 dark:text-rose-300">&gt; 10.0 °C</span>
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-rose-500/30 text-rose-900 dark:text-rose-100">
-                    {deltaT > 10 ? '★ ATUAL' : 'Crítico'}
-                  </span>
+                  {/* 4 Interactive Agronomic Technical Cards */}
+                  <div className={`grid gap-2.5 text-xs pt-1 ${deltaTScale === 'both' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'}`}>
+                    <div className={`p-3 rounded-2xl border transition-all ${
+                      deltaT < 2 
+                        ? 'bg-sky-500/15 border-sky-400 dark:border-sky-500 ring-2 ring-sky-400/50 shadow-md scale-[1.01]' 
+                        : 'bg-white/60 dark:bg-[#041c14]/40 border-emerald-200/60 dark:border-emerald-800/60 opacity-80'
+                    }`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-mono font-black text-xs text-sky-700 dark:text-sky-300">&lt; 2.0 °C</span>
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-800 dark:text-sky-200">
+                          {deltaT < 2 ? '★ ATUAL' : 'Muito Baixo'}
+                        </span>
+                      </div>
+                      <h5 className="font-bold text-emerald-950 dark:text-white text-xs mb-0.5">Inversão / Escorrimento</h5>
+                      <p className="text-[11px] text-emerald-800/80 dark:text-emerald-300/70 leading-snug">
+                        Gotas não evaporam. Risco de névoa flutuante sem deposição no alvo foliar ou escorrimento excessivo.
+                      </p>
+                      <div className="mt-2 pt-1.5 border-t border-sky-200/60 dark:border-sky-900/60 text-[10px] font-semibold text-sky-800 dark:text-sky-300">
+                        💡 Ação: Reduzir volume de calda e checar vento &gt; 3 km/h.
+                      </div>
+                    </div>
+
+                    <div className={`p-3 rounded-2xl border transition-all ${
+                      deltaT >= 2 && deltaT <= 8 
+                        ? 'bg-emerald-500/20 border-emerald-400 dark:border-emerald-400 ring-2 ring-emerald-400/60 shadow-md scale-[1.01]' 
+                        : 'bg-white/60 dark:bg-[#041c14]/40 border-emerald-200/60 dark:border-emerald-800/60 opacity-80'
+                    }`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-mono font-black text-xs text-emerald-700 dark:text-emerald-300">2.0° a 8.0 °C</span>
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/30 text-emerald-900 dark:text-emerald-100 flex items-center gap-1">
+                          <Sparkles className="w-2.5 h-2.5 text-amber-400" />
+                          {deltaT >= 2 && deltaT <= 8 ? '★ ATUAL' : 'Faixa de Ouro'}
+                        </span>
+                      </div>
+                      <h5 className="font-bold text-emerald-950 dark:text-white text-xs mb-0.5">Janela Ideal de Pulverização</h5>
+                      <p className="text-[11px] text-emerald-800/80 dark:text-emerald-300/70 leading-snug">
+                        Condição termodinâmica perfeita. Máxima absorção estomática foliar e taxa mínima de perda por deriva.
+                      </p>
+                      <div className="mt-2 pt-1.5 border-t border-emerald-200/60 dark:border-emerald-800/60 text-[10px] font-semibold text-emerald-800 dark:text-emerald-300">
+                        ✓ Gotas finas e médias (150 a 250 µm) 100% liberadas.
+                      </div>
+                    </div>
+
+                    <div className={`p-3 rounded-2xl border transition-all ${
+                      deltaT > 8 && deltaT <= 10 
+                        ? 'bg-amber-500/20 border-amber-400 dark:border-amber-400 ring-2 ring-amber-400/60 shadow-md scale-[1.01]' 
+                        : 'bg-white/60 dark:bg-[#041c14]/40 border-emerald-200/60 dark:border-emerald-800/60 opacity-80'
+                    }`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-mono font-black text-xs text-amber-700 dark:text-amber-300">8.0° a 10.0 °C</span>
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-900 dark:text-amber-100">
+                          {deltaT > 8 && deltaT <= 10 ? '★ ATUAL' : 'Atenção'}
+                        </span>
+                      </div>
+                      <h5 className="font-bold text-emerald-950 dark:text-white text-xs mb-0.5">Evaporação Acelerada</h5>
+                      <p className="text-[11px] text-emerald-800/80 dark:text-emerald-300/70 leading-snug">
+                        O ar seco e quente evapora as microgotas antes de atingir o baixeiro. Requer ajuste de bico e calda.
+                      </p>
+                      <div className="mt-2 pt-1.5 border-t border-amber-200/60 dark:border-amber-800/60 text-[10px] font-semibold text-amber-800 dark:text-amber-300">
+                        ⚠ Exigência: Bico de indução de ar + Óleo anti-evaporante.
+                      </div>
+                    </div>
+
+                    <div className={`p-3 rounded-2xl border transition-all ${
+                      deltaT > 10 
+                        ? 'bg-rose-500/20 border-rose-400 dark:border-rose-400 ring-2 ring-rose-400/60 shadow-md scale-[1.01]' 
+                        : 'bg-white/60 dark:bg-[#041c14]/40 border-emerald-200/60 dark:border-emerald-800/60 opacity-80'
+                    }`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-mono font-black text-xs text-rose-700 dark:text-rose-300">&gt; 10.0 °C</span>
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-rose-500/30 text-rose-900 dark:text-rose-100">
+                          {deltaT > 10 ? '★ ATUAL' : 'Crítico'}
+                        </span>
+                      </div>
+                      <h5 className="font-bold text-emerald-950 dark:text-white text-xs mb-0.5">Decolagem Bloqueada</h5>
+                      <p className="text-[11px] text-emerald-800/80 dark:text-emerald-300/70 leading-snug">
+                        Evaporação instantânea no trajeto da aeronave. Risco de perda superior a 70% do defensivo e deriva gasosa.
+                      </p>
+                      <div className="mt-2 pt-1.5 border-t border-rose-200/60 dark:border-rose-800/60 text-[10px] font-semibold text-rose-800 dark:text-rose-300">
+                        🛑 Ação Obrigatória: Interromper aplicação imediatamente.
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Operational Prescriptions Box */}
+                  <div className="p-3 rounded-xl bg-white/80 dark:bg-emerald-950/80 border border-emerald-200 dark:border-emerald-800 text-xs space-y-1 mt-auto">
+                    <div className="flex items-center gap-1.5 font-bold text-emerald-950 dark:text-emerald-100">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      <span>Prescrição Técnica Operacional de Delta T (EMBRAPA / MAPA):</span>
+                    </div>
+                    <p className="text-[11px] text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
+                      {deltaT < 2.0 && '⚠️ ATENÇÃO: Delta T abaixo de 2°C indica alta saturação do ar. Gotas finas flutuam sem penetrar no dossel (risco de escorrimento e inversão). Mantenha atenção à velocidade do vento.'}
+                      {deltaT >= 2.0 && deltaT <= 8.0 && '✨ CONDIÇÃO EXCELENTE: Delta T dentro da Faixa Otimizada EMBRAPA / MAPA (2° a 8°C). Evaporação sob controle, absorção foliar estomática ideal e mínima perda aeroagrícola.'}
+                      {deltaT > 8.0 && deltaT <= 10.0 && '⚠️ ATENÇÃO OPERACIONAL: Delta T elevado (8° a 10°C). Ajuste o espectro para gotas médias/grossas (250-350 µm) e inclua adjuvante anti-evaporante na calda.'}
+                      {deltaT > 10.0 && '⛔ RESTRIÇÃO SEVERA: Delta T acima de 10°C viola as boas práticas EMBRAPA/MAPA. Alta taxa de evaporação pré-alvo. Operação deve ser interrompida até a estabilização térmica.'}
+                    </p>
+                  </div>
                 </div>
-                <h5 className="font-bold text-emerald-950 dark:text-white text-xs mb-0.5">Decolagem Bloqueada</h5>
-                <p className="text-[11px] text-emerald-800/80 dark:text-emerald-300/70 leading-snug">
-                  Evaporação instantânea no trajeto da aeronave. Risco de perda superior a 70% do defensivo e deriva gasosa.
-                </p>
-                <div className="mt-2 pt-1.5 border-t border-rose-200/60 dark:border-rose-800/60 text-[10px] font-semibold text-rose-800 dark:text-rose-300">
-                  🛑 Ação Obrigatória: Interromper aplicação imediatamente.
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </div>

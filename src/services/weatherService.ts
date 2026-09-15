@@ -5,7 +5,6 @@
  */
 
 import { formatDecimal } from '../utils/formatters';
-import { SprayStatus, SprayRuleFailure } from './sprayRulesEngine';
 import { NetworkService } from './networkService';
 
 export interface CityLocation {
