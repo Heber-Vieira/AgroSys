@@ -1536,11 +1536,21 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
                 {/* Temperature slider */}
                 <div className="bg-white dark:bg-slate-900/60 p-2 rounded-xl border border-slate-200/60 dark:border-slate-800/60 shadow-2xs space-y-1">
-                  <div className="flex items-center justify-between text-[9.5px]">
-                    <span className="font-bold text-slate-600 dark:text-slate-400 uppercase tracking-tight">Temperatura</span>
-                    <strong className={`font-mono text-[10.5px] ${temperature > 30.0 ? 'text-rose-600 dark:text-rose-400 font-black' : 'text-slate-800 dark:text-slate-200'}`}>
-                      {temperature.toFixed(1).replace('.', ',')} °C
-                    </strong>
+                  <div className="flex items-center justify-between text-[9.5px] gap-2">
+                    <span className="font-bold text-slate-600 dark:text-slate-400 uppercase tracking-tight flex items-center gap-1">Temperatura <span className="text-[9px] text-slate-400 normal-case">(°C)</span></span>
+                    <input
+                      type="number"
+                      min="10"
+                      max="40"
+                      step="0.5"
+                      value={temperature}
+                      onChange={(e) => setTemperature(parseFloat(e.target.value) || 0)}
+                      className={`w-16 px-1.5 py-0.5 text-right rounded bg-white dark:bg-slate-950 border font-mono text-[10.5px] focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors ${
+                        temperature > 30.0 
+                          ? 'text-rose-600 dark:text-rose-400 font-black border-rose-300 dark:border-rose-700' 
+                          : 'text-slate-800 dark:text-slate-200 border-slate-300 dark:border-slate-700'
+                      }`}
+                    />
                   </div>
                   <input
                     type="range"
@@ -1555,11 +1565,21 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
 
                 {/* Humidity slider */}
                 <div className="bg-white dark:bg-slate-900/60 p-2 rounded-xl border border-slate-200/60 dark:border-slate-800/60 shadow-2xs space-y-1">
-                  <div className="flex items-center justify-between text-[9.5px]">
-                    <span className="font-bold text-slate-600 dark:text-slate-400 uppercase tracking-tight">Umidade</span>
-                    <strong className={`font-mono text-[10.5px] ${humidity < 50 ? 'text-rose-600 dark:text-rose-400 font-black' : 'text-slate-800 dark:text-slate-200'}`}>
-                      {humidity}%
-                    </strong>
+                  <div className="flex items-center justify-between text-[9.5px] gap-2">
+                    <span className="font-bold text-slate-600 dark:text-slate-400 uppercase tracking-tight flex items-center gap-1">Umidade <span className="text-[9px] text-slate-400 normal-case">(%)</span></span>
+                    <input
+                      type="number"
+                      min="30"
+                      max="90"
+                      step="1"
+                      value={humidity}
+                      onChange={(e) => setHumidity(parseInt(e.target.value) || 0)}
+                      className={`w-16 px-1.5 py-0.5 text-right rounded bg-white dark:bg-slate-950 border font-mono text-[10.5px] focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors ${
+                        humidity < 50 
+                          ? 'text-rose-600 dark:text-rose-400 font-black border-rose-300 dark:border-rose-700' 
+                          : 'text-slate-800 dark:text-slate-200 border-slate-300 dark:border-slate-700'
+                      }`}
+                    />
                   </div>
                   <input
                     type="range"
@@ -1574,11 +1594,21 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
 
                 {/* Wind speed slider */}
                 <div className="bg-white dark:bg-slate-900/60 p-2 rounded-xl border border-slate-200/60 dark:border-slate-800/60 shadow-2xs space-y-1">
-                  <div className="flex items-center justify-between text-[9.5px]">
-                    <span className="font-bold text-slate-600 dark:text-slate-400 uppercase tracking-tight">Vento</span>
-                    <strong className={`font-mono text-[10.5px] ${windSpeed > 12.0 || windSpeed < 3.0 ? 'text-rose-600 dark:text-rose-400 font-black' : 'text-slate-800 dark:text-slate-200'}`}>
-                      {windSpeed.toFixed(1).replace('.', ',')} km/h
-                    </strong>
+                  <div className="flex items-center justify-between text-[9.5px] gap-2">
+                    <span className="font-bold text-slate-600 dark:text-slate-400 uppercase tracking-tight flex items-center gap-1">Vento <span className="text-[9px] text-slate-400 normal-case">(km/h)</span></span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="20"
+                      step="0.5"
+                      value={windSpeed}
+                      onChange={(e) => setWindSpeed(parseFloat(e.target.value) || 0)}
+                      className={`w-16 px-1.5 py-0.5 text-right rounded bg-white dark:bg-slate-950 border font-mono text-[10.5px] focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors ${
+                        windSpeed > 12.0 || windSpeed < 3.0 
+                          ? 'text-rose-600 dark:text-rose-400 font-black border-rose-300 dark:border-rose-700' 
+                          : 'text-slate-800 dark:text-slate-200 border-slate-300 dark:border-slate-700'
+                      }`}
+                    />
                   </div>
                   <input
                     type="range"
