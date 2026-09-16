@@ -171,16 +171,16 @@ export const LoginView: React.FC<LoginViewProps> = ({
   const systemTagline = systemBranding.systemSubtitle || 'Plataforma Inteligente de Gestão de Operações Aeroagrícolas & Telemetria';
 
   return (
-    <div className="min-h-[100dvh] w-full bg-slate-950 flex items-center justify-center p-2.5 sm:p-4 md:p-6 font-sans relative overflow-y-auto touch-scroll pt-safe pb-safe">
-      {/* Background Decorative Subtle Ambient Light */}
-      <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-emerald-600/5 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-teal-600/5 rounded-full blur-3xl pointer-events-none" />
+    <div className="h-screen h-[100dvh] w-full bg-slate-950 flex items-center justify-center p-2.5 sm:p-4 md:p-6 font-sans relative overflow-hidden pt-safe pb-safe select-none">
+      {/* Background Decorative Subtle Ambient Glow */}
+      <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-emerald-600/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-teal-600/10 rounded-full blur-3xl pointer-events-none" />
 
       {/* Main Split Screen Container */}
-      <div className="relative z-10 w-full max-w-5xl my-auto bg-white rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-12 border border-slate-200/80">
+      <div className="relative z-10 w-full max-w-5xl max-h-[calc(100dvh-1.25rem)] sm:max-h-[calc(100dvh-2rem)] bg-white rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-12 border border-slate-200/80 my-auto">
         
         {/* MOBILE BRAND HEADER (Visible only on < lg) */}
-        <div className="lg:hidden bg-gradient-to-r from-[#064e3b] via-[#043d2e] to-[#02231a] text-white p-3.5 sm:p-4 flex items-center justify-between gap-3 border-b border-emerald-800/60">
+        <div className="lg:hidden bg-gradient-to-r from-[#064e3b] via-[#043d2e] to-[#02231a] text-white p-3 sm:p-3.5 flex items-center justify-between gap-3 border-b border-emerald-800/60 shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="bg-white p-1 rounded-xl shadow-md border border-white/80 flex items-center justify-center shrink-0">
               <DynamicBrandLogo 
@@ -192,14 +192,14 @@ export const LoginView: React.FC<LoginViewProps> = ({
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="font-black text-sm tracking-wide text-white uppercase truncate">
+                <span className="font-black text-xs sm:text-sm tracking-wide text-white uppercase truncate">
                   {systemTitle}
                 </span>
-                <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-white/15 text-emerald-300 border border-white/10 uppercase">
+                <span className="text-[8px] sm:text-[9px] font-bold px-1.5 py-0.2 rounded bg-white/15 text-emerald-300 border border-white/10 uppercase">
                   AGROSYS
                 </span>
               </div>
-              <p className="text-[10px] text-emerald-200/80 truncate">
+              <p className="text-[9px] sm:text-[10px] text-emerald-200/80 truncate">
                 Gestão Aeroagrícola Inteligente
               </p>
             </div>
@@ -213,17 +213,17 @@ export const LoginView: React.FC<LoginViewProps> = ({
         </div>
 
         {/* LEFT PANEL: DESKTOP MINIMALIST GREEN GRADIENT BRANDING (Visible on lg+) */}
-        <div className="hidden lg:flex lg:col-span-5 bg-gradient-to-br from-[#064e3b] via-[#043d2e] to-[#02231a] text-white p-6 sm:p-7 lg:p-8 flex-col justify-between relative overflow-y-auto">
+        <div className="hidden lg:flex lg:col-span-5 bg-gradient-to-br from-[#064e3b] via-[#043d2e] to-[#02231a] text-white p-5 sm:p-6 lg:p-7 flex-col justify-between relative overflow-hidden">
           
           {/* Subtle Glow Overlay */}
           <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
 
           {/* Top Brand & Title Group */}
-          <div className="relative z-10 space-y-4 sm:space-y-5">
+          <div className="relative z-10 space-y-3.5">
             
             {/* Header Brand Bar with White Background Logo Field */}
-            <div className="flex items-center gap-3">
-              <div className="bg-white p-1 rounded-2xl shadow-lg border border-white/80 flex items-center justify-center shrink-0">
+            <div className="flex items-center gap-2.5">
+              <div className="bg-white p-1 rounded-xl shadow-md border border-white/80 flex items-center justify-center shrink-0">
                 <DynamicBrandLogo 
                   theme={systemBranding} 
                   variant="white" 
@@ -232,10 +232,10 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 />
               </div>
               <div>
-                <span className="font-black text-lg sm:text-xl tracking-wide text-white uppercase block leading-none">
+                <span className="font-black text-base sm:text-lg tracking-wide text-white uppercase block leading-none">
                   {systemTitle}
                 </span>
-                <span className="text-[9px] sm:text-[10px] font-bold tracking-widest text-emerald-400/90 uppercase">
+                <span className="text-[8px] sm:text-[9px] font-bold tracking-widest text-emerald-400/90 uppercase">
                   TECNOLOGIA AGRÍCOLA
                 </span>
               </div>
@@ -243,34 +243,34 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
             {/* Tag Pill */}
             <div className="inline-block">
-              <span className="px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-white/10 border border-white/10 text-[9px] sm:text-[10px] font-bold tracking-widest text-emerald-300 uppercase">
-                SISTEMA AGROSYS
+              <span className="px-2 py-0.5 rounded-full bg-white/10 border border-white/10 text-[8px] sm:text-[9px] font-bold tracking-widest text-emerald-300 uppercase">
+                SISTEMA AGROSYS 2.0
               </span>
             </div>
 
             {/* Main Title & Description */}
-            <div className="space-y-2 pt-1">
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white leading-tight tracking-tight">
+            <div className="space-y-1.5 pt-1">
+              <h1 className="text-lg sm:text-xl lg:text-2xl font-extrabold text-white leading-tight tracking-tight">
                 Gestão Agrícola e Monitoramento IA
               </h1>
-              <p className="text-emerald-100/75 text-xs sm:text-sm leading-relaxed font-normal">
+              <p className="text-emerald-100/75 text-xs leading-relaxed font-normal">
                 {systemTagline}
               </p>
             </div>
           </div>
 
           {/* Bottom Security Card */}
-          <div className="relative z-10 pt-4 sm:pt-6 mt-auto">
-            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl sm:rounded-2xl p-3 flex items-center gap-2.5">
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-emerald-500/20 border border-emerald-400/20 flex items-center justify-center text-emerald-400 shrink-0">
-                <ShieldCheck className="w-4 h-4" />
+          <div className="relative z-10 pt-3 mt-auto">
+            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-2.5 flex items-center gap-2.5">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-emerald-500/20 border border-emerald-400/20 flex items-center justify-center text-emerald-400 shrink-0">
+                <ShieldCheck className="w-3.5 h-3.5" />
               </div>
               <div>
-                <h4 className="text-[9px] sm:text-[10px] font-bold text-white tracking-wider uppercase">
+                <h4 className="text-[9px] font-bold text-white tracking-wider uppercase">
                   SEGURANÇA E PRECISÃO NO CAMPO
                 </h4>
-                <p className="text-[10px] sm:text-[11px] text-emerald-200/70 font-normal leading-snug mt-0.5">
-                  Dados operacionais sincronizados e protegidos no Supabase Cloud.
+                <p className="text-[10px] text-emerald-200/70 font-normal leading-snug mt-0.5">
+                  Dados operacionais protegidos no Supabase Cloud.
                 </p>
               </div>
             </div>
@@ -278,49 +278,49 @@ export const LoginView: React.FC<LoginViewProps> = ({
         </div>
 
         {/* RIGHT PANEL: CLEAN MINIMALIST FORM SECTION */}
-        <div className="col-span-1 lg:col-span-7 bg-white text-slate-800 p-4 sm:p-7 lg:p-8 flex flex-col justify-between space-y-4">
+        <div className="col-span-1 lg:col-span-7 bg-white text-slate-800 p-4 sm:p-5 lg:p-6 flex flex-col justify-between overflow-y-auto">
           
-          <div className="space-y-4">
+          <div className="space-y-3">
             
             {/* Header Titles */}
             <div>
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 text-[10px] sm:text-[11px] font-semibold border border-emerald-200/60 mb-2">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+              <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 text-[9px] sm:text-[10px] font-semibold border border-emerald-200/60 mb-1.5">
+                <ShieldCheck className="w-3 h-3 text-emerald-600" />
                 <span>Acesso Corporativo Seguro</span>
               </div>
-              <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">
+              <h2 className="text-base sm:text-lg lg:text-xl font-bold text-slate-900 tracking-tight">
                 Bem-vindo de volta!
               </h2>
-              <p className="text-slate-500 text-xs font-normal mt-0.5">
+              <p className="text-slate-500 text-[11px] sm:text-xs font-normal mt-0.5">
                 Insira suas credenciais corporativas para acessar o painel.
               </p>
             </div>
 
             {/* Feedback Messages */}
             {errorMsg && (
-              <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200/80 text-rose-700 text-xs font-medium flex items-center gap-2">
+              <div className="p-2 rounded-xl bg-rose-50 border border-rose-200/80 text-rose-700 text-xs font-medium flex items-center gap-2">
                 <span className="shrink-0">⚠️</span>
                 <span>{errorMsg}</span>
               </div>
             )}
 
             {successMsg && (
-              <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200/80 text-emerald-800 text-xs font-medium flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200/80 text-emerald-800 text-xs font-medium flex items-center gap-2">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                 <span>{successMsg}</span>
               </div>
             )}
 
             {/* Login Credentials Form */}
-            <form onSubmit={handleSubmitLogin} className="space-y-3 sm:space-y-3.5">
+            <form onSubmit={handleSubmitLogin} className="space-y-2.5">
               
               {/* Email Input */}
               <div>
-                <label className="text-[10px] font-bold tracking-wider text-slate-500 uppercase block mb-1">
+                <label className="text-[9px] font-bold tracking-wider text-slate-500 uppercase block mb-0.5">
                   E-MAIL CORPORATIVO
                 </label>
-                <div className="relative bg-slate-50/80 border border-slate-200 rounded-xl px-3 py-2 sm:py-2.5 flex items-center gap-2 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-600 focus-within:bg-white transition-all">
-                  <Mail className="w-4 h-4 text-slate-400 shrink-0" />
+                <div className="relative bg-slate-50/80 border border-slate-200 rounded-xl px-2.5 py-1.5 sm:py-2 flex items-center gap-2 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-600 focus-within:bg-white transition-all">
+                  <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                   <input
                     type="email"
                     required
@@ -334,20 +334,20 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
               {/* Password Input */}
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-[10px] font-bold tracking-wider text-slate-500 uppercase">
+                <div className="flex items-center justify-between mb-0.5">
+                  <label className="text-[9px] font-bold tracking-wider text-slate-500 uppercase">
                     SENHA DE ACESSO
                   </label>
                   <button
                     type="button"
                     onClick={() => showToast('Para redefinir sua senha, solicite a alteração diretamente ao Administrador no painel de controle.', 'info', 'Redefinição de Senha')}
-                    className="text-[10px] sm:text-[11px] font-medium text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
+                    className="text-[9px] sm:text-[10px] font-medium text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
                   >
                     Esqueci minha senha
                   </button>
                 </div>
-                <div className="relative bg-slate-50/80 border border-slate-200 rounded-xl px-3 py-2 sm:py-2.5 flex items-center gap-2 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-600 focus-within:bg-white transition-all">
-                  <Lock className="w-4 h-4 text-slate-400 shrink-0" />
+                <div className="relative bg-slate-50/80 border border-slate-200 rounded-xl px-2.5 py-1.5 sm:py-2 flex items-center gap-2 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-600 focus-within:bg-white transition-all">
+                  <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     required
@@ -361,13 +361,13 @@ export const LoginView: React.FC<LoginViewProps> = ({
                     onClick={() => setShowPassword(!showPassword)}
                     className="text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer transition-colors"
                   >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   </button>
                 </div>
               </div>
 
               {/* Notice regarding new accounts provisioned by admin */}
-              <div className="p-2 bg-slate-50 border border-slate-200/60 rounded-xl text-[10px] sm:text-[11px] text-slate-500 leading-relaxed flex items-center gap-2">
+              <div className="px-2 py-1.5 bg-slate-50 border border-slate-200/60 rounded-xl text-[10px] text-slate-500 leading-relaxed flex items-center gap-2">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                 <span>
                   Novos usuários são cadastrados exclusivamente pelos <strong>Administradores</strong>.
@@ -379,27 +379,27 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full py-2.5 sm:py-3 px-4 rounded-xl font-bold text-xs sm:text-sm tracking-wider uppercase bg-emerald-800 hover:bg-emerald-900 text-white shadow-sm hover:shadow transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] disabled:opacity-50"
+                  className="w-full py-2 sm:py-2.5 px-4 rounded-xl font-bold text-xs tracking-wider uppercase bg-emerald-800 hover:bg-emerald-900 text-white shadow-sm hover:shadow transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] disabled:opacity-50"
                 >
                   <span>{isLoading ? 'Autenticando...' : 'ENTRAR NO SISTEMA'}</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             </form>
 
             {/* Quick Demonstration Access / Profiles */}
-            <div className="pt-2 space-y-2.5 border-t border-slate-100">
+            <div className="pt-2 space-y-2 border-t border-slate-100">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
                   <Sparkles className="w-3 h-3 text-amber-500" />
                   Acesso Rápido para Demonstração
                 </span>
-                <span className="text-[9px] text-slate-400 font-normal">Clique para alternar</span>
+                <span className="text-[8px] text-slate-400 font-normal">Clique para alternar</span>
               </div>
 
               {/* Master Profiles */}
               <div className="space-y-1">
-                <span className="text-[9px] font-bold uppercase tracking-wider text-amber-700 flex items-center gap-1">
+                <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider text-amber-700 flex items-center gap-1">
                   👑 Usuários Master (Acesso Total Multi-Empresa)
                 </span>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
@@ -410,7 +410,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                         key={user.id}
                         type="button"
                         onClick={() => handleQuickLogin(user)}
-                        className={`p-1.5 sm:p-2 rounded-xl border text-left flex items-center gap-2 transition-all cursor-pointer ${
+                        className={`p-1.5 rounded-xl border text-left flex items-center gap-2 transition-all cursor-pointer ${
                           emailInput.toLowerCase() === user.email.toLowerCase()
                             ? 'border-amber-400 bg-amber-50/70 ring-1 ring-amber-400/40 shadow-sm'
                             : 'border-slate-200/80 bg-slate-50/50 hover:bg-amber-50/30 hover:border-amber-300'
@@ -418,11 +418,11 @@ export const LoginView: React.FC<LoginViewProps> = ({
                       >
                         <UserAvatar user={user} size="xs" showRoleBadge={false} />
                         <div className="min-w-0 flex-1">
-                          <div className="text-[10px] sm:text-[11px] font-bold text-slate-900 truncate flex items-center gap-1">
+                          <div className="text-[10px] font-bold text-slate-900 truncate flex items-center gap-1">
                             {user.name}
                             <span>👑</span>
                           </div>
-                          <div className="text-[9px] text-amber-700 font-semibold truncate">
+                          <div className="text-[8px] text-amber-700 font-semibold truncate">
                             Master • Multi-Empresa
                           </div>
                         </div>
@@ -433,7 +433,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
               {/* Company Admins */}
               <div className="space-y-1 pt-0.5">
-                <span className="text-[9px] font-bold uppercase tracking-wider text-purple-700 flex items-center gap-1">
+                <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider text-purple-700 flex items-center gap-1">
                   🏢 Administradores de Empresa (Unidade)
                 </span>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
@@ -457,7 +457,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                           <div className="text-[10px] font-bold text-slate-900 truncate">
                             {user.name.split(' ')[0]}
                           </div>
-                          <div className="text-[9px] text-purple-700 font-semibold truncate">
+                          <div className="text-[8px] text-purple-700 font-semibold truncate">
                             {compName}
                           </div>
                         </div>
@@ -471,11 +471,11 @@ export const LoginView: React.FC<LoginViewProps> = ({
           </div>
 
           {/* Footer Info */}
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[10px] sm:text-[11px] text-slate-400 font-normal">
+          <div className="pt-2 mt-2 border-t border-slate-100 flex items-center justify-between text-[9px] sm:text-[10px] text-slate-400 font-normal">
             <span>Protegido por reCAPTCHA e LGPD</span>
             <div className="flex items-center gap-1 text-slate-400">
-              <Shield className="w-3.5 h-3.5 text-emerald-600" />
-              <span className="text-[10px] font-semibold text-slate-500">AgroSys Auth 2.0</span>
+              <Shield className="w-3 h-3 text-emerald-600" />
+              <span className="text-[9px] font-semibold text-slate-500">AgroSys Auth 2.0</span>
             </div>
           </div>
         </div>
