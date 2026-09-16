@@ -289,6 +289,86 @@ export const WeatherGateView: React.FC<WeatherGateViewProps> = ({ currentUser, p
         </div>
       </div>
 
+      {/* Highlight Banner for Meteorological Data Collection Timestamp */}
+      {(() => {
+        const rawTime = weatherData.lastUpdated || weatherData.current.time;
+        const d = rawTime ? new Date(rawTime) : new Date();
+        const validDate = isNaN(d.getTime()) ? new Date() : d;
+
+        const dayNames = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+        const monthNames = [
+          'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+          'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+        ];
+
+        const dayOfWeek = dayNames[validDate.getDay()];
+        const day = String(validDate.getDate()).padStart(2, '0');
+        const month = monthNames[validDate.getMonth()];
+        const year = validDate.getFullYear();
+        const hours = String(validDate.getHours()).padStart(2, '0');
+        const minutes = String(validDate.getMinutes()).padStart(2, '0');
+
+        return (
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#043d2e] via-[#064e3b] to-[#02231a] text-white border border-emerald-600/40 shadow-md p-3 sm:p-4 animate-in fade-in duration-200">
+            {/* Ambient Glow */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-400/10 rounded-full blur-2xl pointer-events-none" />
+
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-3">
+              {/* Left Group: Live Sensor Badge & Full Date */}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-300 shrink-0 relative">
+                  <Radio className="w-5 h-5 animate-pulse text-emerald-300" />
+                  <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-400"></span>
+                  </span>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 border border-emerald-400/40 shadow-2xs">
+                      📡 ÚLTIMA COLETA METEOROLÓGICA
+                    </span>
+                    <span className="text-[10px] sm:text-xs text-emerald-200/90 font-medium flex items-center gap-1">
+                      <span>•</span>
+                      <span>{selectedCity.name} - {selectedCity.state} ({selectedCity.region || 'Brasil'})</span>
+                    </span>
+                  </div>
+                  <h3 className="text-xs sm:text-sm lg:text-base font-extrabold text-white flex items-center gap-1.5 flex-wrap">
+                    <span className="text-emerald-200/80 font-normal">Data da Coleta:</span>
+                    <span className="text-emerald-300 font-black">{dayOfWeek}, {day} de {month} de {year}</span>
+                  </h3>
+                </div>
+              </div>
+
+              {/* Right Group: Exact Time Pill & Action Button */}
+              <div className="flex items-center gap-3 self-start md:self-auto pl-0 md:pl-4 border-t md:border-t-0 md:border-l border-emerald-700/50 pt-2.5 md:pt-0 shrink-0">
+                <div className="text-left md:text-right">
+                  <span className="text-[9px] font-bold text-emerald-300/80 uppercase tracking-wider block">
+                    HORA DA COLETA
+                  </span>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <Clock className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span className="text-sm sm:text-base font-black font-mono text-white tracking-widest bg-emerald-950/80 px-2.5 py-0.5 rounded-lg border border-emerald-500/40 shadow-inner">
+                      {hours}:{minutes}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  className="px-3 py-1.5 sm:py-2 rounded-xl bg-emerald-500/25 hover:bg-emerald-500/40 text-emerald-100 border border-emerald-400/40 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shrink-0 active:scale-95 shadow-2xs"
+                  title="Atualizar Coleta Meteorológica em Tempo Real"
+                >
+                  <RotateCcw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-emerald-300' : ''}`} />
+                  <span className="hidden sm:inline">{isRefreshing ? 'Recoletando...' : 'Sincronizar'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* City Search Bar & Location Selector Component */}
       <WeatherCitySelector
         selectedCity={selectedCity}
@@ -359,6 +439,7 @@ export const WeatherGateView: React.FC<WeatherGateViewProps> = ({ currentUser, p
             onToggleManualSimulation={() => setIsManualMode(!isManualMode)}
             onRefreshWeather={handleRefresh}
             isRefreshing={isRefreshing}
+            lastUpdated={weatherData.lastUpdated}
           />
 
           {/* Manual Field Calibration Sliders (When Kestrel Mode is Active) */}

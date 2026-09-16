@@ -17,7 +17,10 @@ import {
   Cloud,
   CloudFog,
   Zap,
-  RotateCw
+  RotateCw,
+  Clock,
+  Calendar,
+  Radio
 } from 'lucide-react';
 import { CurrentWeather, SprayStatus } from '../../services/weatherService';
 
@@ -28,6 +31,7 @@ interface WeatherCurrentHUDProps {
   onToggleManualSimulation: () => void;
   onRefreshWeather?: () => void;
   isRefreshing?: boolean;
+  lastUpdated?: string;
 }
 
 export const WeatherCurrentHUD: React.FC<WeatherCurrentHUDProps> = ({
@@ -36,7 +40,8 @@ export const WeatherCurrentHUD: React.FC<WeatherCurrentHUDProps> = ({
   isManualSimulation,
   onToggleManualSimulation,
   onRefreshWeather,
-  isRefreshing = false
+  isRefreshing = false,
+  lastUpdated
 }) => {
   const { assessment } = current;
   const isAllowed = assessment.isAllowed;
@@ -112,6 +117,18 @@ export const WeatherCurrentHUD: React.FC<WeatherCurrentHUDProps> = ({
               )}
               <span className="text-xs text-slate-500 dark:text-emerald-200/80 font-mono">
                 {cityName} • Score Operacional: <strong className="text-slate-900 dark:text-white font-extrabold">{assessment.score}%</strong>
+              </span>
+
+              {/* High-visibility collection timestamp pill */}
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-800/90 text-white dark:bg-emerald-950 dark:text-emerald-200 text-[10px] font-bold border border-emerald-600/40 shadow-2xs">
+                <Clock className="w-3 h-3 text-emerald-400 shrink-0" />
+                <span>Coleta: {(() => {
+                  const d = lastUpdated ? new Date(lastUpdated) : new Date();
+                  const valid = isNaN(d.getTime()) ? new Date() : d;
+                  const dateStr = valid.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                  const timeStr = valid.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                  return `${dateStr} às ${timeStr}`;
+                })()}</span>
               </span>
             </div>
             <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white leading-tight">
