@@ -114,26 +114,109 @@ export async function logUserActivity(params: LogActivityParams): Promise<UserAc
 
   // 2. Persist to Supabase DB Cloud Table `user_activity_logs`
   try {
-    await supabase.from('user_activity_logs').insert([{
+    const { error } = await supabase.from('user_activity_logs').insert([{
+      id: logEntry.id,
       user_id: logEntry.userId,
       user_name: logEntry.userName,
       user_email: logEntry.userEmail,
-      company_id: logEntry.companyId,
+      company_id: logEntry.companyId || null,
       action: logEntry.action,
       details: typeof logEntry.details === 'object' ? logEntry.details : { raw: logEntry.details },
       ip_address: logEntry.ipAddress,
       response_status: logEntry.responseStatus,
       status_label: logEntry.statusLabel,
-      user_role: logEntry.userRole,
-      duration_ms: logEntry.durationMs,
+      user_role: logEntry.userRole || null,
+      duration_ms: logEntry.durationMs || null,
       created_at: logEntry.createdAt,
     }]);
+
+    if (!error) {
+      // Mark as synced locally if needed
+    }
   } catch (err) {
     // Non-blocking fallback if database table is missing or network offline
     console.warn('Persistência do log no Supabase offline (armazenado em IndexedDB):', err);
   }
 
   return logEntry;
+}
+
+/**
+ * Checks whether the `user_activity_logs` table exists and is active in Supabase Cloud.
+ */
+export async function checkAuditLogsTableStatus(): Promise<{
+  isConnected: boolean;
+  rowCount?: number;
+  error?: string;
+  tableExists: boolean;
+}> {
+  try {
+    const { count, error } = await supabase
+      .from('user_activity_logs')
+      .select('id', { count: 'exact', head: true });
+
+    if (error) {
+      const isMissingTable = error.code === 'PGRST116' || 
+                             error.message.includes('404') || 
+                             error.message.includes('relation') || 
+                             error.message.includes('schema cache');
+      return {
+        isConnected: false,
+        tableExists: !isMissingTable,
+        error: error.message
+      };
+    }
+
+    return {
+      isConnected: true,
+      tableExists: true,
+      rowCount: count ?? 0
+    };
+  } catch (err: any) {
+    return {
+      isConnected: false,
+      tableExists: false,
+      error: err?.message || String(err)
+    };
+  }
+}
+
+/**
+ * Syncs any pending local audit logs from IndexedDB to the Supabase database table.
+ */
+export async function syncPendingAuditLogsToCloud(): Promise<{ syncedCount: number; success: boolean; error?: string }> {
+  try {
+    const localLogs = getLocalAuditLogs();
+    if (localLogs.length === 0) return { syncedCount: 0, success: true };
+
+    const rows = localLogs.map(log => ({
+      id: log.id,
+      user_id: log.userId,
+      user_name: log.userName,
+      user_email: log.userEmail,
+      company_id: log.companyId || null,
+      action: log.action,
+      details: typeof log.details === 'object' ? log.details : { raw: log.details },
+      ip_address: log.ipAddress || '127.0.0.1',
+      response_status: log.responseStatus ?? 200,
+      status_label: log.statusLabel || 'SUCCESS',
+      user_role: log.userRole || null,
+      duration_ms: log.durationMs || null,
+      created_at: log.createdAt || new Date().toISOString(),
+    }));
+
+    const { error } = await supabase
+      .from('user_activity_logs')
+      .upsert(rows, { onConflict: 'id' });
+
+    if (error) {
+      return { syncedCount: 0, success: false, error: error.message };
+    }
+
+    return { syncedCount: rows.length, success: true };
+  } catch (err: any) {
+    return { syncedCount: 0, success: false, error: err?.message || String(err) };
+  }
 }
 
 /**
@@ -164,7 +247,7 @@ export interface FetchAuditLogsFilters {
 export async function getUserActivityLogs(
   currentUser: UserProfile | null | undefined,
   filters: FetchAuditLogsFilters = {}
-): Promise<{ logs: UserActivityLog[]; authorized: boolean; error?: string }> {
+): Promise<{ logs: UserActivityLog[]; authorized: boolean; error?: string; source?: 'supabase' | 'indexeddb' }> {
   // STRICT MASTER ADMIN CHECK
   if (!isMasterUser(currentUser)) {
     const deniedReason = 'Acesso Negado: Somente Administradores Masters possuem autorização para visualizar os logs de auditoria.';
@@ -197,7 +280,7 @@ export async function getUserActivityLogs(
     if (filters.limit) {
       query = query.limit(filters.limit);
     } else {
-      query = query.limit(200);
+      query = query.limit(300);
     }
 
     if (filters.actionType && filters.actionType !== 'ALL') {
@@ -223,7 +306,15 @@ export async function getUserActivityLogs(
         createdAt: item.created_at || new Date().toISOString(),
       }));
 
-      return { logs: cloudLogs, authorized: true };
+      // Merge any local logs not yet in cloud
+      const localLogs = getLocalAuditLogs();
+      const cloudIds = new Set(cloudLogs.map(l => l.id));
+      const missingLocal = localLogs.filter(l => !cloudIds.has(l.id));
+      const merged = [...missingLocal, ...cloudLogs].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+
+      return { logs: merged, authorized: true, source: 'supabase' };
     }
   } catch (err: any) {
     console.warn('Erro ao carregar logs do Supabase, utilizando fallback local:', err);
@@ -231,7 +322,7 @@ export async function getUserActivityLogs(
 
   // 2. Fallback to Local Storage / IndexedDB
   const localLogs = getLocalAuditLogs();
-  return { logs: localLogs, authorized: true };
+  return { logs: localLogs, authorized: true, source: 'indexeddb' };
 }
 
 /**

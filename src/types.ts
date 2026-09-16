@@ -89,6 +89,8 @@ export interface WhiteLabelTheme {
   tenantId: string;
   companyName: string;
   tagline: string;
+  systemName?: string;
+  systemSubtitle?: string;
   logoUrl?: string;
   logoDarkUrl?: string; // Logo dedicado para modo escuro
   logoIconId?: string; // Built-in SVG logo ID

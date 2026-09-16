@@ -1349,8 +1349,8 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                 {(deltaTScale === 'matrix' || deltaTScale === 'both') && (
                   <div className="p-3 rounded-2xl bg-emerald-50/80 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/80 shadow-2xs flex flex-col justify-between h-full">
                     <DeltaTMatrixChart
-                      currentTemp={activeTelemetryData?.temperature ?? temperature}
-                      currentHumidity={activeTelemetryData?.humidity ?? humidity}
+                      currentTemp={activeTelemetryData?.temperatureC ?? temperature}
+                      currentHumidity={activeTelemetryData?.relativeHumidityPct ?? humidity}
                       compact={true}
                       onSelectPoint={(t, rh) => {
                         setTemperature(t);
@@ -1655,7 +1655,9 @@ export const WeatherAlertOperatorPanel: React.FC<WeatherAlertOperatorPanelProps>
                 <div className="flex items-center justify-between gap-2 border-t border-slate-200 dark:border-slate-900 pt-2">
                   <div className="flex items-center gap-1">
                     <span className="font-bold text-slate-700 dark:text-slate-300">Periodicidade de Checagem</span>
-                    <HelpCircle className="w-3.5 h-3.5 text-slate-400" title="Tempo entre reavaliações do clima operacional" />
+                    <span title="Tempo entre reavaliações do clima operacional">
+                      <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
+                    </span>
                   </div>
                   <select
                     disabled={isInhibited}

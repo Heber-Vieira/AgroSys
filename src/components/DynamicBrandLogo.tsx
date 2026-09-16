@@ -64,7 +64,7 @@ export const DynamicBrandLogo: React.FC<DynamicBrandLogoProps> = ({
           : 'bg-white/95 border border-slate-200 shadow-md backdrop-blur-md'
       : '';
 
-    if (!isWhiteBg && adaptiveMode === 'white' && isDarkMode) {
+    if (!isWhiteBg && (adaptiveMode === 'invert' || (adaptiveMode as string) === 'white') && isDarkMode) {
       filterClass = 'filter brightness-200 contrast-125 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]';
     } else if (!isWhiteBg && adaptiveMode === 'auto' && isDarkMode && !t.logoDarkUrl) {
       containerClass += ' ring-2 ring-emerald-500/20';

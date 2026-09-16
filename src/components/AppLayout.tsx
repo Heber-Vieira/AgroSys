@@ -453,7 +453,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                           key={item.id}
                           type="button"
                           onClick={() => {
-                            setCurrentView(item.id);
+                            setCurrentView(item.id as AppViewMode);
                             setIsMobileDrawerOpen(false);
                           }}
                           className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${

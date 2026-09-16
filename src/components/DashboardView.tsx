@@ -55,7 +55,7 @@ import {
   Power
 } from 'lucide-react';
 import { formatBRL, formatDecimal } from '../utils/formatters';
-import { isMasterUser, isCompanyAdmin } from '../utils/userPermissions';
+import { isMasterUser, isCompanyAdmin, filterOrdersForUser } from '../utils/userPermissions';
 import { isAIAnalysisActive, setAIAnalysisActive, AI_ANALYSIS_UPDATED_EVENT } from '../services/aiSettingsService';
 import { EmployeeAccessControlModal } from './EmployeeAccessControlModal';
 import { UserAvatar } from './UserAvatar';
@@ -98,33 +98,43 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   allUsers = [],
   onSaveUserPermissions = (_u: string, _v: AppViewMode[]) => {},
   registeredCompanies = [],
-  activeCompanyId = 'ALL',
+  activeCompanyId = 'ciclodrone',
   onNavigate,
   onOpenNewOSModal,
   onOpenNewOS,
   onStartLiveTour,
   onOpenReportModal,
 }) => {
+  const [selectedCompanyFilter, setSelectedCompanyFilter] = useState<string>(activeCompanyId);
+  const [isAccessModalOpen, setIsAccessModalOpen] = useState<boolean>(false);
+  const [aiEnabled, setAiEnabled] = useState<boolean>(() => isAIAnalysisActive());
   const isMaster = isMasterUser(currentUser);
   const isCompanyAdministrator = isCompanyAdmin(currentUser);
   const isExecutive = isMaster || isCompanyAdministrator;
 
   const [period, setPeriod] = useState<PeriodFilter>('SEASON');
   const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
-  const [selectedCompanyFilter, setSelectedCompanyFilter] = useState<string>(activeCompanyId || 'ALL');
-  
-  // AI Analysis Master Activation State
-  const [aiEnabled, setAiEnabled] = useState<boolean>(() => isAIAnalysisActive());
-  const [isAccessModalOpen, setIsAccessModalOpen] = useState<boolean>(false);
   const [toastFeedback, setToastFeedback] = useState<string | null>(null);
 
+  // Sync selectedCompanyFilter when activeCompanyId changes
   useEffect(() => {
-    const handleAiToggle = (e: Event) => {
-      const custom = e as CustomEvent<boolean>;
-      setAiEnabled(custom.detail);
+    setSelectedCompanyFilter(activeCompanyId);
+  }, [activeCompanyId]);
+
+  // Listen to AI Analysis State updates across modules
+  useEffect(() => {
+    const handleAIUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<{ active: boolean } | boolean>;
+      if (customEvent.detail !== undefined) {
+        if (typeof customEvent.detail === 'boolean') {
+          setAiEnabled(customEvent.detail);
+        } else if (typeof customEvent.detail === 'object' && customEvent.detail !== null && 'active' in customEvent.detail) {
+          setAiEnabled((customEvent.detail as { active: boolean }).active);
+        }
+      }
     };
-    window.addEventListener(AI_ANALYSIS_UPDATED_EVENT, handleAiToggle);
-    return () => window.removeEventListener(AI_ANALYSIS_UPDATED_EVENT, handleAiToggle);
+    window.addEventListener(AI_ANALYSIS_UPDATED_EVENT, handleAIUpdate);
+    return () => window.removeEventListener(AI_ANALYSIS_UPDATED_EVENT, handleAIUpdate);
   }, []);
 
   const showToast = (msg: string) => {
@@ -133,10 +143,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   };
 
   const handleToggleAI = () => {
-    if (!isMaster) {
-      showToast('Apenas Administradores Masters podem ativar ou desativar a análise por IA.');
-      return;
-    }
     const nextState = !aiEnabled;
     const res = setAIAnalysisActive(nextState, currentUser);
     if (res.success) {
@@ -147,7 +153,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     }
   };
 
-  // 1. DATA FILTERING BY COMPANY (Multi-tenant isolation)
+  // 1. DATA FILTERING BY COMPANY (Multi-tenant isolation) + RBAC Scope (Pilots/Assistants/Clients)
   const scopedOrders = useMemo(() => {
     let list = orders;
     if (!isMaster) {
@@ -157,18 +163,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       list = list.filter(o => (o.companyId || 'ciclodrone') === selectedCompanyFilter);
     }
 
-    // Role specific narrowing for non-admins
-    if (currentUser.role === 'USER') {
-      return list.filter(o => o.clientId === currentUser.id || o.clientName === currentUser.name);
-    }
-    if (currentUser.role === 'PILOT') {
-      return list.filter(o => o.pilotId === currentUser.id || o.pilotName.includes(currentUser.name.split(' ')[0]));
-    }
-    if (currentUser.role === 'ASSISTANT') {
-      return list.filter(o => o.assistantId === currentUser.id || o.assistantName.includes(currentUser.name.split(' ')[0]));
-    }
-    return list;
-  }, [orders, isMaster, selectedCompanyFilter, currentUser]);
+    return filterOrdersForUser(list, currentUser, pilots, assistants);
+  }, [orders, isMaster, selectedCompanyFilter, currentUser, pilots, assistants]);
 
   const scopedPlots = useMemo(() => {
     if (!isMaster) {
@@ -220,16 +216,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const operatingOrdersCount = scopedOrders.filter(o => o.status === 'OPERATING' || o.status === 'IN_TRANSIT').length;
   const scheduledOrdersCount = scopedOrders.filter(o => o.status === 'SCHEDULED').length;
 
-  const totalFlightHours = scopedDrones.reduce((acc, d) => acc + (d.flightHours || 0), 0);
+  const totalFlightHours = scopedDrones.reduce((acc, d) => acc + (d.totalFlightHours || 0), 0);
   const avgTicketPerHa = totalAppliedHa > 0 ? totalGrossRevenue / totalAppliedHa : 75;
 
   // Battery health aggregations
   const batteryStats = useMemo(() => {
     const total = batteries.length || 1;
-    const good = batteries.filter(b => b.healthStatus === 'GOOD' || b.sohPercent >= 85).length;
-    const warning = batteries.filter(b => b.healthStatus === 'WARNING' || (b.sohPercent < 85 && b.sohPercent >= 70)).length;
-    const critical = batteries.filter(b => b.healthStatus === 'CRITICAL' || b.sohPercent < 70).length;
-    const avgSoh = Math.round(batteries.reduce((acc, b) => acc + (b.sohPercent || 90), 0) / total);
+    const good = batteries.filter(b => b.status === 'READY' || b.healthPct >= 85).length;
+    const warning = batteries.filter(b => b.status === 'ALERT' || (b.healthPct < 85 && b.healthPct >= 70)).length;
+    const critical = batteries.filter(b => b.status === 'DISCARDED' || b.healthPct < 70).length;
+    const avgSoh = Math.round(batteries.reduce((acc, b) => acc + (b.healthPct || 90), 0) / total);
     return { total: batteries.length, good, warning, critical, avgSoh };
   }, [batteries]);
 
@@ -853,7 +849,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <div className="text-[11px] text-slate-500 font-mono">ANAC: {d.anacPrefix} • Serial: {d.serialNumber}</div>
                   </div>
                   <div className="text-right font-mono">
-                    <span className="font-bold text-emerald-600 dark:text-emerald-400">{d.flightHours}h voadas</span>
+                    <span className="font-bold text-emerald-600 dark:text-emerald-400">{d.totalFlightHours}h voadas</span>
                   </div>
                 </div>
               ))}
@@ -874,12 +870,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <div key={b.id} className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs">
                   <div>
                     <span className="font-bold text-slate-900 dark:text-white">{b.serialNumber}</span>
-                    <div className="text-[11px] text-slate-500">{b.cycles} ciclos • Temp: {b.tempCelsius}°C</div>
+                    <div className="text-[11px] text-slate-500">{b.cyclesCount} ciclos • Temp: {b.temperatureC}°C</div>
                   </div>
                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                    b.sohPercent >= 85 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                    b.healthPct >= 85 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
                   }`}>
-                    {b.sohPercent}% SoH
+                    {b.healthPct}% SoH
                   </span>
                 </div>
               ))}

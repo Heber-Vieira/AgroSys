@@ -79,6 +79,14 @@ import {
   deleteRegisteredCompany, 
   COMPANIES_UPDATED_EVENT 
 } from '../services/companyStorage';
+import {
+  saveUserProfileToSupabase,
+  deleteUserProfileFromSupabase,
+  checkUsersTableStatus,
+  syncAllUsersAndCrewToCloud
+} from '../services/supabase';
+import { Database, RefreshCw, Copy } from 'lucide-react';
+
 
 interface AdminManagementHubViewProps {
   currentUser: UserProfile;
@@ -195,6 +203,26 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
     }
   }, [theme?.tenantId]);
 
+  // User Database Cloud Sync State
+  const [dbUsersStatus, setDbUsersStatus] = useState<{
+    connected: boolean;
+    userProfilesReady: boolean;
+    crewPilotsReady: boolean;
+    crewAssistantsReady: boolean;
+    message: string;
+  } | null>(null);
+  const [isSyncingUsersDb, setIsSyncingUsersDb] = useState(false);
+  const [showUserSchemaModal, setShowUserSchemaModal] = useState(false);
+  const [copiedUserSql, setCopiedUserSql] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    checkUsersTableStatus().then(st => {
+      if (mounted) setDbUsersStatus(st);
+    });
+    return () => { mounted = false; };
+  }, [activeTab]);
+
   // User Modal State
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
@@ -219,6 +247,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
   const [userPasswordInput, setUserPasswordInput] = useState<string>('');
   const [userConfirmPasswordInput, setUserConfirmPasswordInput] = useState<string>('');
   const [showUserPassword, setShowUserPassword] = useState<boolean>(false);
+
 
   // Drone Modal State
   const [isDroneModalOpen, setIsDroneModalOpen] = useState(false);
@@ -522,6 +551,24 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
         });
       }
 
+      const updatedUser: UserProfile = {
+        ...editingUser,
+        ...userFormData,
+        companyId: targetCompanyId,
+        password: userPasswordInput || editingUser.password || '123456',
+        photoUrl,
+        avatarUrl: photoUrl,
+        role,
+        roleLabel,
+      } as UserProfile;
+
+      setUsers(prev => prev.map(u => u.id === editingUser.id ? updatedUser : u));
+      saveUserProfileToSupabase(updatedUser).catch(e => console.warn('Aviso sync user:', e));
+
+      if (photoUrl) {
+        saveStoredUserPhoto(editingUser.id, photoUrl, updatedUser);
+      }
+
       // Also sync with crew pilot/assistant if relevant
       if (role === 'PILOT') {
         setPilots(prev => prev.map(p => (p.cpf === editingUser.documentNumber || p.id === editingUser.id) ? {
@@ -544,10 +591,10 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
         } : a));
       }
 
-      showToast(`Usuário "${userFormData.name}" atualizado com sucesso!`);
+      showToast(`Usuário "${userFormData.name}" atualizado e sincronizado com o banco de dados!`);
     } else {
-      // Create new
-      const newId = `user-${Date.now()}`;
+      // Create new with standard UUID
+      const newId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `user-${Date.now()}`;
       const newUser: UserProfile = {
         id: newId,
         name: userFormData.name || 'Novo Usuário',
@@ -574,10 +621,11 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
       }
 
       setUsers(prev => [...prev, newUser]);
+      saveUserProfileToSupabase(newUser).catch(e => console.warn('Aviso sync user:', e));
 
       // If created a pilot, add to crew pilots
       if (role === 'PILOT') {
-        setPilots(prev => [...prev, {
+        const newPilot: CrewPilot = {
           id: `pilot-${Date.now()}`,
           name: newUser.name,
           cpf: newUser.documentNumber || '000.000.000-00',
@@ -590,9 +638,10 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
           photoUrl,
           avatarUrl: photoUrl,
           companyId: targetCompanyId,
-        }]);
+        };
+        setPilots(prev => [...prev, newPilot]);
       } else if (role === 'ASSISTANT') {
-        setAssistants(prev => [...prev, {
+        const newAsst: CrewAssistant = {
           id: `assistant-${Date.now()}`,
           name: newUser.name,
           cpf: newUser.documentNumber || '000.000.000-00',
@@ -603,10 +652,11 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
           photoUrl,
           avatarUrl: photoUrl,
           companyId: targetCompanyId,
-        }]);
+        };
+        setAssistants(prev => [...prev, newAsst]);
       }
 
-      showToast(`Novo usuário "${newUser.name}" cadastrado com sucesso na empresa ${PRESET_COMPANIES.find(p => p.id === targetCompanyId)?.name || 'selecionada'}!`);
+      showToast(`Novo usuário "${newUser.name}" cadastrado e sincronizado com sucesso!`);
     }
 
     setIsUserModalOpen(false);
@@ -629,7 +679,9 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
       cancelLabel: 'Cancelar',
       isDestructive: true,
       onConfirm: () => {
+        const target = users.find(u => u.id === id);
         setUsers(prev => prev.filter(u => u.id !== id));
+        deleteUserProfileFromSupabase(id, target?.email).catch(() => {});
         showToast(`Usuário "${name}" removido.`);
       }
     });
@@ -637,9 +689,12 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
 
   const handleToggleUserStatus = (u: UserProfile) => {
     const nextStatus = u.status === 'INACTIVE' ? 'ACTIVE' : 'INACTIVE';
-    setUsers(prev => prev.map(item => item.id === u.id ? { ...item, status: nextStatus } : item));
+    const updated = { ...u, status: nextStatus };
+    setUsers(prev => prev.map(item => item.id === u.id ? updated : item));
+    saveUserProfileToSupabase(updated).catch(() => {});
     showToast(`Status de ${u.name} alterado para ${nextStatus === 'ACTIVE' ? 'Ativo' : 'Inativo'}.`);
   };
+
 
   // DRONE CRUD HANDLERS
   const handleOpenNewDrone = () => {
@@ -801,8 +856,28 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
     });
   };
 
+  // USER CLOUD SYNC HANDLER
+  const handleSyncUsersToCloud = async () => {
+    setIsSyncingUsersDb(true);
+    try {
+      const res = await syncAllUsersAndCrewToCloud(users, pilots, assistants);
+      if (res.success) {
+        showToast(res.message, 'success');
+      } else {
+        showToast(res.message, 'warning');
+      }
+      const st = await checkUsersTableStatus();
+      setDbUsersStatus(st);
+    } catch (e: any) {
+      showToast('Falha na sincronização de usuários: ' + e.message, 'error');
+    } finally {
+      setIsSyncingUsersDb(false);
+    }
+  };
+
   // COMPENSATION POLICY HANDLER
   const handleSaveCompensation = (e: React.FormEvent) => {
+
     e.preventDefault();
     setCompensation(compForm);
 
@@ -935,15 +1010,17 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
         </div>
       </div>
 
-      {/* Navigation Sub-tabs */}
-      <div className="flex items-center justify-start sm:justify-center gap-1.5 bg-white dark:bg-slate-800/90 p-1.5 rounded-xl border border-slate-200/80 dark:border-slate-700 shadow-2xs overflow-x-auto scrollbar-none touch-scroll max-w-full">
-        <div className="flex items-center gap-1.5 flex-nowrap sm:flex-wrap justify-start sm:justify-center">
+      {/* Navigation Sub-tabs & Search Toolbar (Single Line Row) */}
+      <div className="flex items-center justify-between gap-2.5 bg-white dark:bg-slate-800/90 p-1.5 rounded-2xl border border-slate-200/80 dark:border-slate-700 shadow-2xs max-w-full overflow-hidden">
+        {/* Horizontal Tab Buttons (Strictly Single Line with Smooth Horizontal Scroll) */}
+        <div className="flex items-center gap-1 flex-nowrap overflow-x-auto scrollbar-none py-0.5 min-w-0 flex-1">
           {/* Master Company Management Tab */}
           {isMaster && (
             <>
               <button
+                type="button"
                 onClick={() => { setActiveTab('companies'); setSearchQuery(''); }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                   activeTab === 'companies'
                     ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-2xs font-black ring-1 ring-amber-300'
                     : 'text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40'
@@ -955,8 +1032,9 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
               </button>
 
               <button
+                type="button"
                 onClick={() => { setActiveTab('audit_logs'); setSearchQuery(''); }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                   activeTab === 'audit_logs'
                     ? 'bg-emerald-600 text-white shadow-2xs font-black ring-1 ring-emerald-300'
                     : 'text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40'
@@ -970,11 +1048,12 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
           )}
 
           <button
+            type="button"
             onClick={() => { setActiveTab('users'); setSearchQuery(''); }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
               activeTab === 'users'
                 ? 'bg-purple-600 text-white shadow-2xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/70'
             }`}
           >
             <Users className="w-3.5 h-3.5" />
@@ -982,11 +1061,12 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
           </button>
 
           <button
+            type="button"
             onClick={() => { setActiveTab('drones'); setSearchQuery(''); }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
               activeTab === 'drones'
                 ? 'bg-sky-600 text-white shadow-2xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/70'
             }`}
           >
             <Plane className="w-3.5 h-3.5" />
@@ -994,11 +1074,12 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
           </button>
 
           <button
+            type="button"
             onClick={() => { setActiveTab('clients'); setSearchQuery(''); }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
               activeTab === 'clients'
                 ? 'bg-emerald-600 text-white shadow-2xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/70'
             }`}
           >
             <Building2 className="w-3.5 h-3.5" />
@@ -1006,11 +1087,12 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
           </button>
 
           <button
+            type="button"
             onClick={() => { setActiveTab('compensation'); setSearchQuery(''); }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
               activeTab === 'compensation'
                 ? 'bg-amber-500 text-slate-950 shadow-2xs font-black'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/70'
             }`}
           >
             <DollarSign className="w-3.5 h-3.5" />
@@ -1018,52 +1100,55 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
           </button>
 
           <button
+            type="button"
             onClick={() => { setActiveTab('pricing'); setSearchQuery(''); }}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
               activeTab === 'pricing'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+                ? 'bg-emerald-600 text-white shadow-2xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/70'
             }`}
           >
-            <Sliders className="w-4 h-4" />
+            <Sliders className="w-3.5 h-3.5" />
             <span>Precificação</span>
           </button>
 
           <button
+            type="button"
             onClick={() => { setActiveTab('fleet'); setSearchQuery(''); }}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
               activeTab === 'fleet'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+                ? 'bg-blue-600 text-white shadow-2xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/70'
             }`}
           >
-            <Users className="w-4 h-4" />
+            <Users className="w-3.5 h-3.5" />
             <span>Frota & Equipe</span>
           </button>
 
           <button
+            type="button"
             onClick={() => { setActiveTab('branding'); setSearchQuery(''); }}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
               activeTab === 'branding'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+                ? 'bg-emerald-600 text-white shadow-2xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/70'
             }`}
           >
-            <Palette className="w-4 h-4" />
+            <Palette className="w-3.5 h-3.5" />
             <span>Logotipo & Marca</span>
           </button>
         </div>
 
-        {/* Search Bar for items */}
-        {activeTab !== 'compensation' && (
-          <div className="relative w-full sm:w-64">
+        {/* Search Bar for items (Cleanly aligned on the same single line) */}
+        {activeTab !== 'compensation' && activeTab !== 'branding' && (
+          <div className="relative shrink-0 w-44 sm:w-56 lg:w-64">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
             <input
               type="text"
               placeholder="Buscar por nome, documento..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+              className="w-full pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
             />
           </div>
         )}
@@ -1095,6 +1180,53 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
               <span>{isMaster ? 'Cadastrar Novo Administrador / Usuário' : 'Adicionar Colaborador'}</span>
             </button>
           </div>
+
+          {/* Supabase Cloud Database Sync Status Banner */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 bg-slate-900/60 dark:bg-slate-900/90 border border-slate-800 rounded-2xl">
+            <div className="flex items-center gap-3">
+              <div className={`w-3 h-3 rounded-full shrink-0 ${dbUsersStatus?.connected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
+                    <Database className="w-3.5 h-3.5 text-purple-400" />
+                    Sincronização com Banco de Dados Supabase:
+                  </span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                    dbUsersStatus?.connected ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                  }`}>
+                    {dbUsersStatus?.connected ? 'Conectado (Cloud Sync)' : 'Modo Offline / IndexedDB'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Tabelas relacionais: <code className="text-purple-300 font-mono">user_profiles</code>, <code className="text-purple-300 font-mono">crew_pilots</code>, <code className="text-purple-300 font-mono">crew_assistants</code> e <code className="text-purple-300 font-mono">tenants</code>.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-stretch sm:self-auto justify-end">
+              <button
+                type="button"
+                onClick={handleSyncUsersToCloud}
+                disabled={isSyncingUsersDb}
+                className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-transform active:scale-95"
+                title="Forçar envio de todos os usuários e tripulantes cadastrados para o banco de dados na nuvem"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isSyncingUsersDb ? 'animate-spin' : ''}`} />
+                <span>{isSyncingUsersDb ? 'Sincronizando...' : 'Sincronizar Banco'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowUserSchemaModal(true)}
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-medium flex items-center gap-1.5 cursor-pointer border border-slate-700"
+                title="Ver estrutura relacional SQL e DDL das tabelas de usuários"
+              >
+                <Database className="w-3.5 h-3.5 text-slate-400" />
+                <span>Estrutura SQL & Tabelas</span>
+              </button>
+            </div>
+          </div>
+
 
           {/* Master Company Filter Pills */}
           {isMaster && (
@@ -2162,18 +2294,6 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
         <AuditLogsView currentUser={currentUser} />
       )}
 
-      {activeTab === 'virtual-tour' && (
-        <div className="p-6 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
-           <p className="text-sm text-slate-600 dark:text-slate-300">Conteúdo de Tour Virtual</p>
-        </div>
-      )}
-
-      {activeTab === 'help' && (
-        <div className="p-6 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
-           <p className="text-sm text-slate-600 dark:text-slate-300">Conteúdo de Ajuda & Manuais</p>
-        </div>
-      )}
-
       {/* ========================================================================= */}
       {/* MODAL: CADASTRAR / EDITAR EMPRESA COM CONFIGURAÇÃO DE LOGOTIPO */}
       {/* ========================================================================= */}
@@ -2236,7 +2356,6 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
                             logoIconId: companyFormData.logoIconId,
                           } as any} 
                           size="md" 
-                          showText={false} 
                           className="w-full h-full text-white" 
                         />
                       )}
@@ -3465,6 +3584,259 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
         }}
         title={`Alterar Foto de Perfil: ${activeUserPhotoModal?.name || ''}`}
       />
+
+      {/* User Database Relational Schema & DDL Modal */}
+      {showUserSchemaModal && (
+
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto space-y-5 shadow-2xl text-slate-100">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                  <Database className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white">
+                    Estrutura Relacional: Usuários, Pilotos, Auxiliares & Empresas
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Definição DDL no PostgreSQL (Supabase) com chaves estrangeiras, integridade referencial e RLS.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowUserSchemaModal(false)}
+                className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Relational Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono font-bold text-purple-400">public.user_profiles</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-300 font-bold border border-purple-500/30">
+                    Tabela de Usuários
+                  </span>
+                </div>
+                <ul className="text-xs space-y-1 text-slate-300">
+                  <li><code className="text-amber-300 font-mono">id</code> (TEXT / UUID, PK)</li>
+                  <li><code className="text-sky-300 font-mono">company_id</code> $\rightarrow$ <code>public.tenants(id)</code> (FK)</li>
+                  <li><code className="text-emerald-300 font-mono">name, email, role, role_label</code></li>
+                  <li><code className="text-emerald-300 font-mono">password, photo_url, avatar_url</code></li>
+                  <li><code className="text-emerald-300 font-mono">allowed_views, is_master</code></li>
+                </ul>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono font-bold text-blue-400">public.crew_pilots</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-300 font-bold border border-blue-500/30">
+                    Pilotos Agrícolas
+                  </span>
+                </div>
+                <ul className="text-xs space-y-1 text-slate-300">
+                  <li><code className="text-amber-300 font-mono">id</code> (TEXT, PK)</li>
+                  <li><code className="text-sky-300 font-mono">user_id</code> $\rightarrow$ <code>public.user_profiles(id)</code> (FK)</li>
+                  <li><code className="text-sky-300 font-mono">company_id</code> $\rightarrow$ <code>public.tenants(id)</code> (FK)</li>
+                  <li><code className="text-blue-300 font-mono">decea_license, commission_per_ha</code></li>
+                  <li><code className="text-blue-300 font-mono">salary_base, available, photo_url</code></li>
+                </ul>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono font-bold text-amber-400">public.crew_assistants</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 font-bold border border-amber-500/30">
+                    Auxiliares de Campo / Calda
+                  </span>
+                </div>
+                <ul className="text-xs space-y-1 text-slate-300">
+                  <li><code className="text-amber-300 font-mono">id</code> (TEXT, PK)</li>
+                  <li><code className="text-sky-300 font-mono">user_id</code> $\rightarrow$ <code>public.user_profiles(id)</code> (FK)</li>
+                  <li><code className="text-sky-300 font-mono">company_id</code> $\rightarrow$ <code>public.tenants(id)</code> (FK)</li>
+                  <li><code className="text-amber-300 font-mono">nr31_certified, commission_per_ha</code></li>
+                  <li><code className="text-amber-300 font-mono">salary_base, available, photo_url</code></li>
+                </ul>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono font-bold text-emerald-400">public.tenants</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 font-bold border border-emerald-500/30">
+                    Empresas Contratantes
+                  </span>
+                </div>
+                <ul className="text-xs space-y-1 text-slate-300">
+                  <li><code className="text-amber-300 font-mono">id</code> (TEXT, PK)</li>
+                  <li><code className="text-emerald-300 font-mono">name, trade_name, cnpj</code></li>
+                  <li><code className="text-emerald-300 font-mono">primary_color, secondary_color, accent_color</code></li>
+                  <li><code className="text-emerald-300 font-mono">registry_crea_mapa, status</code></li>
+                </ul>
+              </div>
+            </div>
+
+            {/* SQL Snippet */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                  <Database className="w-3.5 h-3.5 text-purple-400" />
+                  Script de Migração SQL (DDL PostgreSQL):
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const sqlText = `-- AgroSys - Script de Migração: Usuários, Pilotos, Auxiliares & Relacionamentos
+CREATE TABLE IF NOT EXISTS public.tenants (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    trade_name TEXT,
+    cnpj TEXT NOT NULL,
+    state_registration TEXT,
+    registry_crea_mapa TEXT,
+    phone TEXT,
+    email TEXT,
+    city_state TEXT,
+    tagline TEXT,
+    primary_color TEXT DEFAULT '#0284c7',
+    secondary_color TEXT DEFAULT '#0f766e',
+    accent_color TEXT DEFAULT '#f59e0b',
+    crop_focus TEXT,
+    description TEXT,
+    status TEXT DEFAULT 'ACTIVE',
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.user_profiles (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    company_id TEXT REFERENCES public.tenants(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    name TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'USER',
+    role_label TEXT DEFAULT 'Usuário / Produtor Rural',
+    email TEXT UNIQUE,
+    avatar_url TEXT,
+    photo_url TEXT,
+    badge TEXT DEFAULT 'Colaborador',
+    document_number TEXT,
+    phone TEXT,
+    license_code TEXT,
+    farm_name TEXT,
+    status TEXT DEFAULT 'ACTIVE',
+    salary_base NUMERIC DEFAULT 0,
+    hired_date DATE,
+    password TEXT,
+    is_master BOOLEAN DEFAULT false,
+    allowed_views JSONB DEFAULT '[]'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.crew_pilots (
+    id TEXT PRIMARY KEY DEFAULT ('pilot-' || extract(epoch from now())::bigint || '-' || substr(md5(random()::text), 1, 6)),
+    user_id TEXT REFERENCES public.user_profiles(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    company_id TEXT REFERENCES public.tenants(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    name TEXT NOT NULL,
+    cpf TEXT,
+    phone TEXT,
+    email TEXT,
+    license TEXT,
+    decea_license TEXT,
+    cma_expiration DATE,
+    commission_per_ha NUMERIC DEFAULT 8.00,
+    commission_rate_per_ha NUMERIC DEFAULT 8.00,
+    total_hours_flown NUMERIC DEFAULT 0,
+    available BOOLEAN DEFAULT true,
+    status TEXT DEFAULT 'AVAILABLE',
+    salary_base NUMERIC DEFAULT 4800,
+    photo_url TEXT,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.crew_assistants (
+    id TEXT PRIMARY KEY DEFAULT ('assistant-' || extract(epoch from now())::bigint || '-' || substr(md5(random()::text), 1, 6)),
+    user_id TEXT REFERENCES public.user_profiles(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    company_id TEXT REFERENCES public.tenants(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    name TEXT NOT NULL,
+    cpf TEXT,
+    phone TEXT,
+    email TEXT,
+    commission_per_ha NUMERIC DEFAULT 3.00,
+    commission_rate_per_ha NUMERIC DEFAULT 3.00,
+    nr31_certified BOOLEAN DEFAULT true,
+    available BOOLEAN DEFAULT true,
+    status TEXT DEFAULT 'AVAILABLE',
+    salary_base NUMERIC DEFAULT 2650,
+    photo_url TEXT,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.crew_pilots ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.crew_assistants ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow all on user_profiles" ON public.user_profiles;
+CREATE POLICY "Allow all on user_profiles" ON public.user_profiles FOR ALL TO public USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all on crew_pilots" ON public.crew_pilots;
+CREATE POLICY "Allow all on crew_pilots" ON public.crew_pilots FOR ALL TO public USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all on crew_assistants" ON public.crew_assistants;
+CREATE POLICY "Allow all on crew_assistants" ON public.crew_assistants FOR ALL TO public USING (true) WITH CHECK (true);`;
+                    navigator.clipboard.writeText(sqlText);
+                    setCopiedUserSql(true);
+                    showToast('Script SQL copiado para a área de transferência!');
+                    setTimeout(() => setCopiedUserSql(false), 2500);
+                  }}
+                  className="px-3 py-1 bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/40 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                >
+                  {copiedUserSql ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedUserSql ? 'Copiado!' : 'Copiar Script SQL'}</span>
+                </button>
+              </div>
+
+              <pre className="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-xs font-mono text-purple-300 overflow-x-auto max-h-52">
+{`-- Chaves Estrangeiras & Relacionamentos
+user_profiles.company_id  ->  tenants.id (ON DELETE SET NULL)
+crew_pilots.user_id       ->  user_profiles.id (ON DELETE SET NULL)
+crew_pilots.company_id    ->  tenants.id (ON DELETE CASCADE)
+crew_assistants.user_id   ->  user_profiles.id (ON DELETE SET NULL)
+crew_assistants.company_id->  tenants.id (ON DELETE CASCADE)
+user_activity_logs.user_id->  user_profiles.id (ON DELETE SET NULL)`}
+              </pre>
+            </div>
+
+            <div className="flex items-center justify-between pt-3 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={async () => {
+                  const st = await checkUsersTableStatus();
+                  setDbUsersStatus(st);
+                  showToast(st.message, st.connected ? 'success' : 'warning');
+                }}
+                className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Re-testar Conexão</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowUserSchemaModal(false)}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold cursor-pointer"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+

@@ -299,7 +299,9 @@ export const ChemicalLeafletLibrary: React.FC<ChemicalLeafletLibraryProps> = ({
                     <h3 className="text-sm font-black text-emerald-950 dark:text-white group-hover:text-emerald-600 transition-colors flex items-center justify-between leading-tight">
                       <span className="truncate pr-2">{leaflet.commercialName}</span>
                       {inMix && (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" title="Adicionado na Calda" />
+                        <span title="Adicionado na Calda">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                        </span>
                       )}
                     </h3>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate mt-0.5">

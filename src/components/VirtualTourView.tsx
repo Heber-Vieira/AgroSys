@@ -25,16 +25,18 @@ import {
   Layers
 } from 'lucide-react';
 import { TOUR_STEPS } from '../data/tourStepsData';
-import { WhiteLabelTheme, AppViewMode } from '../types';
+import { WhiteLabelTheme, AppViewMode, UserProfile } from '../types';
 import { formatDecimal, formatBRL, formatHectares, formatPercent } from '../utils/formatters';
 
 interface VirtualTourViewProps {
+  currentUser?: UserProfile;
   theme: WhiteLabelTheme;
   onNavigate?: (view: AppViewMode) => void;
   onStartLiveTour?: () => void;
 }
 
 export const VirtualTourView: React.FC<VirtualTourViewProps> = ({ 
+  currentUser,
   theme,
   onNavigate,
   onStartLiveTour

@@ -55,7 +55,14 @@ import {
   SprayQuotation
 } from './types';
 import { PRESET_COMPANIES, generateToneScale } from './data/themeTokensData';
-import { isMasterUser, normalizeUserProfile, canUserAccessView } from './utils/userPermissions';
+import { 
+  isMasterUser, 
+  normalizeUserProfile, 
+  canUserAccessView,
+  deduplicateUserProfiles,
+  deduplicateCrewPilots,
+  deduplicateCrewAssistants
+} from './utils/userPermissions';
 import { 
   getStoredConfiguredLogoUrl, 
   setStoredConfiguredLogoUrl, 
@@ -94,7 +101,14 @@ import {
   formatTimestampToDate 
 } from './utils/batteryAlertUtils';
 import { showToast } from './services/notificationService';
-import { loadTenantBrandingFromSupabase, loadUserPhotosFromSupabase, saveAppDataToSupabase, saveUserProfileToSupabase } from './services/supabase';
+import { 
+  loadTenantBrandingFromSupabase, 
+  loadUserPhotosFromSupabase, 
+  saveAppDataToSupabase, 
+  saveUserProfileToSupabase,
+  loadUserProfilesFromSupabase,
+  subscribeToUserProfiles
+} from './services/supabase';
 import { USER_PHOTO_STORAGE_KEY } from './components/UserAvatar';
 import { hydrateAllCloudData, saveBatteryAlertSettingsToCloud, saveServiceOrdersToCloud, loadServiceOrdersFromCloud } from './services/cloudSyncService';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
@@ -156,7 +170,7 @@ export default function App() {
     // Only show toast on actual transition, not initial render
     if (initialNetworkState.current !== isActuallyOffline) {
       if (isActuallyOffline) {
-        showToast('Conexão perdida. Operando de forma resiliente em modo Offline (Fila de Sincronização Local ativada).', 'offline');
+        showToast('Conexão perdida. Operando de forma resiliente em modo Offline (Fila de Sincronização Local ativada).', 'warning');
       } else {
         showToast('Conexão reestabelecida! Sincronizando dados pendentes com a nuvem...', 'success');
         hydrateAllCloudData().catch(e => console.warn('Erro na hidratação pós-reconexão', e));
@@ -201,7 +215,7 @@ export default function App() {
   // Master Application State collections (Persisted to LocalStorage)
   const [allUsers, setAllUsers] = useState<UserProfile[]>(() => {
     const raw = loadAndMergeWithMock('agrodrone_users_fleet', USER_PROFILES);
-    return raw.map(normalizeUserProfile);
+    return deduplicateUserProfiles(raw);
   });
 
   const [currentUser, setCurrentUser] = useState<UserProfile>(() => {
@@ -223,13 +237,49 @@ export default function App() {
   // Sync users to localStorage and Supabase Cloud
   useEffect(() => {
     try {
-      localStorage.setItem('agrodrone_users_fleet', JSON.stringify(allUsers));
-      saveAppDataToSupabase('users_fleet', allUsers).catch(e => console.warn('Aviso ao sincronizar usuários com Supabase:', e));
-      allUsers.forEach(u => saveUserProfileToSupabase(u).catch(() => {}));
+      const deduplicated = deduplicateUserProfiles(allUsers);
+      localStorage.setItem('agrodrone_users_fleet', JSON.stringify(deduplicated));
+      saveAppDataToSupabase('users_fleet', deduplicated).catch(e => console.warn('Aviso ao sincronizar usuários com Supabase:', e));
+      deduplicated.forEach(u => saveUserProfileToSupabase(u).catch(() => {}));
     } catch (e) {
       console.warn('Falha ao salvar usuários no localStorage:', e);
     }
   }, [allUsers]);
+
+  // Initial Cloud User Hydration & Realtime Subscription
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchAndMergeUsers = async () => {
+      try {
+        const cloudUsers = await loadUserProfilesFromSupabase();
+        if (!isMounted || !cloudUsers || cloudUsers.length === 0) return;
+
+        setAllUsers(prevUsers => {
+          const combined = [...USER_PROFILES, ...prevUsers, ...cloudUsers];
+          const merged = deduplicateUserProfiles(combined);
+          try {
+            localStorage.setItem('agrodrone_users_fleet', JSON.stringify(merged));
+          } catch (e) {}
+          return merged;
+        });
+      } catch (err) {
+        console.warn('Erro ao carregar usuários da nuvem:', err);
+      }
+    };
+
+    fetchAndMergeUsers();
+    hydrateAllCloudData().catch(e => console.warn('Aviso na hidratação geral:', e));
+
+    const unsubscribe = subscribeToUserProfiles(() => {
+      fetchAndMergeUsers();
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
 
   // Sync currentUser to localStorage
   useEffect(() => {
@@ -293,18 +343,20 @@ export default function App() {
     } catch (e) {}
   }, [allMaintenanceLogs]);
 
-  const [allPilots, setAllPilots] = useState<CrewPilot[]>(() => 
-    loadAndMergeWithMock('agrodrone_pilots_fleet', INITIAL_PILOTS)
-  );
+  const [allPilots, setAllPilots] = useState<CrewPilot[]>(() => {
+    const raw = loadAndMergeWithMock('agrodrone_pilots_fleet', INITIAL_PILOTS);
+    return deduplicateCrewPilots(raw);
+  });
   useEffect(() => {
     try {
       localStorage.setItem('agrodrone_pilots_fleet', JSON.stringify(allPilots));
     } catch (e) {}
   }, [allPilots]);
 
-  const [allAssistants, setAllAssistants] = useState<CrewAssistant[]>(() => 
-    loadAndMergeWithMock('agrodrone_assistants_fleet', INITIAL_ASSISTANTS)
-  );
+  const [allAssistants, setAllAssistants] = useState<CrewAssistant[]>(() => {
+    const raw = loadAndMergeWithMock('agrodrone_assistants_fleet', INITIAL_ASSISTANTS);
+    return deduplicateCrewAssistants(raw);
+  });
   useEffect(() => {
     try {
       localStorage.setItem('agrodrone_assistants_fleet', JSON.stringify(allAssistants));
@@ -551,13 +603,13 @@ export default function App() {
 
   const setUsers: React.Dispatch<React.SetStateAction<UserProfile[]>> = (action) => {
     setAllUsers(prevAll => {
-      if (activeTenantId === 'ALL') {
+      if (activeTenantId === 'ALL' || isMasterUser(currentUser)) {
         return typeof action === 'function' ? (action as any)(prevAll) : action;
       }
       const currentScoped = prevAll.filter(u => u.role === 'ADMIN' || u.role === 'MASTER' || u.isMaster || (u.companyId || 'ciclodrone') === activeTenantId);
       const resolved = typeof action === 'function' ? (action as any)(currentScoped) : action;
       const tagged = resolved.map((item: UserProfile) => ({ ...item, companyId: item.companyId || activeTenantId }));
-      const otherCompanies = prevAll.filter(u => u.role !== 'ADMIN' && u.role !== 'MASTER' && !u.isMaster && (u.companyId || 'ciclodrone') !== activeTenantId);
+      const otherCompanies = prevAll.filter(u => !tagged.some((t: UserProfile) => t.id === u.id));
       return [...otherCompanies, ...tagged];
     });
   };
@@ -1154,8 +1206,8 @@ export default function App() {
         {currentView === 'admin-management' && (
           <AdminManagementHubView
             currentUser={currentUser}
-            users={users}
-            setUsers={setUsers}
+            users={isMasterUser(currentUser) ? allUsers : users}
+            setUsers={isMasterUser(currentUser) ? setAllUsers : setUsers}
             drones={drones}
             setDrones={setDrones}
             batteries={batteries}

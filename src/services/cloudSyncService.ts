@@ -35,6 +35,7 @@ import { USER_PHOTO_STORAGE_KEY } from '../components/UserAvatar';
 import { 
   restoreDurableStorageToLocalStorage, 
   saveToDurableStorage, 
+  getDurableSetting,
   setIDBItem, 
   STORES 
 } from './dbStorageEngine';
@@ -290,7 +291,7 @@ export async function hydrateAllCloudData(): Promise<CloudHydrationResult> {
 
     // 0. Hydrate AgroSys Master System Logo & Branding
     if (cloudSystemBranding) {
-      result.systemBranding = cloudSystemBranding;
+      result.systemBranding = { ...result.systemBranding, ...cloudSystemBranding };
       await saveStoredSystemBranding(cloudSystemBranding);
     }
 

@@ -46,6 +46,7 @@ import { UserAvatar, getStoredUserPhoto } from './UserAvatar';
 import { SprayReportModal } from './SprayReportModal';
 import { WeatherAlertOperatorPanel } from './weather/WeatherAlertOperatorPanel';
 import { formatBRL, formatHectares, formatDecimal, formatDateBR, formatDateTimeBR } from '../utils/formatters';
+import { filterOrdersForUser, isServiceOrderAssignedToUser, isMasterUser, doNamesMatch } from '../utils/userPermissions';
 
 interface ServiceOrdersViewProps {
   currentUser: UserProfile;
@@ -80,6 +81,11 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
   const [showCompletedArchive, setShowCompletedArchive] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedCertificateOrder, setSelectedCertificateOrder] = useState<ServiceOrder | null>(null);
+
+  // 1. Data Isolation & RBAC: Precision Filtering for Current User (Pilots/Assistants/Clients)
+  const userScopedOrders = React.useMemo(() => {
+    return filterOrdersForUser(orders, currentUser, pilots, assistants);
+  }, [orders, currentUser, pilots, assistants]);
   
   // Custom Spray Report Modal State
   const [showReportModal, setShowReportModal] = useState<boolean>(false);
@@ -115,13 +121,30 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
     }));
   };
 
+  // Find linked pilot/assistant for current user if applicable
+  const linkedPilot = React.useMemo(() => {
+    if (currentUser.role !== 'PILOT') return undefined;
+    return pilots.find(p => p.id === currentUser.id || doNamesMatch(p.name, currentUser.name));
+  }, [pilots, currentUser]);
+
+  const linkedAssistant = React.useMemo(() => {
+    if (currentUser.role !== 'ASSISTANT') return undefined;
+    return assistants.find(a => a.id === currentUser.id || doNamesMatch(a.name, currentUser.name));
+  }, [assistants, currentUser]);
+
   // New OS Form State
   const [newOSPlotId, setNewOSPlotId] = useState<string>(plots[0]?.id || '');
   const [newOSTargetPest, setNewOSTargetPest] = useState<string>('Fungicida + Adjuvante');
   const [newOSSprayRate, setNewOSSprayRate] = useState<number>(10.0);
   const [newOSDroneId, setNewOSDroneId] = useState<string>(drones[0]?.id || '');
-  const [newOSPilotId, setNewOSPilotId] = useState<string>(pilots[0]?.id || '');
-  const [newOSAssistantId, setNewOSAssistantId] = useState<string>(assistants[0]?.id || '');
+  const [newOSPilotId, setNewOSPilotId] = useState<string>(linkedPilot?.id || pilots[0]?.id || '');
+  const [newOSAssistantId, setNewOSAssistantId] = useState<string>(linkedAssistant?.id || assistants[0]?.id || '');
+
+  // Keep pilot/assistant in sync if user changes
+  React.useEffect(() => {
+    if (linkedPilot) setNewOSPilotId(linkedPilot.id);
+    if (linkedAssistant) setNewOSAssistantId(linkedAssistant.id);
+  }, [linkedPilot, linkedAssistant]);
 
   const selectedPlot = plots.find(p => p.id === newOSPlotId) || plots[0];
   const selectedDrone = drones.find(d => d.id === newOSDroneId) || drones[0];
@@ -170,12 +193,12 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
       digitalSigned: false,
     };
 
-    setOrders([newOrder, ...orders]);
+    setOrders(prev => [newOrder, ...prev]);
     setShowNewOSModal(false);
   };
 
   const updateOrderStatus = (orderId: string, newStatus: OSStatus) => {
-    setOrders(orders.map(order => {
+    setOrders(prevOrders => prevOrders.map(order => {
       if (order.id === orderId) {
         const isCompleting = newStatus === 'COMPLETED';
         const sprayed = isCompleting ? order.targetHectares : order.sprayedHectares;
@@ -193,19 +216,11 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
     }));
   };
 
-  // Filter orders
-  const openOrdersCount = orders.filter(o => o.status !== 'COMPLETED').length;
-  const completedOrdersCount = orders.filter(o => o.status === 'COMPLETED').length;
+  // Filter orders count accurately for current user scope
+  const openOrdersCount = userScopedOrders.filter(o => o.status !== 'COMPLETED').length;
+  const completedOrdersCount = userScopedOrders.filter(o => o.status === 'COMPLETED').length;
 
-  const filteredOrders = orders.filter(order => {
-    const matchesRole = currentUser.role === 'USER'
-      ? (order.clientId === currentUser.id || order.clientName.toLowerCase().includes(currentUser.name.toLowerCase()))
-      : currentUser.role === 'PILOT'
-      ? (order.pilotId === 'pilot-1' || order.pilotName.includes(currentUser.name.split(' ')[1] || ''))
-      : currentUser.role === 'ASSISTANT'
-      ? (order.assistantId === 'assistant-1' || order.assistantName.includes(currentUser.name.split(' ')[0]))
-      : true;
-
+  const filteredOrders = userScopedOrders.filter(order => {
     let matchesStatus = true;
     if (filterStatus === 'OPEN') {
       matchesStatus = order.status !== 'COMPLETED';
@@ -223,13 +238,36 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
     const matchesSearch = order.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           order.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           order.plotName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          order.crop.toLowerCase().includes(searchTerm.toLowerCase());
+                          order.crop.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          order.pilotName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          order.assistantName.toLowerCase().includes(searchTerm.toLowerCase());
 
-    return matchesRole && matchesStatus && matchesSearch;
+    return matchesStatus && matchesSearch;
   });
 
   return (
     <div className="space-y-3 sm:space-y-3.5 animate-in fade-in duration-150">
+      {/* Pilot/Assistant Personal Scope Notification Banner */}
+      {(currentUser.role === 'PILOT' || currentUser.role === 'ASSISTANT') && (
+        <div className="bg-emerald-50 dark:bg-[#06241a] border border-emerald-300/80 dark:border-emerald-700/80 px-3.5 py-2 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-emerald-950 dark:text-emerald-100 shadow-2xs">
+          <div className="flex items-center gap-2">
+            <span className="flex h-2 w-2 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span className="font-extrabold text-emerald-900 dark:text-emerald-200">
+              {currentUser.role === 'PILOT' ? '✈️ Escala do Piloto' : '🧪 Escala do Auxiliar de Calda'}:
+            </span>
+            <span className="text-emerald-800 dark:text-emerald-300 text-[11px] sm:text-xs">
+              Visualização restrita às Ordens de Serviço sob responsabilidade de <strong>{currentUser.name}</strong> ({userScopedOrders.length} OS{userScopedOrders.length === 1 ? '' : 's'} atribuída{userScopedOrders.length === 1 ? '' : 's'}).
+            </span>
+          </div>
+          <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-white dark:bg-emerald-950 font-bold border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 self-start sm:self-auto">
+            {currentUser.licenseCode || currentUser.documentNumber || currentUser.badge}
+          </span>
+        </div>
+      )}
+
       {/* Header & New OS Button */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
         <div>
@@ -244,7 +282,7 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
         <div className="flex flex-wrap items-center gap-1.5 self-start sm:self-auto">
           <button
             onClick={() => {
-              setReportSelectedOrderId(orders[0]?.id);
+              setReportSelectedOrderId(userScopedOrders[0]?.id || orders[0]?.id);
               setShowReportModal(true);
             }}
             className="px-2.5 py-1.5 rounded-lg font-bold bg-white dark:bg-emerald-950/80 hover:bg-emerald-50 dark:hover:bg-emerald-900/60 text-emerald-900 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700 shadow-2xs transition-transform active:scale-95 flex items-center gap-1.5 text-xs cursor-pointer"
@@ -1015,7 +1053,7 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
       <SprayReportModal
         isOpen={showReportModal}
         onClose={() => setShowReportModal(false)}
-        serviceOrders={orders}
+        serviceOrders={userScopedOrders}
         selectedOrderId={reportSelectedOrderId}
         theme={theme}
         currentUser={currentUser}

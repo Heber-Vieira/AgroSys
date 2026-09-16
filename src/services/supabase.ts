@@ -1,6 +1,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { WhiteLabelTheme, UserProfile, ServiceOrder } from '../types';
 import { USER_PROFILES, INITIAL_PILOTS, INITIAL_ASSISTANTS } from '../data/mockAppState';
+import { deduplicateUserProfiles } from '../utils/userPermissions';
 
 const env = (import.meta as any).env || {};
 const DEFAULT_SUPABASE_URL = env.VITE_SUPABASE_URL || 'https://ioqdflvonlajalonxctd.supabase.co';
@@ -783,69 +784,196 @@ export async function loadUserPhotosFromSupabase(): Promise<Record<string, strin
   }
 }
 
+
 /**
- * Persists a UserProfile object to Supabase cloud database.
+ * Checks connectivity and schema readiness of user tables in Supabase.
  */
-export async function saveUserProfileToSupabase(user: UserProfile) {
+export async function checkUsersTableStatus(): Promise<{ 
+  connected: boolean; 
+  userProfilesReady: boolean; 
+  crewPilotsReady: boolean; 
+  crewAssistantsReady: boolean; 
+  message: string 
+}> {
+  try {
+    const [profilesRes, pilotsRes, asstRes] = await Promise.all([
+      supabase.from('user_profiles').select('id', { count: 'exact', head: true }),
+      supabase.from('crew_pilots').select('id', { count: 'exact', head: true }),
+      supabase.from('crew_assistants').select('id', { count: 'exact', head: true })
+    ]);
+
+    const userProfilesReady = !profilesRes.error;
+    const crewPilotsReady = !pilotsRes.error;
+    const crewAssistantsReady = !asstRes.error;
+    const allReady = userProfilesReady && crewPilotsReady && crewAssistantsReady;
+
+    return {
+      connected: true,
+      userProfilesReady,
+      crewPilotsReady,
+      crewAssistantsReady,
+      message: allReady 
+        ? 'Tabelas de Usuários, Pilotos e Auxiliares sincronizadas com o banco de dados Supabase.' 
+        : 'Conectado ao Supabase, mas algumas tabelas precisam ser criadas ou atualizadas via script SQL.'
+    };
+  } catch (err: any) {
+    return {
+      connected: false,
+      userProfilesReady: false,
+      crewPilotsReady: false,
+      crewAssistantsReady: false,
+      message: `Erro ao verificar tabelas de usuários: ${err?.message || err}. Operando com persistência local durável IndexedDB.`
+    };
+  }
+}
+
+/**
+ * Persists a UserProfile object to Supabase cloud database with relational sync.
+ */
+export async function saveUserProfileToSupabase(user: UserProfile): Promise<{ success: boolean; error?: string }> {
   try {
     if (!user || (!user.id && !user.email)) return { success: false, error: 'Usuário inválido' };
     const now = new Date().toISOString();
-
-    const isValidUuid = UUID_REGEX.test(user.id);
+    const isUuid = UUID_REGEX.test(user.id);
+    const resolvedUuid = isUuid ? user.id : (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : undefined);
 
     // 1. Primary: Upsert to user_profiles table in Supabase
     try {
-      if (isValidUuid) {
-        await supabase.from('user_profiles').upsert({
-          id: user.id,
-          company_id: user.companyId || 'ciclodrone',
-          name: user.name,
-          role: user.role,
-          role_label: user.roleLabel,
-          email: user.email,
-          document_number: user.documentNumber || null,
-          phone: user.phone || null,
-          farm_name: user.farmName || null,
-          license_code: user.licenseCode || null,
-          status: user.status || 'ACTIVE',
-          salary_base: user.salaryBase || 0,
-          password: user.password || null,
-          hired_date: user.hiredDate || null,
-          photo_url: user.photoUrl || user.avatarUrl || null,
-          avatar_url: user.photoUrl || user.avatarUrl || null,
-          badge: user.badge || user.roleLabel,
-          is_master: user.isMaster || false,
-          allowed_views: user.allowedViews || null,
-          updated_at: now,
-        }, { onConflict: 'id' });
-      } else if (user.email) {
-        await supabase.from('user_profiles').upsert({
-          email: user.email,
-          company_id: user.companyId || 'ciclodrone',
-          name: user.name,
-          role: user.role,
-          role_label: user.roleLabel,
-          document_number: user.documentNumber || null,
-          phone: user.phone || null,
-          farm_name: user.farmName || null,
-          license_code: user.licenseCode || null,
-          status: user.status || 'ACTIVE',
-          salary_base: user.salaryBase || 0,
-          password: user.password || null,
-          hired_date: user.hiredDate || null,
-          photo_url: user.photoUrl || user.avatarUrl || null,
-          avatar_url: user.photoUrl || user.avatarUrl || null,
-          badge: user.badge || user.roleLabel,
-          is_master: user.isMaster || false,
-          allowed_views: user.allowedViews || null,
-          updated_at: now,
-        }, { onConflict: 'email' });
+      const fullPayload: Record<string, any> = {
+        company_id: user.companyId || 'ciclodrone',
+        name: user.name,
+        role: user.role,
+        role_label: user.roleLabel,
+        email: user.email,
+        document_number: user.documentNumber || null,
+        phone: user.phone || null,
+        farm_name: user.farmName || null,
+        license_code: user.licenseCode || null,
+        status: user.status || 'ACTIVE',
+        salary_base: user.salaryBase || 0,
+        password: user.password || null,
+        hired_date: user.hiredDate || null,
+        photo_url: user.photoUrl || user.avatarUrl || null,
+        avatar_url: user.photoUrl || user.avatarUrl || null,
+        badge: user.badge || user.roleLabel,
+        is_master: user.isMaster || false,
+        allowed_views: user.allowedViews || null,
+        updated_at: now,
+      };
+
+      const basePayload: Record<string, any> = {
+        company_id: user.companyId || 'ciclodrone',
+        name: user.name,
+        role: user.role,
+        role_label: user.roleLabel,
+        email: user.email,
+        document_number: user.documentNumber || null,
+        phone: user.phone || null,
+        farm_name: user.farmName || null,
+        license_code: user.licenseCode || null,
+        status: user.status || 'ACTIVE',
+        salary_base: user.salaryBase || 0,
+        photo_url: user.photoUrl || user.avatarUrl || null,
+        avatar_url: user.photoUrl || user.avatarUrl || null,
+        badge: user.badge || user.roleLabel,
+        updated_at: now,
+      };
+
+      const executeUpsert = async (payloadToUse: Record<string, any>) => {
+        if (isUuid) {
+          payloadToUse.id = user.id;
+          return await supabase.from('user_profiles').upsert(payloadToUse, { onConflict: 'id' });
+        } else if (user.email) {
+          const { data: existing } = await supabase.from('user_profiles').select('id').eq('email', user.email).maybeSingle();
+          if (existing?.id) {
+            payloadToUse.id = existing.id;
+            return await supabase.from('user_profiles').update(payloadToUse).eq('id', existing.id);
+          } else if (resolvedUuid) {
+            payloadToUse.id = resolvedUuid;
+            return await supabase.from('user_profiles').insert(payloadToUse);
+          } else {
+            return await supabase.from('user_profiles').upsert(payloadToUse, { onConflict: 'email' });
+          }
+        }
+        return { error: null };
+      };
+
+      const primaryRes = await executeUpsert(fullPayload);
+      if (primaryRes?.error) {
+        // Fallback to base columns if schema doesn't yet have new columns (allowed_views, password, is_master)
+        await executeUpsert(basePayload);
       }
     } catch (e) {
       console.warn('Aviso ao salvar perfil de usuário na tabela user_profiles:', e);
     }
 
-    // 2. Secondary: Mirror payload in app_settings table
+    // 2. Relational Sync: If Pilot, sync to crew_pilots table
+    if (user.role === 'PILOT') {
+      try {
+        const pilotPayload = {
+          id: user.id.startsWith('pilot-') ? user.id : `pilot-${user.id}`,
+          user_id: isUuid ? user.id : null,
+          company_id: user.companyId || 'ciclodrone',
+          name: user.name,
+          cpf: user.documentNumber || null,
+          phone: user.phone || null,
+          email: user.email || null,
+          decea_license: user.licenseCode || 'DECEA-SARPAS-BR-0000',
+          license: user.licenseCode || 'DECEA-SARPAS-BR-0000',
+          photo_url: user.photoUrl || user.avatarUrl || null,
+          avatar_url: user.photoUrl || user.avatarUrl || null,
+          salary_base: user.salaryBase || 4800,
+          status: user.status === 'ACTIVE' ? 'AVAILABLE' : 'OFFLINE',
+          updated_at: now,
+        };
+        const { error: pErr } = await supabase.from('crew_pilots').upsert(pilotPayload, { onConflict: 'id' });
+        if (pErr) {
+          // Retry with minimal columns
+          await supabase.from('crew_pilots').upsert({
+            id: pilotPayload.id,
+            company_id: pilotPayload.company_id,
+            name: pilotPayload.name,
+            license: pilotPayload.license,
+            phone: pilotPayload.phone,
+            email: pilotPayload.email,
+            photo_url: pilotPayload.photo_url,
+          }, { onConflict: 'id' });
+        }
+      } catch (e) {}
+    }
+
+    // 3. Relational Sync: If Assistant, sync to crew_assistants table
+    if (user.role === 'ASSISTANT') {
+      try {
+        const asstPayload = {
+          id: user.id.startsWith('assistant-') ? user.id : `assistant-${user.id}`,
+          user_id: isUuid ? user.id : null,
+          company_id: user.companyId || 'ciclodrone',
+          name: user.name,
+          cpf: user.documentNumber || null,
+          phone: user.phone || null,
+          email: user.email || null,
+          photo_url: user.photoUrl || user.avatarUrl || null,
+          avatar_url: user.photoUrl || user.avatarUrl || null,
+          salary_base: user.salaryBase || 2650,
+          status: user.status === 'ACTIVE' ? 'AVAILABLE' : 'OFFLINE',
+          updated_at: now,
+        };
+        const { error: aErr } = await supabase.from('crew_assistants').upsert(asstPayload, { onConflict: 'id' });
+        if (aErr) {
+          await supabase.from('crew_assistants').upsert({
+            id: asstPayload.id,
+            company_id: asstPayload.company_id,
+            name: asstPayload.name,
+            phone: asstPayload.phone,
+            email: asstPayload.email,
+            photo_url: asstPayload.photo_url,
+          }, { onConflict: 'id' });
+        }
+      } catch (e) {}
+    }
+
+    // 4. Secondary: Mirror payload in app_settings table
     try {
       const key = user.id || `user_${user.email.replace(/[^a-zA-Z0-9]/g, '_')}`;
       await supabase.from('app_settings').upsert({
@@ -859,6 +987,47 @@ export async function saveUserProfileToSupabase(user: UserProfile) {
   } catch (err: any) {
     console.error('Erro ao salvar usuário no Supabase:', err);
     return { success: false, error: err.message };
+  }
+}
+
+
+/**
+ * Deletes a user profile from Supabase database and cascades to related stores.
+ */
+export async function deleteUserProfileFromSupabase(userId: string, email?: string): Promise<{ success: boolean }> {
+  try {
+    if (!userId && !email) return { success: false };
+
+    // 1. Delete from user_profiles table
+    try {
+      if (UUID_REGEX.test(userId)) {
+        await supabase.from('user_profiles').delete().eq('id', userId);
+      } else if (email) {
+        await supabase.from('user_profiles').delete().eq('email', email);
+      }
+    } catch (e) {}
+
+    // 2. Delete from crew_pilots / crew_assistants
+    try {
+      await supabase.from('crew_pilots').delete().or(`id.eq.${userId},user_id.eq.${userId}`);
+    } catch (e) {}
+
+    try {
+      await supabase.from('crew_assistants').delete().or(`id.eq.${userId},user_id.eq.${userId}`);
+    } catch (e) {}
+
+    // 3. Delete from app_settings mirror
+    try {
+      await supabase.from('app_settings').delete().eq('key', `agro_user_${userId}`);
+      if (email) {
+        await supabase.from('app_settings').delete().eq('key', `agro_user_user_${email.replace(/[^a-zA-Z0-9]/g, '_')}`);
+      }
+    } catch (e) {}
+
+    return { success: true };
+  } catch (err) {
+    console.warn('Aviso ao excluir usuário do Supabase:', err);
+    return { success: false };
   }
 }
 
@@ -897,39 +1066,178 @@ export async function loadUserProfilesFromSupabase(): Promise<UserProfile[]> {
       if (dbProfiles && Array.isArray(dbProfiles)) {
         dbProfiles.forEach(p => {
           const id = p.id || `user-${p.email}`;
-          if (!userMap.has(id)) {
-            userMap.set(id, {
-              id,
-              companyId: p.company_id || 'ciclodrone',
-              name: p.name,
-              role: p.role,
-              roleLabel: p.role_label,
-              email: p.email,
-              documentNumber: p.document_number,
-              phone: p.phone,
-              farmName: p.farm_name,
-              licenseCode: p.license_code,
-              status: p.status || 'ACTIVE',
-              salaryBase: p.salary_base,
-              password: p.password,
-              hiredDate: p.hired_date,
-              photoUrl: p.photo_url || p.avatar_url,
-              avatarUrl: p.avatar_url || p.photo_url,
-              badge: p.badge || p.role_label,
-              isMaster: p.is_master,
-              allowedViews: p.allowed_views,
-            });
-          }
+          const role = p.role || 'USER';
+          const defaultRoleLabel = role === 'ADMIN' ? 'Administrador da Empresa' 
+            : role === 'MASTER' ? 'Usuário Master (Acesso Total)'
+            : role === 'PILOT' ? 'Piloto de Drone Remoto'
+            : role === 'ASSISTANT' ? 'Auxiliar de Pulverização'
+            : 'Usuário / Produtor Rural';
+          
+          userMap.set(id, {
+            id,
+            companyId: p.company_id || 'ciclodrone',
+            name: p.name || 'Usuário Cadastrado',
+            role,
+            roleLabel: p.role_label || defaultRoleLabel,
+            email: p.email || '',
+            documentNumber: p.document_number,
+            phone: p.phone,
+            farmName: p.farm_name,
+            licenseCode: p.license_code,
+            status: p.status || 'ACTIVE',
+            salaryBase: p.salary_base ? Number(p.salary_base) : 0,
+            password: p.password,
+            hiredDate: p.hired_date,
+            photoUrl: p.photo_url || p.avatar_url,
+            avatarUrl: p.avatar_url || p.photo_url,
+            badge: p.badge || p.role_label || defaultRoleLabel,
+            isMaster: p.is_master || role === 'MASTER',
+            allowedViews: p.allowed_views,
+          });
         });
       }
     } catch (e) {}
 
-    return Array.from(userMap.values());
+    return deduplicateUserProfiles(Array.from(userMap.values()));
   } catch (err) {
     console.warn('Erro ao carregar perfis de usuários do Supabase:', err);
     return [];
   }
 }
+
+/**
+ * Subscribes to real-time changes on the user_profiles table.
+ */
+export function subscribeToUserProfiles(onUpdate: () => void): () => void {
+  try {
+    const channel = supabase
+      .channel('user-profiles-realtime-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'user_profiles' },
+        () => {
+          onUpdate();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  } catch (err) {
+    console.warn('Erro ao assinar realtime de user_profiles:', err);
+    return () => {};
+  }
+}
+
+/**
+ * Persists a Pilot to Supabase crew_pilots table.
+ */
+export async function savePilotToSupabase(pilot: CrewPilot): Promise<{ success: boolean }> {
+  try {
+    if (!pilot || !pilot.id) return { success: false };
+    const now = new Date().toISOString();
+
+    const { error } = await supabase.from('crew_pilots').upsert({
+      id: pilot.id,
+      company_id: pilot.companyId || 'ciclodrone',
+      name: pilot.name,
+      cpf: pilot.cpf || null,
+      phone: pilot.phone || null,
+      email: `${pilot.id}@agrosys.com.br`,
+      license: pilot.deceaLicense || null,
+      decea_license: pilot.deceaLicense || null,
+      cma_expiration: pilot.cmaExpiration || '2027-12-31',
+      commission_per_ha: pilot.commissionRatePerHa || 8.00,
+      commission_rate_per_ha: pilot.commissionRatePerHa || 8.00,
+      total_hours_flown: pilot.totalHoursFlown || 0,
+      available: pilot.available !== false,
+      status: pilot.available !== false ? 'AVAILABLE' : 'OFFLINE',
+      photo_url: pilot.photoUrl || pilot.avatarUrl || null,
+      avatar_url: pilot.photoUrl || pilot.avatarUrl || null,
+      updated_at: now,
+    }, { onConflict: 'id' });
+
+    return { success: !error };
+  } catch (e) {
+    return { success: false };
+  }
+}
+
+/**
+ * Persists an Assistant to Supabase crew_assistants table.
+ */
+export async function saveAssistantToSupabase(asst: CrewAssistant): Promise<{ success: boolean }> {
+  try {
+    if (!asst || !asst.id) return { success: false };
+    const now = new Date().toISOString();
+
+    const { error } = await supabase.from('crew_assistants').upsert({
+      id: asst.id,
+      company_id: asst.companyId || 'ciclodrone',
+      name: asst.name,
+      cpf: asst.cpf || null,
+      phone: asst.phone || null,
+      email: `${asst.id}@agrosys.com.br`,
+      commission_per_ha: asst.commissionRatePerHa || 3.00,
+      commission_rate_per_ha: asst.commissionRatePerHa || 3.00,
+      nr31_certified: asst.nr31Certified !== false,
+      available: asst.available !== false,
+      status: asst.available !== false ? 'AVAILABLE' : 'OFFLINE',
+      photo_url: asst.photoUrl || asst.avatarUrl || null,
+      avatar_url: asst.photoUrl || asst.avatarUrl || null,
+      updated_at: now,
+    }, { onConflict: 'id' });
+
+    return { success: !error };
+  } catch (e) {
+    return { success: false };
+  }
+}
+
+/**
+ * Synchronizes all local users, pilots, and assistants with Supabase in batch.
+ */
+export async function syncAllUsersAndCrewToCloud(
+  users: UserProfile[],
+  pilots: CrewPilot[] = [],
+  assistants: CrewAssistant[] = []
+): Promise<{ success: boolean; syncedUsers: number; syncedCrew: number; message: string }> {
+  try {
+    let syncedUsers = 0;
+    let syncedCrew = 0;
+
+    for (const u of users) {
+      const res = await saveUserProfileToSupabase(u);
+      if (res.success) syncedUsers++;
+    }
+
+    for (const p of pilots) {
+      const res = await savePilotToSupabase(p);
+      if (res.success) syncedCrew++;
+    }
+
+    for (const a of assistants) {
+      const res = await saveAssistantToSupabase(a);
+      if (res.success) syncedCrew++;
+    }
+
+    return {
+      success: true,
+      syncedUsers,
+      syncedCrew,
+      message: `${syncedUsers} usuários e ${syncedCrew} tripulantes sincronizados com o Supabase com sucesso!`
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      syncedUsers: 0,
+      syncedCrew: 0,
+      message: `Erro na sincronização de usuários: ${err?.message || err}`
+    };
+  }
+}
+
 
 
 

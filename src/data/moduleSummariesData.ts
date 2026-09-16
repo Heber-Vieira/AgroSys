@@ -664,5 +664,37 @@ export const MODULE_SUMMARIES: Record<AppViewMode, ModuleFeatureSummary> = {
       { label: 'Consultar Norma MAPA 298', targetView: 'help' },
       { label: 'Ver Checklist de EPIs NR-31', targetView: 'help' }
     ]
+  },
+  'hub': {
+    id: 'hub',
+    title: 'Central AgroSys',
+    subtitle: 'Painel operacional integrado, atalhos rápidos e visão geral do sistema',
+    category: 'sistema',
+    categoryLabel: 'Navegação Principal',
+    badge: 'Hub Operacional',
+    highlightText: 'Central de controle que reúne métricas em tempo real, status das operações e atalhos customizados.',
+    complianceOrValue: 'Visão unificada das atividades e acesso rápido a todos os módulos autorizados.',
+    features: [
+      {
+        iconName: 'workflow',
+        title: 'Métricas em Tempo Real',
+        description: 'Acompanhe ordens de serviço ativas, hectares aplicados e tarefas pendentes.'
+      },
+      {
+        iconName: 'zap',
+        title: 'Acesso Rápido aos Módulos',
+        description: 'Navegação instantânea para módulos operacionais, técnicos e cadastros.'
+      },
+      {
+        iconName: 'shield',
+        title: 'Segurança e Escopo de Acesso',
+        description: 'Dados e ações customizados de acordo com o perfil e permissões do usuário conectado.'
+      }
+    ],
+    quickActions: [
+      { label: 'Ir para Ordens de Serviço', targetView: 'orders' },
+      { label: 'Ver Esteira Operacional', targetView: 'spray-workflow' },
+      { label: 'Consultar Clima', targetView: 'weather' }
+    ]
   }
 };

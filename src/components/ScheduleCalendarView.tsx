@@ -53,6 +53,7 @@ import {
 import { ScheduleOrderModal } from './scheduling/ScheduleOrderModal';
 import { ScheduleConflictsModal } from './scheduling/ScheduleConflictsModal';
 import { formatDateBR } from '../utils/formatters';
+import { filterOrdersForUser, isServiceOrderAssignedToUser, doNamesMatch } from '../utils/userPermissions';
 
 interface ScheduleCalendarViewProps {
   currentUser: UserProfile;
@@ -107,10 +108,15 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
   // Operational hours filter ('OPERATIONAL' 06-18h vs 'FULL' 00-23h)
   const [hoursMode, setHoursMode] = useState<'OPERATIONAL' | 'FULL'>('OPERATIONAL');
 
-  // Global Collision Detector across all orders
+  // 1. Data Isolation & RBAC: Precision Filtering for Current User (Pilots/Assistants/Clients)
+  const userScopedOrders = useMemo(() => {
+    return filterOrdersForUser(orders, currentUser, pilots, assistants);
+  }, [orders, currentUser, pilots, assistants]);
+
+  // Global Collision Detector across user's visible orders
   const conflictsMap = useMemo(() => {
-    return detectAllScheduleCollisions(orders);
-  }, [orders]);
+    return detectAllScheduleCollisions(userScopedOrders);
+  }, [userScopedOrders]);
 
   const totalConflictsCount = useMemo(() => {
     let count = 0;
@@ -194,7 +200,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
 
   // Filtered Orders
   const filteredOrders = useMemo(() => {
-    return orders.filter(order => {
+    return userScopedOrders.filter(order => {
       // Search
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
@@ -202,8 +208,9 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
         const matchesFarm = order.farmName.toLowerCase().includes(q);
         const matchesPlot = order.plotName.toLowerCase().includes(q);
         const matchesPilot = order.pilotName.toLowerCase().includes(q);
+        const matchesAssistant = order.assistantName.toLowerCase().includes(q);
         const matchesDrone = order.droneModel.toLowerCase().includes(q);
-        if (!matchesCode && !matchesFarm && !matchesPlot && !matchesPilot && !matchesDrone) {
+        if (!matchesCode && !matchesFarm && !matchesPlot && !matchesPilot && !matchesAssistant && !matchesDrone) {
           return false;
         }
       }
@@ -231,7 +238,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
 
       return true;
     });
-  }, [orders, searchQuery, selectedPilotFilter, selectedDroneFilter, statusFilter, showConflictsOnly, conflictsMap]);
+  }, [userScopedOrders, searchQuery, selectedPilotFilter, selectedDroneFilter, statusFilter, showConflictsOnly, conflictsMap]);
 
   // Order CRUD handlers
   const handleSaveOrder = (newOrUpdatedOrder: ServiceOrder) => {

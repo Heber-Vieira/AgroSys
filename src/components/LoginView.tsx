@@ -464,6 +464,82 @@ export const LoginView: React.FC<LoginViewProps> = ({
                   })}
                 </div>
               </div>
+
+              {/* Drone Pilots */}
+              {userList.some(u => u.role === 'PILOT') && (
+                <div className="space-y-1 pt-0.5">
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-700 flex items-center gap-1">
+                    ✈️ Pilotos de Drone (Visão Restrita à Própria Escala)
+                  </span>
+                  <div className="grid grid-cols-2 sm:grid-cols-2 gap-1.5">
+                    {userList.filter(u => u.role === 'PILOT').map((user) => {
+                      const allComps = getStoredRegisteredCompanies();
+                      const compName = allComps.find(p => p.id === user.companyId)?.name || PRESET_COMPANIES.find(p => p.id === user.companyId)?.name || 'Empresa';
+                      return (
+                        <button
+                          key={user.id}
+                          type="button"
+                          onClick={() => handleQuickLogin(user)}
+                          className={`p-1.5 rounded-xl border text-left flex items-center gap-1.5 transition-all cursor-pointer ${
+                            emailInput.toLowerCase() === user.email.toLowerCase()
+                              ? 'border-emerald-500 bg-emerald-50/80 ring-1 ring-emerald-500/40'
+                              : 'border-slate-200/80 bg-slate-50/50 hover:bg-emerald-50/40 hover:border-emerald-300'
+                          }`}
+                          title={`${user.name} - ${compName}`}
+                        >
+                          <UserAvatar user={user} size="xs" showRoleBadge={false} />
+                          <div className="min-w-0 flex-1">
+                            <div className="text-[10px] font-bold text-slate-900 truncate">
+                              {user.name}
+                            </div>
+                            <div className="text-[9px] text-emerald-700 font-semibold truncate">
+                              Piloto • {compName}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Mix Assistants */}
+              {userList.some(u => u.role === 'ASSISTANT') && (
+                <div className="space-y-1 pt-0.5">
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-teal-700 flex items-center gap-1">
+                    🧪 Auxiliares de Calda & Solo (Visão Restrita às Próprias OSs)
+                  </span>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                    {userList.filter(u => u.role === 'ASSISTANT').map((user) => {
+                      const allComps = getStoredRegisteredCompanies();
+                      const compName = allComps.find(p => p.id === user.companyId)?.name || PRESET_COMPANIES.find(p => p.id === user.companyId)?.name || 'Empresa';
+                      return (
+                        <button
+                          key={user.id}
+                          type="button"
+                          onClick={() => handleQuickLogin(user)}
+                          className={`p-1.5 rounded-xl border text-left flex items-center gap-1.5 transition-all cursor-pointer ${
+                            emailInput.toLowerCase() === user.email.toLowerCase()
+                              ? 'border-teal-500 bg-teal-50/80 ring-1 ring-teal-500/40'
+                              : 'border-slate-200/80 bg-slate-50/50 hover:bg-teal-50/40 hover:border-teal-300'
+                          }`}
+                          title={`${user.name} - ${compName}`}
+                        >
+                          <UserAvatar user={user} size="xs" showRoleBadge={false} />
+                          <div className="min-w-0 flex-1">
+                            <div className="text-[10px] font-bold text-slate-900 truncate">
+                              {user.name.split(' ')[0]}
+                            </div>
+                            <div className="text-[9px] text-teal-700 font-semibold truncate">
+                              Auxiliar • {compName}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
           </div>

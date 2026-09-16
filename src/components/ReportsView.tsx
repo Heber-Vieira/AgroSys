@@ -36,6 +36,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { formatBRL, formatDateBR, formatDateTimeBR } from '../utils/formatters';
+import { filterOrdersForUser, isServiceOrderAssignedToUser, doNamesMatch } from '../utils/userPermissions';
 
 interface ReportsViewProps {
   currentUser: UserProfile;
@@ -78,6 +79,11 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   onOpenReportModal,
   onNavigate,
 }) => {
+  // 1. Data Isolation & RBAC: Precision Filtering for Current User (Pilots/Assistants/Clients)
+  const userScopedOrders = useMemo(() => {
+    return filterOrdersForUser(orders, currentUser, pilots, assistants);
+  }, [orders, currentUser, pilots, assistants]);
+
   // Search & Filters state
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
@@ -89,7 +95,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   const [customEndDate, setCustomEndDate] = useState<string>('');
   const [sortBy, setSortBy] = useState<ReportSortOption>('COMPLETION_DESC');
 
-  // Unified clients list
+  // Unified clients list based on user's authorized scope
   const availableClients = useMemo(() => {
     const list: { id: string; name: string }[] = [];
     const addedNames = new Set<string>();
@@ -101,7 +107,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       }
     });
 
-    orders.forEach(o => {
+    userScopedOrders.forEach(o => {
       if (o && o.clientName && !addedNames.has(o.clientName.toLowerCase().trim())) {
         list.push({ id: o.clientId || `client-${o.clientName}`, name: o.clientName });
         addedNames.add(o.clientName.toLowerCase().trim());
@@ -109,20 +115,25 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     });
 
     return list.sort((a, b) => a.name.localeCompare(b.name));
-  }, [clients, orders]);
+  }, [clients, userScopedOrders]);
 
-  // Unique Crops list
+  // Unique Crops list based on user's authorized scope
   const availableCrops = useMemo(() => {
     const crops = new Set<string>();
-    orders.forEach(o => { if (o.crop) crops.add(o.crop.trim()); });
+    userScopedOrders.forEach(o => { if (o.crop) crops.add(o.crop.trim()); });
     plots.forEach(p => { if (p.crop) crops.add(p.crop.trim()); });
     return Array.from(crops).sort((a, b) => a.localeCompare(b));
-  }, [orders, plots]);
+  }, [userScopedOrders, plots]);
 
-  // Unique Pilots list
+  // Unique Pilots list based on user's authorized scope
   const availablePilots = useMemo(() => {
     const list: { id: string; name: string }[] = [];
     const seen = new Set<string>();
+
+    if (currentUser.role === 'PILOT') {
+      list.push({ id: currentUser.id, name: currentUser.name });
+      return list;
+    }
 
     pilots.forEach(p => {
       if (p && p.name && !seen.has(p.name)) {
@@ -131,7 +142,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       }
     });
 
-    orders.forEach(o => {
+    userScopedOrders.forEach(o => {
       if (o.pilotName && !seen.has(o.pilotName)) {
         list.push({ id: o.pilotId || `pilot-${o.pilotName}`, name: o.pilotName });
         seen.add(o.pilotName);
@@ -235,7 +246,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
   // Filtered and sorted Orders Logic
   const filteredOrders = useMemo(() => {
-    return orders
+    return userScopedOrders
       .filter(os => {
         // 1. Text Search matching
         const term = searchTerm.trim().toLowerCase();
@@ -350,7 +361,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             return 0;
         }
       });
-  }, [orders, searchTerm, selectedClientId, statusFilter, selectedCrop, selectedPilotId, datePreset, customStartDate, customEndDate, sortBy, availableClients, clients, availablePilots]);
+  }, [userScopedOrders, searchTerm, selectedClientId, statusFilter, selectedCrop, selectedPilotId, datePreset, customStartDate, customEndDate, sortBy, availableClients, clients, availablePilots]);
 
   // Reset all active filters helper
   const handleResetFilters = () => {

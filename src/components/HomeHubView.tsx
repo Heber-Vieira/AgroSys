@@ -10,7 +10,7 @@ import {
   FinancialEntry
 } from '../types';
 import { showToast as showAgroToast } from '../services/notificationService';
-import { canUserAccessView, hasAdminPrivileges, isMasterUser } from '../utils/userPermissions';
+import { canUserAccessView, hasAdminPrivileges, isMasterUser, filterOrdersForUser } from '../utils/userPermissions';
 import { formatInteger } from '../utils/formatters';
 import { 
   ClipboardList, 
@@ -39,7 +39,9 @@ import {
   Lock,
   LayoutDashboard,
   Printer,
-  FileText
+  FileText,
+  GripVertical,
+  RotateCcw
 } from 'lucide-react';
 import { UserAvatar } from './UserAvatar';
 import { ModuleSummaryBalloon } from './ModuleSummaryBalloon';
@@ -85,12 +87,76 @@ export const HomeHubView: React.FC<HomeHubViewProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedSummaryModule, setSelectedSummaryModule] = useState<AppViewMode | null>(null);
 
+  // Card reordering state with persistence per user
+  const storageKey = `agrosys_hub_card_order_${currentUser.id || 'default'}`;
+  const [cardOrder, setCardOrder] = useState<AppViewMode[]>(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.warn('Failed to load card order from localStorage', e);
+    }
+    return [];
+  });
+
+  const [draggedItemId, setDraggedItemId] = useState<AppViewMode | null>(null);
+  const [dragOverItemId, setDragOverItemId] = useState<AppViewMode | null>(null);
+  const [isDraggingActive, setIsDraggingActive] = useState<boolean>(false);
+
+  // Reordering function when dropping item
+  const handleReorder = (sourceId: AppViewMode, targetId: AppViewMode) => {
+    if (sourceId === targetId) return;
+
+    const defaultIds = allItems.map(i => i.id);
+    const currentOrderedIds = cardOrder.length > 0
+      ? [
+          ...cardOrder.filter(id => defaultIds.includes(id)),
+          ...defaultIds.filter(id => !cardOrder.includes(id))
+        ]
+      : [...defaultIds];
+
+    const sourceIndex = currentOrderedIds.indexOf(sourceId);
+    const targetIndex = currentOrderedIds.indexOf(targetId);
+
+    if (sourceIndex === -1 || targetIndex === -1) return;
+
+    const newOrder = [...currentOrderedIds];
+    newOrder.splice(sourceIndex, 1);
+    newOrder.splice(targetIndex, 0, sourceId);
+
+    setCardOrder(newOrder);
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(newOrder));
+      showAgroToast('Ordem dos módulos reorganizada!', 'success');
+    } catch (e) {
+      console.error('Failed to save card order', e);
+    }
+  };
+
+  const handleResetOrder = () => {
+    setCardOrder([]);
+    try {
+      localStorage.removeItem(storageKey);
+      showAgroToast('Ordem padrão dos módulos restaurada.', 'info');
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // 1. Data Isolation & RBAC: Precision Filtering for Current User (Pilots/Assistants/Clients)
+  const userScopedOrders = useMemo(() => {
+    return filterOrdersForUser(orders, currentUser, undefined, undefined);
+  }, [orders, currentUser]);
+
   // Operational metrics
-  const activeOrdersCount = orders.filter(o => o.status === 'OPERATING' || o.status === 'IN_TRANSIT').length;
-  const scheduledOrdersCount = orders.filter(o => o.status === 'SCHEDULED').length;
-  const completedOrdersCount = orders.filter(o => o.status === 'COMPLETED').length;
-  const totalAppliedHa = orders.reduce((acc, o) => acc + (o.sprayedHectares || 0), 0);
-  const operationalDronesCount = drones.filter(d => d.status === 'READY' || d.status === 'IN_MISSION').length;
+  const activeOrdersCount = userScopedOrders.filter(o => o.status === 'OPERATING' || o.status === 'IN_TRANSIT').length;
+  const scheduledOrdersCount = userScopedOrders.filter(o => o.status === 'SCHEDULED').length;
+  const completedOrdersCount = userScopedOrders.filter(o => o.status === 'COMPLETED').length;
+  const totalAppliedHa = userScopedOrders.reduce((acc, o) => acc + (o.sprayedHectares || 0), 0);
+  const operationalDronesCount = drones.filter(d => d.operationalStatus === 'READY' || d.operationalStatus === 'FLYING').length;
 
   // Full 20 modules list (exactly 4 rows x 5 columns = 20 cards on desktop)
   const allItems: HubItem[] = useMemo(() => [
@@ -295,10 +361,20 @@ export const HomeHubView: React.FC<HomeHubViewProps> = ({
     currentUser.role
   ]);
 
-  // Filter items allowed for current user strictly
+  // Filter items allowed for current user strictly and sort by custom order
   const userAllowedItems = useMemo(() => {
-    return allItems.filter(item => canUserAccessView(currentUser, item.id));
-  }, [allItems, currentUser]);
+    const allowed = allItems.filter(item => canUserAccessView(currentUser, item.id));
+    if (cardOrder.length === 0) return allowed;
+
+    const orderMap = new Map<AppViewMode, number>();
+    cardOrder.forEach((id, index) => orderMap.set(id, index));
+
+    return [...allowed].sort((a, b) => {
+      const indexA = orderMap.has(a.id) ? (orderMap.get(a.id) as number) : 9999;
+      const indexB = orderMap.has(b.id) ? (orderMap.get(b.id) as number) : 9999;
+      return indexA - indexB;
+    });
+  }, [allItems, currentUser, cardOrder]);
 
   // Filter items by category and search term
   const filteredItems = useMemo(() => {
@@ -396,30 +472,37 @@ export const HomeHubView: React.FC<HomeHubViewProps> = ({
         </div>
       </div>
 
-      {/* Minimalist Search & Category Chips (Responsive flow) */}
+      {/* Minimalist Search & Category Chips & Drag-and-Drop Controls */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-1.5 shrink-0">
-        {/* Search Field */}
-        <div className="relative w-full sm:max-w-[220px]">
-          <Search className="w-3 h-3 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar módulo..."
-            className="w-full pl-7 pr-6 py-1 rounded-lg bg-white dark:bg-[#072a1e] border border-emerald-200/80 dark:border-emerald-800/80 text-emerald-950 dark:text-emerald-100 placeholder-slate-400 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-emerald-500 shadow-2xs"
-          />
-          {searchTerm && (
-            <button
-              onClick={() => setSearchTerm('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 hover:text-slate-600 cursor-pointer"
-            >
-              ✕
-            </button>
-          )}
+        {/* Search Field + Drag hint */}
+        <div className="flex items-center gap-2">
+          <div className="relative w-full sm:w-[200px]">
+            <Search className="w-3 h-3 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Buscar módulo..."
+              className="w-full pl-7 pr-6 py-1 rounded-lg bg-white dark:bg-[#072a1e] border border-emerald-200/80 dark:border-emerald-800/80 text-emerald-950 dark:text-emerald-100 placeholder-slate-400 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-emerald-500 shadow-2xs"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+          
+          <span className="hidden md:inline-flex items-center gap-1 text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+            <GripVertical className="w-3 h-3" />
+            Arraste os cards para organizar
+          </span>
         </div>
 
-        {/* Category Chips with touch momentum scrolling */}
-        <div className="flex items-center gap-1 overflow-x-auto scrollbar-none touch-scroll py-0.5 max-w-full">
+        {/* Category Chips and Reset Button */}
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none touch-scroll py-0.5 max-w-full">
           {categories.map((cat) => {
             const isSelected = selectedCategory === cat.id;
             return (
@@ -441,6 +524,17 @@ export const HomeHubView: React.FC<HomeHubViewProps> = ({
               </button>
             );
           })}
+
+          {cardOrder.length > 0 && (
+            <button
+              onClick={handleResetOrder}
+              className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold text-amber-700 dark:text-amber-300 hover:text-amber-800 dark:hover:text-amber-200 bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 dark:hover:bg-amber-900/60 border border-amber-200/80 dark:border-amber-800/80 shadow-2xs transition-all cursor-pointer shrink-0 ml-1"
+              title="Restaurar a ordem padrão dos módulos"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span className="text-[10px]">Restaurar Ordem</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -460,18 +554,80 @@ export const HomeHubView: React.FC<HomeHubViewProps> = ({
       ) : (
         <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-2 sm:gap-2.5 flex-1 min-h-0 content-start">
           {filteredItems.map((item) => {
+            const isBeingDragged = draggedItemId === item.id;
+            const isDragTarget = dragOverItemId === item.id && !isBeingDragged;
+
             return (
               <div
                 key={item.id}
                 id={`module-card-${item.id}`}
-                onClick={() => onNavigate(item.id)}
-                className="group relative p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border transition-all duration-200 cursor-pointer flex flex-col justify-between min-h-[80px] sm:min-h-[86px] lg:min-h-[90px] active:scale-[0.98] bg-white dark:bg-[#072a1e] border-emerald-200/80 dark:border-emerald-800/80 hover:border-emerald-500 dark:hover:border-emerald-500 hover:shadow-md"
-                title={`Abrir ${item.title}`}
+                draggable={true}
+                onDragStart={(e) => {
+                  e.dataTransfer.setData('text/plain', item.id);
+                  e.dataTransfer.effectAllowed = 'move';
+                  setDraggedItemId(item.id);
+                  setIsDraggingActive(true);
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+                  if (draggedItemId && draggedItemId !== item.id && dragOverItemId !== item.id) {
+                    setDragOverItemId(item.id);
+                  }
+                }}
+                onDragEnter={(e) => {
+                  e.preventDefault();
+                  if (draggedItemId && draggedItemId !== item.id) {
+                    setDragOverItemId(item.id);
+                  }
+                }}
+                onDragLeave={(e) => {
+                  const currentTarget = e.currentTarget;
+                  if (!currentTarget.contains(e.relatedTarget as Node)) {
+                    if (dragOverItemId === item.id) {
+                      setDragOverItemId(null);
+                    }
+                  }
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (draggedItemId && draggedItemId !== item.id) {
+                    handleReorder(draggedItemId, item.id);
+                  }
+                  setDraggedItemId(null);
+                  setDragOverItemId(null);
+                }}
+                onDragEnd={() => {
+                  setDraggedItemId(null);
+                  setDragOverItemId(null);
+                  setTimeout(() => {
+                    setIsDraggingActive(false);
+                  }, 150);
+                }}
+                onClick={() => {
+                  if (!isDraggingActive) {
+                    onNavigate(item.id);
+                  }
+                }}
+                className={`group relative p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border transition-all duration-200 cursor-grab active:cursor-grabbing select-none flex flex-col justify-between min-h-[80px] sm:min-h-[86px] lg:min-h-[90px] ${
+                  isBeingDragged
+                    ? 'opacity-30 scale-95 border-dashed border-emerald-500 ring-2 ring-emerald-400/50 bg-emerald-50/40 dark:bg-emerald-950/40'
+                    : isDragTarget
+                    ? 'ring-2 ring-emerald-500 scale-[1.03] shadow-lg border-emerald-500 bg-emerald-50/80 dark:bg-emerald-950/90 z-10'
+                    : 'bg-white dark:bg-[#072a1e] border-emerald-200/80 dark:border-emerald-800/80 hover:border-emerald-500 dark:hover:border-emerald-500 hover:shadow-md hover:-translate-y-0.5'
+                }`}
+                title={`Arraste para mover ou clique para abrir ${item.title}`}
               >
                 <div>
-                  {/* Top row: Icon + Title + Arrow */}
+                  {/* Top row: Grip Handle + Icon + Title + Arrow */}
                   <div className="flex items-center justify-between gap-1.5 mb-1">
-                    <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <div 
+                        className="text-slate-300 dark:text-emerald-900/60 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-colors shrink-0"
+                        title="Arraste para reposicionar"
+                      >
+                        <GripVertical className="w-3.5 h-3.5" />
+                      </div>
                       <div className={`w-7 h-7 sm:w-7.5 sm:h-7.5 rounded-lg flex items-center justify-center shrink-0 shadow-2xs ${item.iconBg}`}>
                         {item.icon}
                       </div>
@@ -486,7 +642,7 @@ export const HomeHubView: React.FC<HomeHubViewProps> = ({
                   </div>
 
                   {/* Subtitle */}
-                  <p className="text-[10.5px] text-slate-500 dark:text-slate-400 truncate leading-normal">
+                  <p className="text-[10.5px] text-slate-500 dark:text-slate-400 truncate leading-normal pl-5">
                     {item.subtitle}
                   </p>
                 </div>

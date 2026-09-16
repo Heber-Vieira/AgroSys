@@ -7,8 +7,9 @@ import {
   AgriculturalDrone, 
   CrewPilot, 
   CrewAssistant,
+  ClientProducer
 } from '../types';
-import { canUserAccessView } from '../utils/userPermissions';
+import { canUserAccessView, filterOrdersForUser } from '../utils/userPermissions';
 import { 
   Printer, 
   X, 
@@ -188,23 +189,28 @@ export const SprayReportModal: React.FC<SprayReportModalProps> = ({
     cityState: 'Rio Verde - GO'
   };
 
+  // 1. Data Isolation & RBAC: Precision Filtering for Current User (Pilots/Assistants/Clients)
+  const userScopedOrders = React.useMemo(() => {
+    return filterOrdersForUser(serviceOrders, currentUser, pilots, assistants);
+  }, [serviceOrders, currentUser, pilots, assistants]);
+
   const activeOrder: ServiceOrder = currentOrder 
-    || (selectedOrderId ? serviceOrders.find(o => o.id === selectedOrderId || o.code === selectedOrderId) : null)
-    || serviceOrders[0] 
+    || (selectedOrderId ? userScopedOrders.find(o => o.id === selectedOrderId || o.code === selectedOrderId) : null)
+    || userScopedOrders[0] 
     || DEMO_FALLBACK_ORDER;
 
   // Sync selected order on open
   useEffect(() => {
     if (isOpen) {
       if (selectedOrderId) {
-        const found = serviceOrders.find(o => o.id === selectedOrderId || o.code === selectedOrderId);
+        const found = userScopedOrders.find(o => o.id === selectedOrderId || o.code === selectedOrderId);
         if (found) setCurrentOrder(found);
-        else if (serviceOrders.length > 0) setCurrentOrder(serviceOrders[0]);
-      } else if (serviceOrders.length > 0 && !currentOrder) {
-        setCurrentOrder(serviceOrders[0]);
+        else if (userScopedOrders.length > 0) setCurrentOrder(userScopedOrders[0]);
+      } else if (userScopedOrders.length > 0 && !currentOrder) {
+        setCurrentOrder(userScopedOrders[0]);
       }
     }
-  }, [isOpen, selectedOrderId, serviceOrders]);
+  }, [isOpen, selectedOrderId, userScopedOrders]);
 
   // Listen for paste event anywhere inside modal to capture images copied to clipboard
   useEffect(() => {
@@ -316,17 +322,17 @@ export const SprayReportModal: React.FC<SprayReportModalProps> = ({
             <select
               value={activeOrder.id}
               onChange={(e) => {
-                const found = serviceOrders.find(o => o.id === e.target.value);
+                const found = userScopedOrders.find(o => o.id === e.target.value);
                 if (found) setCurrentOrder(found);
               }}
               className="bg-transparent text-xs font-bold text-emerald-400 focus:outline-none cursor-pointer max-w-[240px] truncate"
             >
-              {serviceOrders.map(os => (
+              {userScopedOrders.map(os => (
                 <option key={os.id} value={os.id} className="bg-slate-900 text-slate-200">
                   {os.status === 'COMPLETED' ? '✓ ' : '⏳ '}{os.code} - {os.clientName} ({os.status === 'COMPLETED' ? 'Concluída' : 'Em Aberto'})
                 </option>
               ))}
-              {serviceOrders.length === 0 && (
+              {userScopedOrders.length === 0 && (
                 <option value={DEMO_FALLBACK_ORDER.id} className="bg-slate-900 text-slate-200">
                   ✓ {DEMO_FALLBACK_ORDER.code} - {DEMO_FALLBACK_ORDER.clientName} (Concluída)
                 </option>

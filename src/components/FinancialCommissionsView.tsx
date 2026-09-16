@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UserProfile, FinancialEntry, ServiceOrder } from '../types';
-import { canUserAccessView } from '../utils/userPermissions';
+import { canUserAccessView, isMasterUser, doNamesMatch } from '../utils/userPermissions';
 import { 
   DollarSign, 
   ArrowDownLeft, 
@@ -56,18 +56,29 @@ export const FinancialCommissionsView: React.FC<FinancialCommissionsViewProps> =
     );
   }
 
-  const totalReceivables = financials
+  const userScopedFinancials = React.useMemo(() => {
+    if (isMasterUser(currentUser) || currentUser.role === 'ADMIN') {
+      return financials;
+    }
+    return financials.filter(f => 
+      doNamesMatch(f.clientOrBeneficiary, currentUser.name) ||
+      (currentUser.role === 'PILOT' && f.category === 'COMISSAO_PILOTO' && doNamesMatch(f.clientOrBeneficiary, currentUser.name)) ||
+      (currentUser.role === 'ASSISTANT' && f.category === 'COMISSAO_AUXILIAR' && doNamesMatch(f.clientOrBeneficiary, currentUser.name))
+    );
+  }, [financials, currentUser]);
+
+  const totalReceivables = userScopedFinancials
     .filter(f => f.type === 'RECEIVABLE')
     .reduce((acc, f) => acc + f.amount, 0);
 
-  const totalPayables = financials
+  const totalPayables = userScopedFinancials
     .filter(f => f.type === 'PAYABLE')
     .reduce((acc, f) => acc + f.amount, 0);
 
   const netBalance = totalReceivables - totalPayables;
 
   // Filter based on type
-  const displayedEntries = financials.filter(f => {
+  const displayedEntries = userScopedFinancials.filter(f => {
     if (filterType === 'RECEIVABLE') return f.type === 'RECEIVABLE';
     if (filterType === 'PAYABLE') return f.type === 'PAYABLE';
     return true;

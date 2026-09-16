@@ -105,7 +105,12 @@ async function runEmpiricalTest() {
     audioAlertEnabled: true,
     audioVolume: 0.8,
     audioType: 'SIREN' as const,
-  };
+    minHealthThresholdPct: 80,
+    maxCellDeltaMv: 30,
+    soundEnabled: true,
+    soundType: 'SIREN' as const,
+    soundVolume: 0.8,
+  } as any;
 
   const customWeatherSettings = {
     periodicitySeconds: 1800, // 30 minutos

@@ -7,6 +7,7 @@ import {
   ServiceOrder, 
   AgriculturalDrone 
 } from '../types';
+import { filterOrdersForUser } from '../utils/userPermissions';
 import { 
   Droplets, 
   ShieldCheck, 
@@ -424,6 +425,11 @@ export const SprayMixView: React.FC<SprayMixViewProps> = ({
   const [waterPhInitial, setWaterPhInitial] = useState<number>(7.0);
   const [mixPhFinal, setMixPhFinal] = useState<number>(5.5);
 
+  // 1. Data Isolation & RBAC: Precision Filtering for Current User (Pilots/Assistants/Clients)
+  const userScopedOrders = useMemo(() => {
+    return filterOrdersForUser(orders, currentUser, undefined, undefined);
+  }, [orders, currentUser]);
+
   // Products in the current mix
   const [products, setProducts] = useState<SprayProduct[]>(() => {
     const saved = localStorage.getItem('agrodrone_current_spray_products');
@@ -763,7 +769,7 @@ export const SprayMixView: React.FC<SprayMixViewProps> = ({
   // Handle Select OS
   const handleSelectOrder = (orderId: string) => {
     setSelectedOrderId(orderId);
-    const foundOrder = orders.find(o => o.id === orderId);
+    const foundOrder = userScopedOrders.find(o => o.id === orderId);
     if (foundOrder) {
       setTotalHectares(foundOrder.targetHectares);
       if (foundOrder.sprayRateLHa) {
@@ -1437,7 +1443,7 @@ export const SprayMixView: React.FC<SprayMixViewProps> = ({
                       className="bg-white dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-600 rounded-xl px-2.5 py-1.5 text-[11px] font-semibold text-emerald-950 dark:text-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer shadow-2xs"
                     >
                       <option value="">📋 Selecionar OS...</option>
-                      {orders.map((ord) => (
+                      {userScopedOrders.map((ord) => (
                         <option key={ord.id} value={ord.id}>
                           {ord.code} - {ord.farmName} ({ord.targetHectares} ha)
                         </option>
