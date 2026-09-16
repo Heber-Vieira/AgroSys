@@ -388,7 +388,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
             </form>
 
             {/* Quick Demonstration Access / Profiles */}
-            <div className="pt-2 space-y-2 border-t border-slate-100">
+            <div className="pt-2 space-y-2.5 border-t border-slate-100">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
                   <Sparkles className="w-3 h-3 text-amber-500" />
@@ -403,29 +403,31 @@ export const LoginView: React.FC<LoginViewProps> = ({
                   👑 Usuários Master (Acesso Total Multi-Empresa)
                 </span>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                  {userList.filter(u => isMasterUser(u)).map((user) => (
-                    <button
-                      key={user.id}
-                      type="button"
-                      onClick={() => handleQuickLogin(user)}
-                      className={`p-1.5 sm:p-2 rounded-xl border text-left flex items-center gap-2 transition-all cursor-pointer ${
-                        emailInput.toLowerCase() === user.email.toLowerCase()
-                          ? 'border-amber-400 bg-amber-50/70 ring-1 ring-amber-400/40'
-                          : 'border-slate-200/80 bg-slate-50/50 hover:bg-amber-50/30 hover:border-amber-300'
-                      }`}
-                    >
-                      <UserAvatar user={user} size="xs" showRoleBadge={false} />
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[10px] sm:text-[11px] font-bold text-slate-900 truncate flex items-center gap-1">
-                          {user.name}
-                          <span>👑</span>
+                  {userList
+                    .filter(u => isMasterUser(u) && !u.name.toLowerCase().includes('agrosys admin') && !u.email.toLowerCase().includes('agrosys'))
+                    .map((user) => (
+                      <button
+                        key={user.id}
+                        type="button"
+                        onClick={() => handleQuickLogin(user)}
+                        className={`p-1.5 sm:p-2 rounded-xl border text-left flex items-center gap-2 transition-all cursor-pointer ${
+                          emailInput.toLowerCase() === user.email.toLowerCase()
+                            ? 'border-amber-400 bg-amber-50/70 ring-1 ring-amber-400/40 shadow-sm'
+                            : 'border-slate-200/80 bg-slate-50/50 hover:bg-amber-50/30 hover:border-amber-300'
+                        }`}
+                      >
+                        <UserAvatar user={user} size="xs" showRoleBadge={false} />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[10px] sm:text-[11px] font-bold text-slate-900 truncate flex items-center gap-1">
+                            {user.name}
+                            <span>👑</span>
+                          </div>
+                          <div className="text-[9px] text-amber-700 font-semibold truncate">
+                            Master • Multi-Empresa
+                          </div>
                         </div>
-                        <div className="text-[9px] text-amber-700 font-semibold truncate">
-                          Master • Multi-Empresa
-                        </div>
-                      </div>
-                    </button>
-                  ))}
+                      </button>
+                    ))}
                 </div>
               </div>
 
@@ -445,7 +447,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                         onClick={() => handleQuickLogin(user)}
                         className={`p-1.5 rounded-xl border text-left flex items-center gap-1.5 transition-all cursor-pointer ${
                           emailInput.toLowerCase() === user.email.toLowerCase()
-                            ? 'border-purple-400 bg-purple-50/70 ring-1 ring-purple-400/40'
+                            ? 'border-purple-400 bg-purple-50/70 ring-1 ring-purple-400/40 shadow-sm'
                             : 'border-slate-200/80 bg-slate-50/50 hover:bg-purple-50/30 hover:border-purple-300'
                         }`}
                         title={`${user.name} - Admin ${compName}`}
@@ -464,82 +466,6 @@ export const LoginView: React.FC<LoginViewProps> = ({
                   })}
                 </div>
               </div>
-
-              {/* Drone Pilots */}
-              {userList.some(u => u.role === 'PILOT') && (
-                <div className="space-y-1 pt-0.5">
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-700 flex items-center gap-1">
-                    ✈️ Pilotos de Drone (Visão Restrita à Própria Escala)
-                  </span>
-                  <div className="grid grid-cols-2 sm:grid-cols-2 gap-1.5">
-                    {userList.filter(u => u.role === 'PILOT').map((user) => {
-                      const allComps = getStoredRegisteredCompanies();
-                      const compName = allComps.find(p => p.id === user.companyId)?.name || PRESET_COMPANIES.find(p => p.id === user.companyId)?.name || 'Empresa';
-                      return (
-                        <button
-                          key={user.id}
-                          type="button"
-                          onClick={() => handleQuickLogin(user)}
-                          className={`p-1.5 rounded-xl border text-left flex items-center gap-1.5 transition-all cursor-pointer ${
-                            emailInput.toLowerCase() === user.email.toLowerCase()
-                              ? 'border-emerald-500 bg-emerald-50/80 ring-1 ring-emerald-500/40'
-                              : 'border-slate-200/80 bg-slate-50/50 hover:bg-emerald-50/40 hover:border-emerald-300'
-                          }`}
-                          title={`${user.name} - ${compName}`}
-                        >
-                          <UserAvatar user={user} size="xs" showRoleBadge={false} />
-                          <div className="min-w-0 flex-1">
-                            <div className="text-[10px] font-bold text-slate-900 truncate">
-                              {user.name}
-                            </div>
-                            <div className="text-[9px] text-emerald-700 font-semibold truncate">
-                              Piloto • {compName}
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Mix Assistants */}
-              {userList.some(u => u.role === 'ASSISTANT') && (
-                <div className="space-y-1 pt-0.5">
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-teal-700 flex items-center gap-1">
-                    🧪 Auxiliares de Calda & Solo (Visão Restrita às Próprias OSs)
-                  </span>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-                    {userList.filter(u => u.role === 'ASSISTANT').map((user) => {
-                      const allComps = getStoredRegisteredCompanies();
-                      const compName = allComps.find(p => p.id === user.companyId)?.name || PRESET_COMPANIES.find(p => p.id === user.companyId)?.name || 'Empresa';
-                      return (
-                        <button
-                          key={user.id}
-                          type="button"
-                          onClick={() => handleQuickLogin(user)}
-                          className={`p-1.5 rounded-xl border text-left flex items-center gap-1.5 transition-all cursor-pointer ${
-                            emailInput.toLowerCase() === user.email.toLowerCase()
-                              ? 'border-teal-500 bg-teal-50/80 ring-1 ring-teal-500/40'
-                              : 'border-slate-200/80 bg-slate-50/50 hover:bg-teal-50/40 hover:border-teal-300'
-                          }`}
-                          title={`${user.name} - ${compName}`}
-                        >
-                          <UserAvatar user={user} size="xs" showRoleBadge={false} />
-                          <div className="min-w-0 flex-1">
-                            <div className="text-[10px] font-bold text-slate-900 truncate">
-                              {user.name.split(' ')[0]}
-                            </div>
-                            <div className="text-[9px] text-teal-700 font-semibold truncate">
-                              Auxiliar • {compName}
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
             </div>
 
           </div>
