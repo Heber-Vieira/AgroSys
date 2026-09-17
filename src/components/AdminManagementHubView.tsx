@@ -684,12 +684,77 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
       isDestructive: true,
       onConfirm: () => {
         const target = users.find(u => u.id === id);
-        setUsers(prev => prev.filter(u => u.id !== id));
+        const doc = target?.documentNumber?.trim();
+        const em = target?.email?.trim().toLowerCase();
+
+        // 1. Build deletion blacklist — include user ID, email, CPF and matched pilot/assistant identifiers
+        const deletedRaw = localStorage.getItem('agrodrone_deleted_user_ids');
+        const deletedArr: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
+        const addToBlacklist = (val?: string | null) => {
+          const v = val?.toLowerCase().trim();
+          if (v && !deletedArr.includes(v)) deletedArr.push(v);
+        };
+        addToBlacklist(id);
+        addToBlacklist(em);
+        addToBlacklist(doc);
+
+        // Find matched crew members to blacklist their identifiers too
+        const matchedPilots = pilots.filter(p =>
+          p.id === id || p.id === `pilot-${id}` ||
+          (doc && p.cpf?.trim() === doc) ||
+          (em && p.email?.toLowerCase().trim() === em)
+        );
+        const matchedAssistants = assistants.filter(a =>
+          a.id === id || a.id === `assistant-${id}` ||
+          (doc && a.cpf?.trim() === doc) ||
+          (em && a.email?.toLowerCase().trim() === em)
+        );
+        matchedPilots.forEach(p => { addToBlacklist(p.id); addToBlacklist(p.cpf); addToBlacklist(p.email); });
+        matchedAssistants.forEach(a => { addToBlacklist(a.id); addToBlacklist(a.cpf); addToBlacklist(a.email); });
+        localStorage.setItem('agrodrone_deleted_user_ids', JSON.stringify(deletedArr));
+
+        // 2. Remove user from users state using functional updater for instant UI re-render
+        setUsers(prev => {
+          const updated = prev.filter(u =>
+            u.id !== id && (!em || u.email?.toLowerCase().trim() !== em)
+          );
+          try { localStorage.setItem('agrodrone_users_fleet', JSON.stringify(updated)); } catch (_e) {}
+          return updated;
+        });
+
+        // 3. Cascade removal to pilots and assistants using functional updaters
+        const matchedPilotIds = new Set(matchedPilots.map(p => p.id));
+        const matchedAssistantIds = new Set(matchedAssistants.map(a => a.id));
+
+        setPilots(prev => {
+          const updated = prev.filter(p =>
+            !matchedPilotIds.has(p.id) &&
+            p.id !== id && p.id !== `pilot-${id}` &&
+            (!doc || p.cpf?.trim() !== doc) &&
+            (!em || p.email?.toLowerCase().trim() !== em)
+          );
+          try { localStorage.setItem('agrodrone_pilots_fleet', JSON.stringify(updated)); } catch (_e) {}
+          return updated;
+        });
+
+        setAssistants(prev => {
+          const updated = prev.filter(a =>
+            !matchedAssistantIds.has(a.id) &&
+            a.id !== id && a.id !== `assistant-${id}` &&
+            (!doc || a.cpf?.trim() !== doc) &&
+            (!em || a.email?.toLowerCase().trim() !== em)
+          );
+          try { localStorage.setItem('agrodrone_assistants_fleet', JSON.stringify(updated)); } catch (_e) {}
+          return updated;
+        });
+
+        // 4. Delete from Supabase cloud (fire-and-forget)
         deleteUserProfileFromSupabase(id, target?.email).catch(() => {});
-        showToast(`Usuário "${name}" removido.`);
+        showToast(`Usuário "${name}" removido com sucesso.`);
       }
     });
   };
+
 
   const handleToggleUserStatus = (u: UserProfile) => {
     const nextStatus: 'ACTIVE' | 'INACTIVE' = u.status === 'INACTIVE' ? 'ACTIVE' : 'INACTIVE';

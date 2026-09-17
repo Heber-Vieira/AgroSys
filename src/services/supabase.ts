@@ -1000,7 +1000,9 @@ export async function deleteUserProfileFromSupabase(userId: string, email?: stri
 
     // 1. Delete from user_profiles table
     try {
-      if (UUID_REGEX.test(userId)) {
+      if (userId && email) {
+        await supabase.from('user_profiles').delete().or(`id.eq.${userId},email.eq.${email}`);
+      } else if (userId) {
         await supabase.from('user_profiles').delete().eq('id', userId);
       } else if (email) {
         await supabase.from('user_profiles').delete().eq('email', email);
@@ -1009,16 +1011,28 @@ export async function deleteUserProfileFromSupabase(userId: string, email?: stri
 
     // 2. Delete from crew_pilots / crew_assistants
     try {
-      await supabase.from('crew_pilots').delete().or(`id.eq.${userId},user_id.eq.${userId}`);
+      if (userId) {
+        await supabase.from('crew_pilots').delete().or(`id.eq.${userId},user_id.eq.${userId},id.eq.pilot-${userId}`);
+      }
+      if (email) {
+        await supabase.from('crew_pilots').delete().eq('email', email);
+      }
     } catch (e) {}
 
     try {
-      await supabase.from('crew_assistants').delete().or(`id.eq.${userId},user_id.eq.${userId}`);
+      if (userId) {
+        await supabase.from('crew_assistants').delete().or(`id.eq.${userId},user_id.eq.${userId},id.eq.assistant-${userId}`);
+      }
+      if (email) {
+        await supabase.from('crew_assistants').delete().eq('email', email);
+      }
     } catch (e) {}
 
     // 3. Delete from app_settings mirror
     try {
-      await supabase.from('app_settings').delete().eq('key', `agro_user_${userId}`);
+      if (userId) {
+        await supabase.from('app_settings').delete().eq('key', `agro_user_${userId}`);
+      }
       if (email) {
         await supabase.from('app_settings').delete().eq('key', `agro_user_user_${email.replace(/[^a-zA-Z0-9]/g, '_')}`);
       }

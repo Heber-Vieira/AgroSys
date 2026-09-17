@@ -113,18 +113,40 @@ import { USER_PHOTO_STORAGE_KEY } from './components/UserAvatar';
 import { hydrateAllCloudData, saveBatteryAlertSettingsToCloud, saveServiceOrdersToCloud, loadServiceOrdersFromCloud } from './services/cloudSyncService';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
 // Helper to merge stored arrays with initial mock data so all companies have default records
-function loadAndMergeWithMock<T extends { id: string; companyId?: string }>(
+function loadAndMergeWithMock<T extends { id: string; companyId?: string; email?: string; cpf?: string }>(
   storageKey: string,
   initialArray: T[]
 ): T[] {
   try {
+    const deletedRaw = localStorage.getItem('agrodrone_deleted_user_ids');
+    const deletedSet = new Set<string>();
+    if (deletedRaw) {
+      try {
+        const parsedDeleted: string[] = JSON.parse(deletedRaw);
+        if (Array.isArray(parsedDeleted)) {
+          parsedDeleted.forEach(id => deletedSet.add(id.toLowerCase().trim()));
+        }
+      } catch (e) {}
+    }
+
+    const isUserOrCrewStore = storageKey.includes('users') || storageKey.includes('pilots') || storageKey.includes('assistants');
+
+    const isDeleted = (item: T): boolean => {
+      if (!isUserOrCrewStore || !item) return false;
+      if (item.id && deletedSet.has(item.id.toLowerCase().trim())) return true;
+      if (item.email && deletedSet.has(item.email.toLowerCase().trim())) return true;
+      if (item.cpf && deletedSet.has(item.cpf.trim())) return true;
+      return false;
+    };
+
     const saved = localStorage.getItem(storageKey);
     if (saved) {
       const parsed: T[] = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        const existingIds = new Set(parsed.map(item => item.id));
-        const missingInitial = initialArray.filter(item => !existingIds.has(item.id));
-        const combined = [...parsed, ...missingInitial];
+      if (Array.isArray(parsed)) {
+        const activeParsed = parsed.filter(item => !isDeleted(item));
+        const existingIds = new Set(activeParsed.map(item => item.id));
+        const missingInitial = initialArray.filter(item => !existingIds.has(item.id) && !isDeleted(item));
+        const combined = [...activeParsed, ...missingInitial];
 
         if (storageKey === 'agrodrone_orders_fleet') {
           return combined.map((item: any) => {
@@ -152,6 +174,8 @@ function loadAndMergeWithMock<T extends { id: string; companyId?: string }>(
         return combined;
       }
     }
+
+    return initialArray.filter(item => !isDeleted(item));
   } catch (e) {
     console.warn(`Erro ao carregar ${storageKey} do localStorage:`, e);
   }
@@ -253,10 +277,31 @@ export default function App() {
     const fetchAndMergeUsers = async () => {
       try {
         const cloudUsers = await loadUserProfilesFromSupabase();
-        if (!isMounted || !cloudUsers || cloudUsers.length === 0) return;
+        if (!isMounted || !cloudUsers) return;
+
+        const deletedRaw = localStorage.getItem('agrodrone_deleted_user_ids');
+        const deletedSet = new Set<string>();
+        if (deletedRaw) {
+          try {
+            const parsedDeleted: string[] = JSON.parse(deletedRaw);
+            if (Array.isArray(parsedDeleted)) {
+              parsedDeleted.forEach(id => deletedSet.add(id.toLowerCase().trim()));
+            }
+          } catch (e) {}
+        }
 
         setAllUsers(prevUsers => {
-          const combined = [...USER_PROFILES, ...prevUsers, ...cloudUsers];
+          // NOTE: Do NOT re-include USER_PROFILES (mocks) here — they are already
+          // present in prevUsers via loadAndMergeWithMock on initial load.
+          // Re-including them would resurrect deleted mock users on every cloud sync.
+          const cloudFiltered = cloudUsers.filter(u => {
+            if (!u) return false;
+            if (u.id && deletedSet.has(u.id.toLowerCase().trim())) return false;
+            if (u.email && deletedSet.has(u.email.toLowerCase().trim())) return false;
+            if (u.documentNumber && deletedSet.has(u.documentNumber.trim())) return false;
+            return true;
+          });
+          const combined = [...prevUsers, ...cloudFiltered];
           const merged = deduplicateUserProfiles(combined);
           try {
             localStorage.setItem('agrodrone_users_fleet', JSON.stringify(merged));
@@ -609,7 +654,7 @@ export default function App() {
       const currentScoped = prevAll.filter(u => u.role === 'ADMIN' || u.role === 'MASTER' || u.isMaster || (u.companyId || 'ciclodrone') === activeTenantId);
       const resolved = typeof action === 'function' ? (action as any)(currentScoped) : action;
       const tagged = resolved.map((item: UserProfile) => ({ ...item, companyId: item.companyId || activeTenantId }));
-      const otherCompanies = prevAll.filter(u => !tagged.some((t: UserProfile) => t.id === u.id));
+      const otherCompanies = prevAll.filter(u => (u.companyId || 'ciclodrone') !== activeTenantId);
       return [...otherCompanies, ...tagged];
     });
   };
