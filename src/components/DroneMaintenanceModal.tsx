@@ -157,7 +157,17 @@ export const DroneMaintenanceModal: React.FC<DroneMaintenanceModalProps> = ({
   };
 
   const handleRemovePhoto = (index: number) => {
-    setPhotos(prev => prev.filter((_, i) => i !== index));
+    showConfirm({
+      title: 'Remover Foto Anexa',
+      message: 'Tem certeza que deseja remover esta imagem anexa do registro de manutenção?',
+      confirmLabel: 'Sim, Remover',
+      cancelLabel: 'Cancelar',
+      isDestructive: true,
+      onConfirm: () => {
+        setPhotos(prev => prev.filter((_, i) => i !== index));
+        showToast('Foto removida da manutenção.', 'info');
+      }
+    });
   };
 
   const handleSaveMaintenance = (e: React.FormEvent) => {

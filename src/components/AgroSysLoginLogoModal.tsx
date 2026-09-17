@@ -23,6 +23,7 @@ import {
   SYSTEM_LOGO_PRESETS 
 } from '../services/brandingLogoStorage';
 import DynamicBrandLogo from './DynamicBrandLogo';
+import { showConfirm } from '../services/notificationService';
 
 interface AgroSysLoginLogoModalProps {
   isOpen: boolean;
@@ -152,24 +153,31 @@ export const AgroSysLoginLogoModal: React.FC<AgroSysLoginLogoModalProps> = ({
     }
   };
 
-  const handleReset = async () => {
-    if (window.confirm('Deseja restaurar o logotipo e o branding oficial do AgroSys para o padrão?')) {
-      setIsSaving(true);
-      try {
-        await resetStoredSystemBranding();
-        setBranding({ ...DEFAULT_AGROSYS_SYSTEM_BRANDING });
-        setSaveSuccess(true);
-        if (onSaved) onSaved(DEFAULT_AGROSYS_SYSTEM_BRANDING);
-        setTimeout(() => {
-          setSaveSuccess(false);
-          onClose();
-        }, 1000);
-      } catch (err: any) {
-        setErrorMsg('Erro ao restaurar logotipo padrão.');
-      } finally {
-        setIsSaving(false);
+  const handleReset = () => {
+    showConfirm({
+      title: 'Restaurar Branding Padrão',
+      message: 'Deseja restaurar o logotipo e o branding oficial do AgroSys para o padrão de fábrica?',
+      confirmLabel: 'Sim, Restaurar',
+      cancelLabel: 'Cancelar',
+      isDestructive: true,
+      onConfirm: async () => {
+        setIsSaving(true);
+        try {
+          await resetStoredSystemBranding();
+          setBranding({ ...DEFAULT_AGROSYS_SYSTEM_BRANDING });
+          setSaveSuccess(true);
+          if (onSaved) onSaved(DEFAULT_AGROSYS_SYSTEM_BRANDING);
+          setTimeout(() => {
+            setSaveSuccess(false);
+            onClose();
+          }, 1000);
+        } catch (err: any) {
+          setErrorMsg('Erro ao restaurar logotipo padrão.');
+        } finally {
+          setIsSaving(false);
+        }
       }
-    }
+    });
   };
 
   return (

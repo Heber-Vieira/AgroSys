@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { UserProfile, PricingMatrixRule, TerrainType, PricingModel } from '../types';
 import { INITIAL_PRICING_RULES } from '../data/mockAppState';
+import { showToast, showConfirm } from '../services/notificationService';
 import { 
   DollarSign, 
   Layers, 
@@ -221,19 +222,35 @@ export const PricingMatrixView: React.FC<PricingMatrixViewProps> = ({
     showToast(`Regra duplicada com sucesso: "${newRule.name}"`);
   };
 
-  // Delete Rule
-  const handleConfirmDelete = () => {
-    if (!ruleToDelete) return;
-    setPricingRules(prev => prev.filter(r => r.id !== ruleToDelete.id));
-    showToast(`Regra "${ruleToDelete.name}" removida com sucesso.`);
-    setRuleToDelete(null);
+  // Delete Rule with System Confirmation Dialog
+  const handleDeleteRule = (rule: PricingMatrixRule) => {
+    showConfirm({
+      title: 'Excluir Regra de Precificação',
+      message: `Tem certeza que deseja remover a regra "${rule.name}"? Esta ação removerá a tarifação da tabela de preços.`,
+      confirmLabel: 'Sim, Excluir',
+      cancelLabel: 'Cancelar',
+      isDestructive: true,
+      onConfirm: () => {
+        setPricingRules(prev => prev.filter(r => r.id !== rule.id));
+        showToast(`Regra "${rule.name}" removida com sucesso.`, 'info');
+      }
+    });
   };
 
-  // Reset to Factory Rules
+  // Reset to Factory Rules with System Confirmation Dialog
   const handleResetToDefaults = () => {
-    setPricingRules(INITIAL_PRICING_RULES);
-    setIsResetConfirmOpen(false);
-    showToast('Tabela de precificação restaurada para as regras padrão de fábrica.');
+    showConfirm({
+      title: 'Restaurar Padrões de Fábrica',
+      message: 'Tem certeza que deseja restaurar a tabela de precificação para as regras padrão de fábrica? Quaisquer alterações customizadas serão desfeitas.',
+      confirmLabel: 'Sim, Restaurar',
+      cancelLabel: 'Cancelar',
+      isDestructive: true,
+      onConfirm: () => {
+        setPricingRules(INITIAL_PRICING_RULES);
+        setIsResetConfirmOpen(false);
+        showToast('Tabela de precificação restaurada para as regras padrão de fábrica.', 'info');
+      }
+    });
   };
 
   // Save Rule (Add or Edit)
@@ -288,10 +305,20 @@ export const PricingMatrixView: React.FC<PricingMatrixViewProps> = ({
   };
 
   const handleRemoveDiscountTier = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      volumeDiscounts: prev.volumeDiscounts.filter((_, i) => i !== index),
-    }));
+    showConfirm({
+      title: 'Remover Faixa de Desconto',
+      message: 'Tem certeza que deseja excluir esta faixa de desconto por volume?',
+      confirmLabel: 'Sim, Remover',
+      cancelLabel: 'Cancelar',
+      isDestructive: true,
+      onConfirm: () => {
+        setFormData(prev => ({
+          ...prev,
+          volumeDiscounts: prev.volumeDiscounts.filter((_, i) => i !== index),
+        }));
+        showToast('Faixa de desconto removida.', 'info');
+      }
+    });
   };
 
   // Modal Live Preview Calculations
@@ -832,7 +859,7 @@ export const PricingMatrixView: React.FC<PricingMatrixViewProps> = ({
                             <button
                               id={`btn-delete-rule-${rule.id}`}
                               type="button"
-                              onClick={() => setRuleToDelete(rule)}
+                              onClick={() => handleDeleteRule(rule)}
                               className="p-1 rounded text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-950/70 transition-colors cursor-pointer"
                               title="Excluir Regra"
                             >

@@ -41,7 +41,7 @@ import {
   QuotationItemProduct,
   QuotationStatus
 } from '../types';
-import { showToast } from '../services/notificationService';
+import { showToast, showConfirm } from '../services/notificationService';
 import { ChemicalLeafletModal } from './ChemicalLeafletModal';
 import { BrandLogo } from './BrandLogo';
 import { formatDecimal, formatBRL, formatHectares, formatNumber, formatPercent, toSafeNumber } from '../utils/formatters';
@@ -372,7 +372,19 @@ export const QuotationsView: React.FC<QuotationsViewProps> = ({
   };
 
   const handleRemoveProduct = (index: number) => {
-    setFormProducts(prev => prev.filter((_, i) => i !== index));
+    const targetProd = formProducts[index];
+    const name = targetProd ? targetProd.productName : 'este insumo';
+    showConfirm({
+      title: 'Remover Insumo do Orçamento',
+      message: `Tem certeza que deseja remover o insumo "${name}" desta proposta de orçamento?`,
+      confirmLabel: 'Sim, Remover',
+      cancelLabel: 'Cancelar',
+      isDestructive: true,
+      onConfirm: () => {
+        setFormProducts(prev => prev.filter((_, i) => i !== index));
+        showToast(`Insumo "${name}" removido do orçamento.`, 'info');
+      }
+    });
   };
 
   const calculateTotals = () => {

@@ -65,6 +65,7 @@ import {
 } from '../services/brandingLogoStorage';
 import { getStoredRegisteredCompanies, COMPANIES_UPDATED_EVENT } from '../services/companyStorage';
 import { isMasterUser } from '../utils/userPermissions';
+import { showConfirm } from '../services/notificationService';
 
 interface AdminBrandingStudioProps {
   theme: WhiteLabelTheme;
@@ -243,17 +244,26 @@ export const AdminBrandingStudio: React.FC<AdminBrandingStudioProps> = ({
   };
 
   const handleRemoveDarkLogo = async () => {
-    const tenantId = targetTenantId;
-    setStoredConfiguredLogoDarkUrl(tenantId, null);
+    showConfirm({
+      title: 'Remover Logotipo Escuro',
+      message: 'Tem certeza que deseja remover a imagem de logotipo configurada para o Modo Escuro?',
+      confirmLabel: 'Sim, Remover',
+      cancelLabel: 'Cancelar',
+      isDestructive: true,
+      onConfirm: async () => {
+        const tenantId = targetTenantId;
+        setStoredConfiguredLogoDarkUrl(tenantId, null);
 
-    const updatedTheme: WhiteLabelTheme = {
-      ...theme,
-      tenantId,
-      logoDarkUrl: undefined,
-    };
-    setTheme(updatedTheme);
-    showToast('Logotipo de modo escuro removido.');
-    await saveTenantBrandingToSupabase(updatedTheme);
+        const updatedTheme: WhiteLabelTheme = {
+          ...theme,
+          tenantId,
+          logoDarkUrl: undefined,
+        };
+        setTheme(updatedTheme);
+        showToast('Logotipo de modo escuro removido.');
+        await saveTenantBrandingToSupabase(updatedTheme);
+      }
+    });
   };
 
   const handleSelectAdaptiveMode = async (mode: 'auto' | 'glass' | 'halo' | 'invert' | 'raw') => {
@@ -287,19 +297,28 @@ export const AdminBrandingStudio: React.FC<AdminBrandingStudioProps> = ({
   };
 
   const handleRemoveCustomLogo = async () => {
-    const tenantId = targetTenantId;
-    setStoredConfiguredLogoUrl(tenantId, null);
-    setStoredConfiguredLogoIconId(tenantId, null);
+    showConfirm({
+      title: 'Remover Logotipo Personalizado',
+      message: 'Tem certeza que deseja remover o logotipo personalizado e restaurar a marca padrão do sistema?',
+      confirmLabel: 'Sim, Remover',
+      cancelLabel: 'Cancelar',
+      isDestructive: true,
+      onConfirm: async () => {
+        const tenantId = targetTenantId;
+        setStoredConfiguredLogoUrl(tenantId, null);
+        setStoredConfiguredLogoIconId(tenantId, null);
 
-    const updatedTheme: WhiteLabelTheme = {
-      ...theme,
-      tenantId,
-      logoUrl: undefined,
-      logoIconId: undefined,
-    };
-    setTheme(updatedTheme);
-    showToast('Logotipo personalizado removido. O sistema adotou o logotipo padrão.');
-    await saveTenantBrandingToSupabase(updatedTheme);
+        const updatedTheme: WhiteLabelTheme = {
+          ...theme,
+          tenantId,
+          logoUrl: undefined,
+          logoIconId: undefined,
+        };
+        setTheme(updatedTheme);
+        showToast('Logotipo personalizado removido. O sistema adotou o logotipo padrão.');
+        await saveTenantBrandingToSupabase(updatedTheme);
+      }
+    });
   };
 
   const handleApplyPresetTheme = async (presetId: string) => {

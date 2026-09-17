@@ -10,6 +10,7 @@ import {
   ClientProducer
 } from '../types';
 import { canUserAccessView, filterOrdersForUser } from '../utils/userPermissions';
+import { showToast, showConfirm } from '../services/notificationService';
 import { 
   Printer, 
   X, 
@@ -284,7 +285,17 @@ export const SprayReportModal: React.FC<SprayReportModalProps> = ({
   };
 
   const handleRemoveImage = (id: string) => {
-    setMapImages(prev => prev.filter(img => img.id !== id));
+    showConfirm({
+      title: 'Remover Imagem do Relatório',
+      message: 'Tem certeza que deseja remover esta imagem/mapa de voo do relatório técnico?',
+      confirmLabel: 'Sim, Remover',
+      cancelLabel: 'Cancelar',
+      isDestructive: true,
+      onConfirm: () => {
+        setMapImages(prev => prev.filter(img => img.id !== id));
+        showToast('Imagem removida do relatório.', 'info');
+      }
+    });
   };
 
   const handlePrint = () => {

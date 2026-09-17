@@ -8,6 +8,7 @@ import {
   AgriculturalDrone 
 } from '../types';
 import { filterOrdersForUser } from '../utils/userPermissions';
+import { showToast, showConfirm } from '../services/notificationService';
 import { 
   Droplets, 
   ShieldCheck, 
@@ -997,7 +998,19 @@ export const SprayMixView: React.FC<SprayMixViewProps> = ({
   };
 
   const handleDeleteProduct = (id: string) => {
-    setProducts(prev => prev.filter(p => p.id !== id));
+    const targetProd = products.find(p => p.id === id);
+    const prodName = targetProd ? targetProd.commercialName : 'este produto';
+    showConfirm({
+      title: 'Remover Insumo da Calda',
+      message: `Tem certeza que deseja remover o produto "${prodName}" da calda de pulverização?`,
+      confirmLabel: 'Sim, Remover',
+      cancelLabel: 'Cancelar',
+      isDestructive: true,
+      onConfirm: () => {
+        setProducts(prev => prev.filter(p => p.id !== id));
+        showToast(`Produto "${prodName}" removido da calda com sucesso.`, 'info');
+      },
+    });
   };
 
   const handleMoveProductOrder = (index: number, direction: 'up' | 'down') => {

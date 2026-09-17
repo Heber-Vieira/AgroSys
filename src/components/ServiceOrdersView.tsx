@@ -10,6 +10,7 @@ import {
   OSStatus,
   WhiteLabelTheme
 } from '../types';
+import { showToast, showConfirm } from '../services/notificationService';
 import { 
   Plane, 
   MapPin, 
@@ -109,16 +110,26 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
   };
 
   const handleRemoveWeatherReading = (orderId: string, readingIndex: number) => {
-    setOrders(prevOrders => prevOrders.map(order => {
-      if (order.id === orderId) {
-        const readings = order.weatherReadings || [];
-        return {
-          ...order,
-          weatherReadings: readings.filter((_, idx) => idx !== readingIndex)
-        };
+    showConfirm({
+      title: 'Remover Leitura Climática',
+      message: 'Tem certeza que deseja excluir este registro de medição de clima da Ordem de Serviço?',
+      confirmLabel: 'Sim, Remover',
+      cancelLabel: 'Cancelar',
+      isDestructive: true,
+      onConfirm: () => {
+        setOrders(prevOrders => prevOrders.map(order => {
+          if (order.id === orderId) {
+            const readings = order.weatherReadings || [];
+            return {
+              ...order,
+              weatherReadings: readings.filter((_, idx) => idx !== readingIndex)
+            };
+          }
+          return order;
+        }));
+        showToast('Medição de clima removida da OS.', 'info');
       }
-      return order;
-    }));
+    });
   };
 
   // Find linked pilot/assistant for current user if applicable
