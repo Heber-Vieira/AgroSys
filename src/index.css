@@ -210,3 +210,57 @@ button, a, select, input, [role="button"] {
     page-break-inside: avoid !important;
   }
 }
+
+/* Card Drag & Drop Animations - AgroSys Module Center */
+@keyframes card-drag-pulse {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.4), inset 0 0 10px rgba(16, 185, 129, 0.2);
+    border-color: rgba(16, 185, 129, 0.9);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(16, 185, 129, 0.7), inset 0 0 15px rgba(16, 185, 129, 0.35);
+    border-color: rgba(52, 211, 153, 1);
+  }
+}
+
+@keyframes drop-snap-bounce {
+  0% {
+    transform: scale(0.92) translateY(-4px);
+  }
+  40% {
+    transform: scale(1.06) translateY(-2px);
+  }
+  70% {
+    transform: scale(0.97) translateY(0px);
+  }
+  100% {
+    transform: scale(1) translateY(0px);
+  }
+}
+
+@keyframes glow-sweep-border {
+  0% {
+    box-shadow: 0 0 0px rgba(16, 185, 129, 0);
+  }
+  50% {
+    box-shadow: 0 0 22px rgba(16, 185, 129, 0.8), 0 0 40px rgba(52, 211, 153, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 0px rgba(16, 185, 129, 0);
+  }
+}
+
+.animate-card-drag-target {
+  animation: card-drag-pulse 1.4s ease-in-out infinite;
+}
+
+.animate-drop-snap {
+  animation: drop-snap-bounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards, glow-sweep-border 0.8s ease-out forwards;
+}
+
+/* Pattern background for dragged card ghost placeholder */
+.bg-drag-placeholder {
+  background-image: radial-gradient(circle, rgba(16, 185, 129, 0.25) 1px, transparent 1px);
+  background-size: 8px 8px;
+}
+

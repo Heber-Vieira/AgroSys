@@ -105,6 +105,7 @@ export const HomeHubView: React.FC<HomeHubViewProps> = ({
   const [draggedItemId, setDraggedItemId] = useState<AppViewMode | null>(null);
   const [dragOverItemId, setDragOverItemId] = useState<AppViewMode | null>(null);
   const [isDraggingActive, setIsDraggingActive] = useState<boolean>(false);
+  const [recentlyDroppedId, setRecentlyDroppedId] = useState<AppViewMode | null>(null);
 
   // Reordering function when dropping item
   const handleReorder = (sourceId: AppViewMode, targetId: AppViewMode) => {
@@ -128,6 +129,11 @@ export const HomeHubView: React.FC<HomeHubViewProps> = ({
     newOrder.splice(targetIndex, 0, sourceId);
 
     setCardOrder(newOrder);
+    setRecentlyDroppedId(sourceId);
+    setTimeout(() => {
+      setRecentlyDroppedId(null);
+    }, 850);
+
     try {
       localStorage.setItem(storageKey, JSON.stringify(newOrder));
       showAgroToast('Ordem dos módulos reorganizada!', 'success');
@@ -495,9 +501,13 @@ export const HomeHubView: React.FC<HomeHubViewProps> = ({
             )}
           </div>
           
-          <span className="hidden md:inline-flex items-center gap-1 text-[10px] text-slate-400 dark:text-slate-500 font-medium">
-            <GripVertical className="w-3 h-3" />
-            Arraste os cards para organizar
+          <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] font-bold transition-all duration-300 select-none ${
+            isDraggingActive
+              ? 'bg-emerald-600 text-white shadow-md animate-pulse border border-emerald-400'
+              : 'text-slate-500 dark:text-slate-400 bg-emerald-50/60 dark:bg-emerald-950/50 border border-emerald-200/60 dark:border-emerald-800/60'
+          }`}>
+            <GripVertical className={`w-3.5 h-3.5 ${isDraggingActive ? 'animate-bounce' : ''}`} />
+            <span>{isDraggingActive ? 'Modo Reorganização • Solte sobre o destino' : 'Arraste os cards para reorganizar'}</span>
           </span>
         </div>
 
@@ -556,6 +566,7 @@ export const HomeHubView: React.FC<HomeHubViewProps> = ({
           {filteredItems.map((item) => {
             const isBeingDragged = draggedItemId === item.id;
             const isDragTarget = dragOverItemId === item.id && !isBeingDragged;
+            const isJustDropped = recentlyDroppedId === item.id;
 
             return (
               <div
@@ -609,26 +620,58 @@ export const HomeHubView: React.FC<HomeHubViewProps> = ({
                     onNavigate(item.id);
                   }
                 }}
-                className={`group relative p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border transition-all duration-200 cursor-grab active:cursor-grabbing select-none flex flex-col justify-between min-h-[80px] sm:min-h-[86px] lg:min-h-[90px] ${
+                className={`group relative p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border transition-all duration-300 cubic-bezier(0.34,1.56,0.64,1) cursor-grab active:cursor-grabbing select-none flex flex-col justify-between min-h-[80px] sm:min-h-[86px] lg:min-h-[90px] ${
                   isBeingDragged
-                    ? 'opacity-30 scale-95 border-dashed border-emerald-500 ring-2 ring-emerald-400/50 bg-emerald-50/40 dark:bg-emerald-950/40'
+                    ? 'opacity-40 scale-95 border-2 border-dashed border-emerald-500 bg-drag-placeholder shadow-inner rotate-1 z-0'
                     : isDragTarget
-                    ? 'ring-2 ring-emerald-500 scale-[1.03] shadow-lg border-emerald-500 bg-emerald-50/80 dark:bg-emerald-950/90 z-10'
+                    ? 'ring-2 ring-emerald-500 scale-[1.05] -translate-y-1 rotate-[-1deg] shadow-xl border-emerald-400 bg-emerald-100/90 dark:bg-emerald-900/90 z-20 animate-card-drag-target'
+                    : isJustDropped
+                    ? 'animate-drop-snap border-emerald-500 ring-2 ring-emerald-400/80 z-10 bg-emerald-50/70 dark:bg-emerald-950/70'
+                    : isDraggingActive
+                    ? 'bg-white dark:bg-[#072a1e] border-emerald-200/80 dark:border-emerald-800/80 opacity-90 scale-[0.99]'
                     : 'bg-white dark:bg-[#072a1e] border-emerald-200/80 dark:border-emerald-800/80 hover:border-emerald-500 dark:hover:border-emerald-500 hover:shadow-md hover:-translate-y-0.5'
                 }`}
                 title={`Arraste para mover ou clique para abrir ${item.title}`}
               >
+                {/* Floating Visual Badges for Drag Dynamics */}
+                {isDragTarget && (
+                  <div className="absolute -top-2.5 -right-1 bg-emerald-600 text-white text-[9.5px] font-black px-2 py-0.5 rounded-full shadow-lg border border-white dark:border-emerald-900 flex items-center gap-0.5 animate-bounce z-30">
+                    <ArrowRight className="w-2.5 h-2.5 rotate-90" />
+                    <span>Soltar Aqui</span>
+                  </div>
+                )}
+
+                {isBeingDragged && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-emerald-500/10 rounded-xl backdrop-blur-[1px] pointer-events-none z-20">
+                    <span className="text-[10px] font-black text-emerald-800 dark:text-emerald-200 bg-white/95 dark:bg-emerald-950/95 px-2.5 py-1 rounded-full shadow-md border border-emerald-400/80 flex items-center gap-1">
+                      <GripVertical className="w-3 h-3 text-emerald-600" />
+                      <span>Movendo...</span>
+                    </span>
+                  </div>
+                )}
+
+                {isJustDropped && (
+                  <div className="absolute -top-2.5 -right-1 bg-emerald-500 text-white text-[9.5px] font-black px-2 py-0.5 rounded-full shadow-lg border border-white dark:border-emerald-900 flex items-center gap-1 animate-pulse z-30">
+                    <Sparkles className="w-2.5 h-2.5" />
+                    <span>Reorganizado!</span>
+                  </div>
+                )}
+
                 <div>
                   {/* Top row: Grip Handle + Icon + Title + Arrow */}
                   <div className="flex items-center justify-between gap-1.5 mb-1">
                     <div className="flex items-center gap-1.5 min-w-0">
                       <div 
-                        className="text-slate-300 dark:text-emerald-900/60 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-colors shrink-0"
+                        className={`transition-colors shrink-0 ${
+                          isBeingDragged || isDragTarget
+                            ? 'text-emerald-600 dark:text-emerald-400 scale-110'
+                            : 'text-slate-300 dark:text-emerald-900/60 group-hover:text-emerald-500 dark:group-hover:text-emerald-400'
+                        }`}
                         title="Arraste para reposicionar"
                       >
                         <GripVertical className="w-3.5 h-3.5" />
                       </div>
-                      <div className={`w-7 h-7 sm:w-7.5 sm:h-7.5 rounded-lg flex items-center justify-center shrink-0 shadow-2xs ${item.iconBg}`}>
+                      <div className={`w-7 h-7 sm:w-7.5 sm:h-7.5 rounded-lg flex items-center justify-center shrink-0 shadow-2xs transition-transform group-hover:scale-105 ${item.iconBg}`}>
                         {item.icon}
                       </div>
                       <h3 className="text-xs font-black text-emerald-950 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors leading-tight truncate">
