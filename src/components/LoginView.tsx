@@ -124,7 +124,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
       // 2. Local Fallback for Registered System Users
       const localMatched = userList.find(
-        u => u.email.toLowerCase() === emailInput.trim().toLowerCase()
+        u => (u.email || '').trim().toLowerCase() === emailInput.trim().toLowerCase()
       );
 
       if (localMatched) {

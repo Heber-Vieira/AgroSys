@@ -62,7 +62,7 @@ import { AdminBrandingStudio } from './AdminBrandingStudio';
 import { AuditLogsView } from './AuditLogsView';
 import { formatBRL, formatDecimal, parseInputNumber } from '../utils/formatters';
 import { PRESET_COMPANIES, PRESET_LOGOS } from '../data/themeTokensData';
-import { isMasterUser } from '../utils/userPermissions';
+import { isMasterUser, getDefaultRoleViews } from '../utils/userPermissions';
 import { BrandLogo } from './BrandLogo';
 import { 
   getCompanyTheme, 
@@ -83,7 +83,8 @@ import {
   saveUserProfileToSupabase,
   deleteUserProfileFromSupabase,
   checkUsersTableStatus,
-  syncAllUsersAndCrewToCloud
+  syncAllUsersAndCrewToCloud,
+  signUpWithSupabase
 } from '../services/supabase';
 import { Database, RefreshCw, Copy } from 'lucide-react';
 
@@ -492,26 +493,38 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
 
   const handleSaveUser = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userFormData.name || !userFormData.email) {
-      showToast('Por favor, preencha ao menos o nome e o e-mail.');
+    const trimmedName = (userFormData.name || '').trim();
+    const trimmedEmail = (userFormData.email || '').trim();
+
+    if (!trimmedName || !trimmedEmail) {
+      showToast('Por favor, preencha ao menos o nome e o e-mail.', 'warning');
       return;
     }
 
     if (!editingUser) {
       if (!userPasswordInput) {
-        showToast('Por favor, cadastre uma senha de acesso para o novo usuário.');
+        showToast('Por favor, cadastre uma senha de acesso para o novo usuário.', 'warning');
         return;
       }
       if (userPasswordInput.length < 6) {
-        showToast('A senha de acesso deve possuir no mínimo 6 caracteres.');
+        showToast('A senha de acesso deve possuir no mínimo 6 caracteres.', 'warning');
         return;
       }
       if (userPasswordInput !== userConfirmPasswordInput) {
-        showToast('A confirmação de senha não confere com a senha digitada.');
+        showToast('A confirmação de senha não confere com a senha digitada.', 'warning');
+        return;
+      }
+
+      // Check for duplicate email
+      const existingUserWithEmail = users.find(
+        u => (u.email || '').trim().toLowerCase() === trimmedEmail.toLowerCase()
+      );
+      if (existingUserWithEmail) {
+        showToast(`Já existe um usuário cadastrado com o e-mail "${trimmedEmail}".`, 'warning');
         return;
       }
     } else if (userPasswordInput && userPasswordInput !== userConfirmPasswordInput) {
-      showToast('A confirmação de senha não confere com a senha digitada.');
+      showToast('A confirmação de senha não confere com a senha digitada.', 'warning');
       return;
     }
 
@@ -530,37 +543,19 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
 
     if (editingUser) {
       // Update existing
-      setUsers(prev => prev.map(u => u.id === editingUser.id ? {
-        ...u,
-        ...userFormData,
-        companyId: targetCompanyId,
-        password: userPasswordInput || u.password || '123456',
-        photoUrl,
-        avatarUrl: photoUrl,
-        role,
-        roleLabel,
-      } as UserProfile : u));
-
-      if (photoUrl) {
-        saveStoredUserPhoto(editingUser.id, photoUrl, {
-          ...editingUser,
-          ...userFormData,
-          id: editingUser.id,
-          photoUrl,
-          avatarUrl: photoUrl,
-        });
-      }
-
       const updatedUser: UserProfile = {
         ...editingUser,
         ...userFormData,
+        name: trimmedName,
+        email: trimmedEmail,
         companyId: targetCompanyId,
         password: userPasswordInput || editingUser.password || '123456',
         photoUrl,
         avatarUrl: photoUrl,
         role,
         roleLabel,
-      } as UserProfile;
+        status: (userFormData.status as 'ACTIVE' | 'INACTIVE') || 'ACTIVE',
+      };
 
       setUsers(prev => prev.map(u => u.id === editingUser.id ? updatedUser : u));
       saveUserProfileToSupabase(updatedUser).catch(e => console.warn('Aviso sync user:', e));
@@ -573,8 +568,9 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
       if (role === 'PILOT') {
         setPilots(prev => prev.map(p => (p.cpf === editingUser.documentNumber || p.id === editingUser.id) ? {
           ...p,
-          name: userFormData.name || p.name,
+          name: trimmedName || p.name,
           phone: userFormData.phone || p.phone,
+          email: trimmedEmail || p.email,
           deceaLicense: userFormData.licenseCode || p.deceaLicense,
           photoUrl: photoUrl || p.photoUrl,
           avatarUrl: photoUrl || p.avatarUrl,
@@ -583,30 +579,31 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
       } else if (role === 'ASSISTANT') {
         setAssistants(prev => prev.map(a => (a.cpf === editingUser.documentNumber || a.id === editingUser.id) ? {
           ...a,
-          name: userFormData.name || a.name,
+          name: trimmedName || a.name,
           phone: userFormData.phone || a.phone,
+          email: trimmedEmail || a.email,
           photoUrl: photoUrl || a.photoUrl,
           avatarUrl: photoUrl || a.avatarUrl,
           companyId: targetCompanyId,
         } : a));
       }
 
-      showToast(`Usuário "${userFormData.name}" atualizado e sincronizado com o banco de dados!`);
+      showToast(`Usuário "${trimmedName}" atualizado e sincronizado com o banco de dados!`);
     } else {
       // Create new with standard UUID
       const newId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `user-${Date.now()}`;
       const newUser: UserProfile = {
         id: newId,
-        name: userFormData.name || 'Novo Usuário',
+        name: trimmedName,
         role,
         roleLabel,
-        email: userFormData.email || '',
+        email: trimmedEmail,
         badge: userFormData.badge || roleLabel,
-        documentNumber: userFormData.documentNumber,
-        phone: userFormData.phone,
-        farmName: userFormData.farmName,
-        licenseCode: userFormData.licenseCode,
-        status: userFormData.status || 'ACTIVE',
+        documentNumber: (userFormData.documentNumber || '').trim(),
+        phone: (userFormData.phone || '').trim(),
+        farmName: (userFormData.farmName || '').trim(),
+        licenseCode: (userFormData.licenseCode || '').trim(),
+        status: (userFormData.status as 'ACTIVE' | 'INACTIVE') || 'ACTIVE',
         salaryBase: userFormData.salaryBase || 0,
         password: userPasswordInput,
         hiredDate: new Date().toISOString().split('T')[0],
@@ -614,6 +611,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
         avatarUrl: photoUrl,
         companyId: targetCompanyId,
         isMaster: role === 'MASTER',
+        allowedViews: getDefaultRoleViews(role),
       };
 
       if (photoUrl) {
@@ -623,6 +621,10 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
       setUsers(prev => [...prev, newUser]);
       saveUserProfileToSupabase(newUser).catch(e => console.warn('Aviso sync user:', e));
 
+      if (trimmedEmail && userPasswordInput) {
+        signUpWithSupabase(trimmedEmail, userPasswordInput, trimmedName, role).catch(e => console.warn('Aviso auth signup:', e));
+      }
+
       // If created a pilot, add to crew pilots
       if (role === 'PILOT') {
         const newPilot: CrewPilot = {
@@ -630,6 +632,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
           name: newUser.name,
           cpf: newUser.documentNumber || '000.000.000-00',
           phone: newUser.phone || '(00) 00000-0000',
+          email: trimmedEmail,
           deceaLicense: newUser.licenseCode || 'DECEA-SARPAS-BR-0000',
           cmaExpiration: '2027-12-31',
           commissionRatePerHa: compensation.pilotCommissionPerHa || 8.00,
@@ -646,6 +649,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
           name: newUser.name,
           cpf: newUser.documentNumber || '000.000.000-00',
           phone: newUser.phone || '(00) 00000-0000',
+          email: trimmedEmail,
           commissionRatePerHa: compensation.assistantCommissionPerHa || 3.00,
           nr31Certified: true,
           available: true,
@@ -688,8 +692,8 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
   };
 
   const handleToggleUserStatus = (u: UserProfile) => {
-    const nextStatus = u.status === 'INACTIVE' ? 'ACTIVE' : 'INACTIVE';
-    const updated = { ...u, status: nextStatus };
+    const nextStatus: 'ACTIVE' | 'INACTIVE' = u.status === 'INACTIVE' ? 'ACTIVE' : 'INACTIVE';
+    const updated: UserProfile = { ...u, status: nextStatus };
     setUsers(prev => prev.map(item => item.id === u.id ? updated : item));
     saveUserProfileToSupabase(updated).catch(() => {});
     showToast(`Status de ${u.name} alterado para ${nextStatus === 'ACTIVE' ? 'Ativo' : 'Inativo'}.`);

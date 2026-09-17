@@ -278,6 +278,7 @@ export interface CrewPilot {
   name: string;
   cpf: string;
   phone: string;
+  email?: string;
   deceaLicense: string;
   cmaExpiration: string;
   commissionRatePerHa: number;
@@ -293,6 +294,7 @@ export interface CrewAssistant {
   name: string;
   cpf: string;
   phone: string;
+  email?: string;
   commissionRatePerHa: number;
   nr31Certified: boolean;
   available: boolean;

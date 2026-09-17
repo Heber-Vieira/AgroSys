@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { WhiteLabelTheme, UserProfile, ServiceOrder } from '../types';
+import { WhiteLabelTheme, UserProfile, ServiceOrder, CrewPilot, CrewAssistant } from '../types';
 import { USER_PROFILES, INITIAL_PILOTS, INITIAL_ASSISTANTS } from '../data/mockAppState';
 import { deduplicateUserProfiles } from '../utils/userPermissions';
 

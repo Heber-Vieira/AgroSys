@@ -71,7 +71,7 @@ export function deduplicateUserProfiles(users: UserProfile[]): UserProfile[] {
         avatarUrl: normalized.photoUrl || normalized.avatarUrl || existing.photoUrl || existing.avatarUrl,
         documentNumber: normalized.documentNumber || existing.documentNumber,
         phone: normalized.phone || existing.phone,
-        password: normalized.password || existing.password,
+        password: (normalized.password !== undefined && normalized.password !== null && normalized.password !== '') ? normalized.password : existing.password,
         allowedViews: normalized.allowedViews || existing.allowedViews,
       };
 
