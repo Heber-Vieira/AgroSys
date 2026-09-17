@@ -1181,52 +1181,6 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
             </button>
           </div>
 
-          {/* Supabase Cloud Database Sync Status Banner */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 bg-slate-900/60 dark:bg-slate-900/90 border border-slate-800 rounded-2xl">
-            <div className="flex items-center gap-3">
-              <div className={`w-3 h-3 rounded-full shrink-0 ${dbUsersStatus?.connected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
-                    <Database className="w-3.5 h-3.5 text-purple-400" />
-                    Sincronização com Banco de Dados Supabase:
-                  </span>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
-                    dbUsersStatus?.connected ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                  }`}>
-                    {dbUsersStatus?.connected ? 'Conectado (Cloud Sync)' : 'Modo Offline / IndexedDB'}
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-400 mt-0.5">
-                  Tabelas relacionais: <code className="text-purple-300 font-mono">user_profiles</code>, <code className="text-purple-300 font-mono">crew_pilots</code>, <code className="text-purple-300 font-mono">crew_assistants</code> e <code className="text-purple-300 font-mono">tenants</code>.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 self-stretch sm:self-auto justify-end">
-              <button
-                type="button"
-                onClick={handleSyncUsersToCloud}
-                disabled={isSyncingUsersDb}
-                className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-transform active:scale-95"
-                title="Forçar envio de todos os usuários e tripulantes cadastrados para o banco de dados na nuvem"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isSyncingUsersDb ? 'animate-spin' : ''}`} />
-                <span>{isSyncingUsersDb ? 'Sincronizando...' : 'Sincronizar Banco'}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setShowUserSchemaModal(true)}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-medium flex items-center gap-1.5 cursor-pointer border border-slate-700"
-                title="Ver estrutura relacional SQL e DDL das tabelas de usuários"
-              >
-                <Database className="w-3.5 h-3.5 text-slate-400" />
-                <span>Estrutura SQL & Tabelas</span>
-              </button>
-            </div>
-          </div>
-
 
           {/* Master Company Filter Pills */}
           {isMaster && (
