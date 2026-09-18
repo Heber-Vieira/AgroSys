@@ -27,8 +27,10 @@ import {
   Info,
   ShieldAlert,
   ArrowRight,
-  Volume2
+  Volume2,
+  Trash2
 } from 'lucide-react';
+import { showConfirm } from '../../services/notificationService';
 import { 
   checkOrderConflicts, 
   findAvailableTimeSlots, 
@@ -53,11 +55,13 @@ import {
   playWeatherWarning, 
   playSlotSelectedTone 
 } from '../../utils/audioAlerts';
+import { INITIAL_PILOTS, INITIAL_ASSISTANTS } from '../../data/mockAppState';
 
 interface ScheduleOrderModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSaveOrder: (order: ServiceOrder) => void;
+  onDeleteOrder?: (orderId: string) => void;
   existingOrders: ServiceOrder[];
   plots: FarmPlot[];
   drones: AgriculturalDrone[];
@@ -75,6 +79,7 @@ export const ScheduleOrderModal: React.FC<ScheduleOrderModalProps> = ({
   isOpen,
   onClose,
   onSaveOrder,
+  onDeleteOrder,
   existingOrders,
   plots,
   drones,
@@ -91,6 +96,33 @@ export const ScheduleOrderModal: React.FC<ScheduleOrderModalProps> = ({
   const [selectedPlotId, setSelectedPlotId] = useState<string>(
     editingOrder?.plotId || plots[0]?.id || ''
   );
+
+  const currentPlot = plots.find(p => p.id === selectedPlotId) || plots[0];
+  const targetCompanyId = currentPlot?.companyId || editingOrder?.companyId || theme?.tenantId || 'ciclodrone';
+
+  // Scoped lists strictly for the company of the selected plot
+  const effectivePilots = useMemo(() => {
+    const scoped = (pilots || []).filter(p => (p.companyId || 'ciclodrone') === targetCompanyId);
+    if (scoped.length > 0) return scoped;
+    const fallbackScoped = INITIAL_PILOTS.filter(p => (p.companyId || 'ciclodrone') === targetCompanyId);
+    if (fallbackScoped.length > 0) return fallbackScoped;
+    return pilots || [];
+  }, [pilots, targetCompanyId]);
+
+  const effectiveAssistants = useMemo(() => {
+    const scoped = (assistants || []).filter(a => (a.companyId || 'ciclodrone') === targetCompanyId);
+    if (scoped.length > 0) return scoped;
+    const fallbackScoped = INITIAL_ASSISTANTS.filter(a => (a.companyId || 'ciclodrone') === targetCompanyId);
+    if (fallbackScoped.length > 0) return fallbackScoped;
+    return assistants || [];
+  }, [assistants, targetCompanyId]);
+
+  const effectiveDrones = useMemo(() => {
+    const scoped = (drones || []).filter(d => (d.companyId || 'ciclodrone') === targetCompanyId);
+    if (scoped.length > 0) return scoped;
+    return drones || [];
+  }, [drones, targetCompanyId]);
+
   const [targetPest, setTargetPest] = useState<string>(
     editingOrder?.targetPestOrGoal || 'Fungicida Preventivo (Ferrugem) + Óleo Vegetal'
   );
@@ -98,14 +130,33 @@ export const ScheduleOrderModal: React.FC<ScheduleOrderModalProps> = ({
     editingOrder?.sprayRateLHa || 10.0
   );
   const [selectedDroneId, setSelectedDroneId] = useState<string>(
-    editingOrder?.droneId || drones[0]?.id || ''
+    editingOrder?.droneId || effectiveDrones[0]?.id || drones[0]?.id || ''
   );
   const [selectedPilotId, setSelectedPilotId] = useState<string>(
-    editingOrder?.pilotId || pilots[0]?.id || ''
+    editingOrder?.pilotId || effectivePilots[0]?.id || ''
   );
   const [selectedAssistantId, setSelectedAssistantId] = useState<string>(
-    editingOrder?.assistantId || assistants[0]?.id || ''
+    editingOrder?.assistantId || effectiveAssistants[0]?.id || ''
   );
+
+  // Keep selections valid when target company/plot changes
+  useEffect(() => {
+    if (effectivePilots.length > 0 && (!selectedPilotId || !effectivePilots.some(p => p.id === selectedPilotId))) {
+      setSelectedPilotId(effectivePilots[0].id);
+    }
+  }, [effectivePilots, targetCompanyId, selectedPilotId]);
+
+  useEffect(() => {
+    if (effectiveAssistants.length > 0 && (!selectedAssistantId || !effectiveAssistants.some(a => a.id === selectedAssistantId))) {
+      setSelectedAssistantId(effectiveAssistants[0].id);
+    }
+  }, [effectiveAssistants, targetCompanyId, selectedAssistantId]);
+
+  useEffect(() => {
+    if (effectiveDrones.length > 0 && (!selectedDroneId || !effectiveDrones.some(d => d.id === selectedDroneId))) {
+      setSelectedDroneId(effectiveDrones[0].id);
+    }
+  }, [effectiveDrones, targetCompanyId, selectedDroneId]);
 
   const todayStr = new Date().toISOString().split('T')[0];
   const [scheduledDate, setScheduledDate] = useState<string>(
@@ -127,14 +178,13 @@ export const ScheduleOrderModal: React.FC<ScheduleOrderModalProps> = ({
   const [isLoadingWeather, setIsLoadingWeather] = useState<boolean>(false);
 
   // Selected Entities
-  const currentPlot = plots.find(p => p.id === selectedPlotId) || plots[0];
   const matchedClient = clients?.find(c => 
     c.name === currentPlot?.clientName || 
     c.farmNames?.some(f => f.toLowerCase() === currentPlot?.farmName?.toLowerCase())
   );
-  const currentDrone = drones.find(d => d.id === selectedDroneId) || drones[0];
-  const currentPilot = pilots.find(p => p.id === selectedPilotId) || pilots[0];
-  const currentAssistant = assistants.find(a => a.id === selectedAssistantId) || assistants[0];
+  const currentDrone = effectiveDrones.find(d => d.id === selectedDroneId) || effectiveDrones[0] || drones[0];
+  const currentPilot = effectivePilots.find(p => p.id === selectedPilotId) || effectivePilots[0];
+  const currentAssistant = effectiveAssistants.find(a => a.id === selectedAssistantId) || effectiveAssistants[0];
 
   // Initialize values when opening or changing editingOrder
   useEffect(() => {
@@ -152,8 +202,14 @@ export const ScheduleOrderModal: React.FC<ScheduleOrderModalProps> = ({
     } else {
       if (initialDate) setScheduledDate(initialDate);
       if (initialStartTime) setStartTime(initialStartTime);
+      if (!selectedPilotId || !effectivePilots.some(p => p.id === selectedPilotId)) {
+        setSelectedPilotId(effectivePilots[0]?.id || '');
+      }
+      if (!selectedAssistantId || !effectiveAssistants.some(a => a.id === selectedAssistantId)) {
+        setSelectedAssistantId(effectiveAssistants[0]?.id || '');
+      }
     }
-  }, [editingOrder, initialDate, initialStartTime, isOpen]);
+  }, [editingOrder, initialDate, initialStartTime, isOpen, effectivePilots, effectiveAssistants]);
 
   // Sync city based on client's registered municipality/UF or farm plot's registered municipality/UF
   useEffect(() => {
@@ -593,7 +649,7 @@ export const ScheduleOrderModal: React.FC<ScheduleOrderModalProps> = ({
                     : 'border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-emerald-500'
                 }`}
               >
-                {drones.map(d => (
+                {effectiveDrones.map(d => (
                   <option key={d.id} value={d.id}>
                     🛸 {d.modelName} ({d.anacPrefix})
                   </option>
@@ -626,9 +682,9 @@ export const ScheduleOrderModal: React.FC<ScheduleOrderModalProps> = ({
                     : 'border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-emerald-500'
                 }`}
               >
-                {pilots.map(p => (
+                {effectivePilots.map(p => (
                   <option key={p.id} value={p.id}>
-                    👨‍✈️ {p.name}
+                    👨‍✈️ {p.name} {p.deceaLicense ? `(${p.deceaLicense})` : ''}
                   </option>
                 ))}
               </select>
@@ -644,7 +700,7 @@ export const ScheduleOrderModal: React.FC<ScheduleOrderModalProps> = ({
                 onChange={(e) => setSelectedAssistantId(e.target.value)}
                 className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500 focus:outline-none cursor-pointer"
               >
-                {assistants.map(a => (
+                {effectiveAssistants.map(a => (
                   <option key={a.id} value={a.id}>
                     👷 {a.name}
                   </option>
@@ -833,13 +889,38 @@ export const ScheduleOrderModal: React.FC<ScheduleOrderModalProps> = ({
 
           {/* Modal Footer Actions */}
           <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-            >
-              Cancelar
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+
+              {editingOrder && onDeleteOrder && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    showConfirm({
+                      title: 'Excluir Agendamento',
+                      message: `Tem certeza que deseja excluir permanentemente o agendamento ${editingOrder.code} (${editingOrder.plotName} - ${editingOrder.farmName})? Esta ação não poderá ser desfeita.`,
+                      confirmLabel: 'Sim, Excluir',
+                      cancelLabel: 'Manter Agendamento',
+                      isDestructive: true,
+                      onConfirm: () => {
+                        onDeleteOrder(editingOrder.id);
+                        onClose();
+                      }
+                    });
+                  }}
+                  className="px-4 py-2.5 rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 hover:bg-rose-600 hover:text-white dark:hover:bg-rose-600 dark:hover:text-white font-bold text-sm transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Excluir Agendamento</span>
+                </button>
+              )}
+            </div>
 
             <div className="flex items-center gap-3">
               {conflictResult.hasConflict && (

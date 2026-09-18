@@ -259,12 +259,12 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
     });
   };
 
-  const handleDeleteOrder = (orderId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDeleteOrder = (orderId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     showConfirm({
       title: 'Cancelar Agendamento',
-      message: 'Tem certeza que deseja desmarcar e cancelar este agendamento?',
-      confirmLabel: 'Sim, Cancelar',
+      message: 'Tem certeza que deseja desmarcar e excluir permanentemente este agendamento?',
+      confirmLabel: 'Sim, Excluir',
       cancelLabel: 'Manter Agendamento',
       isDestructive: true,
       onConfirm: () => {
@@ -1036,6 +1036,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSaveOrder={handleSaveOrder}
+        onDeleteOrder={(orderId) => handleDeleteOrder(orderId)}
         existingOrders={orders}
         plots={plots}
         drones={drones}

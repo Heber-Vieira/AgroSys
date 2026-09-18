@@ -39,7 +39,8 @@ import {
   Lock,
   Unlock,
   SlidersHorizontal,
-  CheckCircle
+  CheckCircle,
+  Trash2
 } from 'lucide-react';
 import { BrandLogo } from './BrandLogo';
 import { DronePhoto, DroneBadge, getDronePhotoUrl } from './DronePhotoBadge';
@@ -48,6 +49,7 @@ import { SprayReportModal } from './SprayReportModal';
 import { WeatherAlertOperatorPanel } from './weather/WeatherAlertOperatorPanel';
 import { formatBRL, formatHectares, formatDecimal, formatDateBR, formatDateTimeBR } from '../utils/formatters';
 import { filterOrdersForUser, isServiceOrderAssignedToUser, isMasterUser, doNamesMatch } from '../utils/userPermissions';
+import { INITIAL_PILOTS, INITIAL_ASSISTANTS } from '../data/mockAppState';
 
 interface ServiceOrdersViewProps {
   currentUser: UserProfile;
@@ -132,35 +134,78 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
     });
   };
 
+  // Selected plot and its company tenant
+  const [newOSPlotId, setNewOSPlotId] = useState<string>(plots[0]?.id || '');
+  const selectedPlot = plots.find(p => p.id === newOSPlotId) || plots[0];
+  const targetCompanyId = selectedPlot?.companyId || theme?.tenantId || 'ciclodrone';
+
+  // Ensure pilots, assistants, and drones strictly match the selected company
+  const effectivePilots = React.useMemo(() => {
+    const scoped = (pilots || []).filter(p => (p.companyId || 'ciclodrone') === targetCompanyId);
+    if (scoped.length > 0) return scoped;
+    const fallbackScoped = INITIAL_PILOTS.filter(p => (p.companyId || 'ciclodrone') === targetCompanyId);
+    if (fallbackScoped.length > 0) return fallbackScoped;
+    return pilots || [];
+  }, [pilots, targetCompanyId]);
+
+  const effectiveAssistants = React.useMemo(() => {
+    const scoped = (assistants || []).filter(a => (a.companyId || 'ciclodrone') === targetCompanyId);
+    if (scoped.length > 0) return scoped;
+    const fallbackScoped = INITIAL_ASSISTANTS.filter(a => (a.companyId || 'ciclodrone') === targetCompanyId);
+    if (fallbackScoped.length > 0) return fallbackScoped;
+    return assistants || [];
+  }, [assistants, targetCompanyId]);
+
+  const effectiveDrones = React.useMemo(() => {
+    const scoped = (drones || []).filter(d => (d.companyId || 'ciclodrone') === targetCompanyId);
+    if (scoped.length > 0) return scoped;
+    return drones || [];
+  }, [drones, targetCompanyId]);
+
   // Find linked pilot/assistant for current user if applicable
   const linkedPilot = React.useMemo(() => {
     if (currentUser.role !== 'PILOT') return undefined;
-    return pilots.find(p => p.id === currentUser.id || doNamesMatch(p.name, currentUser.name));
-  }, [pilots, currentUser]);
+    return effectivePilots.find(p => p.id === currentUser.id || doNamesMatch(p.name, currentUser.name));
+  }, [effectivePilots, currentUser]);
 
   const linkedAssistant = React.useMemo(() => {
     if (currentUser.role !== 'ASSISTANT') return undefined;
-    return assistants.find(a => a.id === currentUser.id || doNamesMatch(a.name, currentUser.name));
-  }, [assistants, currentUser]);
+    return effectiveAssistants.find(a => a.id === currentUser.id || doNamesMatch(a.name, currentUser.name));
+  }, [effectiveAssistants, currentUser]);
 
   // New OS Form State
-  const [newOSPlotId, setNewOSPlotId] = useState<string>(plots[0]?.id || '');
   const [newOSTargetPest, setNewOSTargetPest] = useState<string>('Fungicida + Adjuvante');
   const [newOSSprayRate, setNewOSSprayRate] = useState<number>(10.0);
-  const [newOSDroneId, setNewOSDroneId] = useState<string>(drones[0]?.id || '');
-  const [newOSPilotId, setNewOSPilotId] = useState<string>(linkedPilot?.id || pilots[0]?.id || '');
-  const [newOSAssistantId, setNewOSAssistantId] = useState<string>(linkedAssistant?.id || assistants[0]?.id || '');
+  const [newOSDroneId, setNewOSDroneId] = useState<string>(effectiveDrones[0]?.id || drones[0]?.id || '');
+  const [newOSPilotId, setNewOSPilotId] = useState<string>(linkedPilot?.id || effectivePilots[0]?.id || '');
+  const [newOSAssistantId, setNewOSAssistantId] = useState<string>(linkedAssistant?.id || effectiveAssistants[0]?.id || '');
 
-  // Keep pilot/assistant in sync if user changes
+  // Keep pilot/assistant/drone selection in sync when company/talhão changes or modal opens
   React.useEffect(() => {
-    if (linkedPilot) setNewOSPilotId(linkedPilot.id);
-    if (linkedAssistant) setNewOSAssistantId(linkedAssistant.id);
-  }, [linkedPilot, linkedAssistant]);
+    if (linkedPilot) {
+      setNewOSPilotId(linkedPilot.id);
+    } else if (effectivePilots.length > 0 && (!newOSPilotId || !effectivePilots.some(p => p.id === newOSPilotId))) {
+      setNewOSPilotId(effectivePilots[0].id);
+    }
+  }, [linkedPilot, effectivePilots, targetCompanyId, showNewOSModal, newOSPilotId]);
 
-  const selectedPlot = plots.find(p => p.id === newOSPlotId) || plots[0];
-  const selectedDrone = drones.find(d => d.id === newOSDroneId) || drones[0];
-  const selectedPilot = pilots.find(p => p.id === newOSPilotId) || pilots[0];
-  const selectedAssistant = assistants.find(a => a.id === newOSAssistantId) || assistants[0];
+  React.useEffect(() => {
+    if (linkedAssistant) {
+      setNewOSAssistantId(linkedAssistant.id);
+    } else if (effectiveAssistants.length > 0 && (!newOSAssistantId || !effectiveAssistants.some(a => a.id === newOSAssistantId))) {
+      setNewOSAssistantId(effectiveAssistants[0].id);
+    }
+  }, [linkedAssistant, effectiveAssistants, targetCompanyId, showNewOSModal, newOSAssistantId]);
+
+  React.useEffect(() => {
+    if (effectiveDrones.length > 0 && (!newOSDroneId || !effectiveDrones.some(d => d.id === newOSDroneId))) {
+      setNewOSDroneId(effectiveDrones[0].id);
+    }
+  }, [effectiveDrones, targetCompanyId, showNewOSModal, newOSDroneId]);
+
+  const selectedDrone = effectiveDrones.find(d => d.id === newOSDroneId) || effectiveDrones[0];
+  const selectedPilot = effectivePilots.find(p => p.id === newOSPilotId) || effectivePilots[0];
+  const selectedAssistant = effectiveAssistants.find(a => a.id === newOSAssistantId) || effectiveAssistants[0];
 
   const estimatedGrossValue = (selectedPlot?.hectares || 30) * 75;
   const estimatedPilotComm = (selectedPlot?.hectares || 30) * (selectedPilot?.commissionRatePerHa || 8);
@@ -172,6 +217,7 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
 
     const newOrder: ServiceOrder = {
       id: `os-${Date.now()}`,
+      companyId: targetCompanyId,
       code: `OS-2026-0${orders.length + 42}`,
       createdAt: new Date().toISOString(),
       clientId: currentUser.role === 'USER' ? currentUser.id : 'user-client',
@@ -225,6 +271,21 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
       }
       return order;
     }));
+  };
+
+  const handleDeleteOS = (order: ServiceOrder, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    showConfirm({
+      title: 'Excluir Ordem de Serviço',
+      message: `Tem certeza que deseja excluir permanentemente a Ordem de Serviço ${order.code} (${order.plotName} - ${order.farmName})? Esta operação não poderá ser desfeita.`,
+      confirmLabel: 'Sim, Excluir OS',
+      cancelLabel: 'Manter OS',
+      isDestructive: true,
+      onConfirm: () => {
+        setOrders(prevOrders => prevOrders.filter(o => o.id !== order.id));
+        showToast(`Ordem de Serviço ${order.code} excluída com sucesso.`, 'info', 'OS Excluída');
+      }
+    });
   };
 
   // Filter orders count accurately for current user scope
@@ -457,7 +518,25 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
                           {formatBRL(order.assistantCommission)}
                         </span>
                       </div>
+
+                      <button
+                        onClick={(e) => handleDeleteOS(order, e)}
+                        title="Excluir Ordem de Serviço"
+                        className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-600 hover:text-white dark:hover:bg-rose-600 dark:hover:text-white border border-rose-200 dark:border-rose-800/80 transition-all cursor-pointer shadow-2xs"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
+                  )}
+
+                  {!(currentUser.role === 'ADMIN' || currentUser.role === 'MASTER' || currentUser.isMaster) && (
+                    <button
+                      onClick={(e) => handleDeleteOS(order, e)}
+                      title="Excluir Ordem de Serviço"
+                      className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-600 hover:text-white dark:hover:bg-rose-600 dark:hover:text-white border border-rose-200 dark:border-rose-800/80 transition-all cursor-pointer shadow-2xs self-start"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   )}
                 </div>
 
@@ -767,17 +846,17 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
               </div>
 
               {/* Triad Allocation: Drone, Pilot, Assistant */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3 pt-2">
                 <div>
-                  <label className="font-bold text-emerald-950 dark:text-emerald-200 block mb-1">
+                  <label className="font-bold text-[11px] sm:text-xs text-emerald-950 dark:text-emerald-200 block mb-1 truncate" title="4. Drone Agrícola">
                     4. Drone Agrícola
                   </label>
                   <select
                     value={newOSDroneId}
                     onChange={(e) => setNewOSDroneId(e.target.value)}
-                    className="w-full p-2.5 rounded-xl bg-white dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-600 font-semibold text-emerald-950 dark:text-emerald-50 focus:ring-2 focus:ring-emerald-500 cursor-pointer shadow-2xs"
+                    className="w-full p-2 sm:p-2.5 text-xs rounded-xl bg-white dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-600 font-semibold text-emerald-950 dark:text-emerald-50 focus:ring-2 focus:ring-emerald-500 cursor-pointer shadow-2xs truncate"
                   >
-                    {drones.map(d => (
+                    {effectiveDrones.map(d => (
                       <option key={d.id} value={d.id}>
                         {d.modelName} ({d.anacPrefix})
                       </option>
@@ -786,66 +865,112 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="font-bold text-emerald-950 dark:text-emerald-200 block mb-1">
+                  <label className="font-bold text-[11px] sm:text-xs text-emerald-950 dark:text-emerald-200 block mb-1 truncate" title="5. Piloto Remoto (DECEA)">
                     5. Piloto Remoto (DECEA)
                   </label>
                   <select
                     value={newOSPilotId}
                     onChange={(e) => setNewOSPilotId(e.target.value)}
-                    className="w-full p-2.5 rounded-xl bg-white dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-600 font-semibold text-emerald-950 dark:text-emerald-50 focus:ring-2 focus:ring-emerald-500 cursor-pointer shadow-2xs"
+                    className="w-full p-2 sm:p-2.5 text-xs rounded-xl bg-white dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-600 font-semibold text-emerald-950 dark:text-emerald-50 focus:ring-2 focus:ring-emerald-500 cursor-pointer shadow-2xs truncate"
                   >
-                    {pilots.map(p => (
+                    {effectivePilots.map(p => (
                       <option key={p.id} value={p.id}>
-                        {p.name} ({formatBRL(p.commissionRatePerHa)}/ha)
+                        👨‍✈️ {p.name} {p.deceaLicense ? `(${p.deceaLicense})` : ''} — {formatBRL(p.commissionRatePerHa || 8)}/ha
                       </option>
                     ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="font-bold text-emerald-950 dark:text-emerald-200 block mb-1">
-                    6. Auxiliar de Solo (NR-31)
+                  <label className="font-bold text-[11px] sm:text-xs text-emerald-950 dark:text-emerald-200 block mb-1 truncate" title="6. Auxiliar de Pulverização (NR-31)">
+                    6. Auxiliar de Pulverização (NR-31)
                   </label>
                   <select
                     value={newOSAssistantId}
                     onChange={(e) => setNewOSAssistantId(e.target.value)}
-                    className="w-full p-2.5 rounded-xl bg-white dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-600 font-semibold text-emerald-950 dark:text-emerald-50 focus:ring-2 focus:ring-emerald-500 cursor-pointer shadow-2xs"
+                    className="w-full p-2 sm:p-2.5 text-xs rounded-xl bg-white dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-600 font-semibold text-emerald-950 dark:text-emerald-50 focus:ring-2 focus:ring-emerald-500 cursor-pointer shadow-2xs truncate"
                   >
-                    {assistants.map(a => (
+                    {effectiveAssistants.map(a => (
                       <option key={a.id} value={a.id}>
-                        {a.name} ({formatBRL(a.commissionRatePerHa)}/ha)
+                        👷 {a.name} — {formatBRL(a.commissionRatePerHa || 3)}/ha
                       </option>
                     ))}
                   </select>
                 </div>
 
-                {/* Selected Drone Visual Card */}
-                {selectedDrone && (
-                  <div className="sm:col-span-3 p-3 rounded-2xl bg-emerald-100/70 dark:bg-emerald-950/70 border border-emerald-300 dark:border-emerald-700 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <DronePhoto
-                        drone={selectedDrone}
-                        size="md"
-                        rounded="rounded-xl"
-                        className="border border-emerald-300 dark:border-emerald-600 shadow-2xs flex-shrink-0"
-                      />
-                      <div className="min-w-0">
-                        <span className="text-[10px] uppercase font-mono font-bold text-emerald-700 dark:text-emerald-400 block">
-                          Aeronave Homologada SISANT: {selectedDrone.anacPrefix}
-                        </span>
-                        <strong className="text-emerald-950 dark:text-white text-xs truncate block">
-                          {selectedDrone.modelName}
-                        </strong>
-                        <span className="text-[11px] text-emerald-800/80 dark:text-emerald-300/80">
-                          Tanque: {selectedDrone.tankCapacityL}L • Carga Útil: {selectedDrone.maxPayloadKg}kg • Bateria: {selectedDrone.batteryStatusPct}%
-                        </span>
+                {/* Selected Triad Visual Cards */}
+                <div className="col-span-3 space-y-2">
+                  {/* Selected Drone Visual Card */}
+                  {selectedDrone && (
+                    <div className="p-3 rounded-2xl bg-emerald-100/70 dark:bg-emerald-950/70 border border-emerald-300 dark:border-emerald-700 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <DronePhoto
+                          drone={selectedDrone}
+                          size="md"
+                          rounded="rounded-xl"
+                          className="border border-emerald-300 dark:border-emerald-600 shadow-2xs flex-shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <span className="text-[10px] uppercase font-mono font-bold text-emerald-700 dark:text-emerald-400 block">
+                            Aeronave Homologada SISANT: {selectedDrone.anacPrefix}
+                          </span>
+                          <strong className="text-emerald-950 dark:text-white text-xs truncate block">
+                            {selectedDrone.modelName}
+                          </strong>
+                          <span className="text-[11px] text-emerald-800/80 dark:text-emerald-300/80">
+                            Tanque: {selectedDrone.tankCapacityL}L • Carga Útil: {selectedDrone.maxPayloadKg}kg • Bateria: {selectedDrone.batteryStatusPct}%
+                          </span>
+                        </div>
                       </div>
+                      <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-200 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700 flex-shrink-0">
+                        {selectedDrone.operationalStatus === 'READY' ? 'PRONTO' : 'ALOCADO'}
+                      </span>
                     </div>
-                    <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-200 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700 flex-shrink-0">
-                      {selectedDrone.operationalStatus === 'READY' ? 'PRONTO' : 'ALOCADO'}
-                    </span>
+                  )}
+
+                  {/* Selected Crew (Pilot + Assistant) Preview Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    {selectedPilot && (
+                      <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center gap-2.5">
+                        <UserAvatar
+                          user={selectedPilot}
+                          size="md"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <span className="text-[10px] uppercase font-mono font-bold text-emerald-700 dark:text-emerald-400 block">
+                            👨‍✈️ Piloto Credenciado DECEA
+                          </span>
+                          <strong className="text-emerald-950 dark:text-white truncate block">
+                            {selectedPilot.name}
+                          </strong>
+                          <span className="text-[10px] text-slate-500 dark:text-emerald-300/80 block truncate">
+                            {selectedPilot.deceaLicense ? `Licença: ${selectedPilot.deceaLicense}` : 'Licença DECEA Ativa'} • Comissão: {formatBRL(selectedPilot.commissionRatePerHa || 8)}/ha
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedAssistant && (
+                      <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center gap-2.5">
+                        <UserAvatar
+                          user={selectedAssistant}
+                          size="md"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <span className="text-[10px] uppercase font-mono font-bold text-emerald-700 dark:text-emerald-400 block">
+                            👷 Auxiliar de Pulverização (NR-31)
+                          </span>
+                          <strong className="text-emerald-950 dark:text-white truncate block">
+                            {selectedAssistant.name}
+                          </strong>
+                          <span className="text-[10px] text-slate-500 dark:text-emerald-300/80 block truncate">
+                            Habilitado NR-31 • Comissão: {formatBRL(selectedAssistant.commissionRatePerHa || 3)}/ha
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
 
               {/* Calculated Summary Box - Financials visible to ADMIN & MASTER */}

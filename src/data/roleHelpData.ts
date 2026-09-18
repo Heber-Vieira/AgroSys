@@ -379,7 +379,7 @@ export const ROLE_HELP_DATA: Record<UserRole, RoleHelpItem> = {
       },
       {
         order: 3,
-        title: 'Coordenação com o Auxiliar de Solo',
+        title: 'Coordenação com o Auxiliar de Pulverização',
         description: 'Confira com o auxiliar se a calda foi preparada e os EPIs estão vestidos.',
         screen: 'spray-mix',
         actionTip: 'Nunca inicie a decolagem enquanto o auxiliar estiver próximo aos rotores.',
@@ -470,7 +470,7 @@ export const ROLE_HELP_DATA: Record<UserRole, RoleHelpItem> = {
     bgColor: 'bg-amber-50 dark:bg-amber-950/40',
     borderColor: 'border-amber-200 dark:border-amber-800',
     accentColor: 'text-amber-600 dark:text-amber-400',
-    description: 'Como Auxiliar de Solo, seu papel garante a fluidez da missão. Você é responsável pelo preparo físico-químico da calda, logística e resfriamento contínuo das Baterias em campo, monitoramento do status climático (para interromper a mistura se for chover ou ventar) e pela lavagem final InpEV das embalagens.',
+    description: 'Como Auxiliar de Pulverização, seu papel garante a fluidez da missão. Você é responsável pelo preparo físico-químico da calda, logística e resfriamento contínuo das Baterias em campo, monitoramento do status climático (para interromper a mistura se for chover ou ventar) e pela lavagem final InpEV das embalagens.',
     keyResponsibilities: [
       'Vestir o conjunto de EPIs (NR-31) ao manusear químicos ou lavar embalagens.',
       'Controlar o circuito logístico das baterias de voo (Retirar > Resfriar > Carregar > Levar ao Drone).',

@@ -491,7 +491,7 @@ export const FleetDronesView: React.FC<FleetDronesViewProps> = ({
           id: activeUploadCrew.person.id,
           name: activeUploadCrew.person.name,
           role: activeUploadCrew.role,
-          roleLabel: activeUploadCrew.role === 'PILOT' ? 'Piloto Remoto' : 'Auxiliar de Solo',
+          roleLabel: activeUploadCrew.role === 'PILOT' ? 'Piloto Remoto' : 'Auxiliar de Pulverização',
           email: '',
           badge: activeUploadCrew.role === 'PILOT' ? 'Piloto DECEA' : 'NR-31',
           photoUrl: activeUploadCrew.person.photoUrl,

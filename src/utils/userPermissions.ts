@@ -83,41 +83,248 @@ export function deduplicateUserProfiles(users: UserProfile[]): UserProfile[] {
 }
 
 /**
- * Deduplicates crew pilots by email, cpf, or ID.
+ * Deduplicates crew pilots by ID, CPF, email, or name within the company.
  */
 export function deduplicateCrewPilots(pilots: CrewPilot[]): CrewPilot[] {
   if (!Array.isArray(pilots)) return [];
-  const map = new Map<string, CrewPilot>();
+  const result: CrewPilot[] = [];
+
   pilots.forEach(p => {
     if (!p) return;
-    const key = (p.email ? p.email.toLowerCase().trim() : '') || (p.cpf ? p.cpf.trim() : '') || p.id;
-    if (!map.has(key)) {
-      map.set(key, p);
+    const cleanId = (p.id || '').trim();
+    const cleanEmail = (p.email || '').toLowerCase().trim();
+    const cleanCpf = (p.cpf || '').replace(/\D/g, '');
+    const pTenant = p.companyId || 'ciclodrone';
+
+    const existingIdx = result.findIndex(item => {
+      const itemTenant = item.companyId || 'ciclodrone';
+      if (cleanId && item.id && item.id.trim() === cleanId) return true;
+      if (cleanEmail && item.email && item.email.toLowerCase().trim() === cleanEmail) return true;
+      if (cleanCpf && item.cpf && item.cpf.replace(/\D/g, '') === cleanCpf) return true;
+      if (doNamesMatch(item.name, p.name) && itemTenant === pTenant) return true;
+      return false;
+    });
+
+    if (existingIdx === -1) {
+      result.push(p);
     } else {
-      const existing = map.get(key)!;
-      map.set(key, { ...existing, ...p });
+      result[existingIdx] = {
+        ...result[existingIdx],
+        ...p,
+        email: p.email || result[existingIdx].email,
+        cpf: p.cpf || result[existingIdx].cpf,
+        phone: p.phone || result[existingIdx].phone,
+        deceaLicense: p.deceaLicense || result[existingIdx].deceaLicense,
+        photoUrl: p.photoUrl || result[existingIdx].photoUrl,
+        avatarUrl: p.photoUrl || result[existingIdx].photoUrl || result[existingIdx].avatarUrl,
+        commissionRatePerHa: p.commissionRatePerHa || result[existingIdx].commissionRatePerHa,
+      };
     }
   });
-  return Array.from(map.values());
+
+  return result;
 }
 
 /**
- * Deduplicates crew assistants by cpf, name, or ID.
+ * Deduplicates crew assistants by ID, CPF, email, or name within the company.
  */
 export function deduplicateCrewAssistants(assistants: CrewAssistant[]): CrewAssistant[] {
   if (!Array.isArray(assistants)) return [];
-  const map = new Map<string, CrewAssistant>();
+  const result: CrewAssistant[] = [];
+
   assistants.forEach(a => {
     if (!a) return;
-    const key = (a.cpf ? a.cpf.trim() : '') || (a.name ? a.name.toLowerCase().trim() : '') || a.id;
-    if (!map.has(key)) {
-      map.set(key, a);
+    const cleanId = (a.id || '').trim();
+    const cleanEmail = (a.email || '').toLowerCase().trim();
+    const cleanCpf = (a.cpf || '').replace(/\D/g, '');
+    const aTenant = a.companyId || 'ciclodrone';
+
+    const existingIdx = result.findIndex(item => {
+      const itemTenant = item.companyId || 'ciclodrone';
+      if (cleanId && item.id && item.id.trim() === cleanId) return true;
+      if (cleanEmail && item.email && item.email.toLowerCase().trim() === cleanEmail) return true;
+      if (cleanCpf && item.cpf && item.cpf.replace(/\D/g, '') === cleanCpf) return true;
+      if (doNamesMatch(item.name, a.name) && itemTenant === aTenant) return true;
+      return false;
+    });
+
+    if (existingIdx === -1) {
+      result.push(a);
     } else {
-      const existing = map.get(key)!;
-      map.set(key, { ...existing, ...a });
+      result[existingIdx] = {
+        ...result[existingIdx],
+        ...a,
+        email: a.email || result[existingIdx].email,
+        cpf: a.cpf || result[existingIdx].cpf,
+        phone: a.phone || result[existingIdx].phone,
+        photoUrl: a.photoUrl || result[existingIdx].photoUrl,
+        avatarUrl: a.photoUrl || result[existingIdx].photoUrl || result[existingIdx].avatarUrl,
+        commissionRatePerHa: a.commissionRatePerHa || result[existingIdx].commissionRatePerHa,
+      };
     }
   });
-  return Array.from(map.values());
+
+  return result;
+}
+
+/**
+ * Synchronizes and extracts pilots for a target company with 100% precision:
+ * - Scans both crew_pilots (allPilots) and user_profiles (allUsers) matching companyId.
+ * - Converts any user with role 'PILOT' into CrewPilot objects.
+ * - Explicitly excludes Master administrators (e.g. Heber) and non-pilot accounts.
+ * - Deduplicates entries by ID, email, or CPF.
+ */
+export function syncCompanyPilots(
+  allPilots: CrewPilot[] = [],
+  allUsers: UserProfile[] = [],
+  targetCompanyId: string = 'ciclodrone',
+  isGlobalView: boolean = false,
+  fallbackPilots: CrewPilot[] = []
+): CrewPilot[] {
+  const targetTenant = targetCompanyId || 'ciclodrone';
+
+  // Helper to test if a record belongs to a Master admin or a non-pilot role
+  const isMasterOrNonPilot = (name?: string | null, id?: string | null, role?: string | null) => {
+    if (id === 'user-heber-vieira' || id === 'user-thales-vieira') return true;
+    if (role === 'MASTER' || role === 'ADMIN' || role === 'USER') return true;
+    return false;
+  };
+
+  // 1. Direct pilots matching companyId (filtering out any Master/Admin accounts)
+  const directPilots = (allPilots || []).filter(p => {
+    if (!p) return false;
+    if (isMasterOrNonPilot(p.name, p.id, (p as any).role)) return false;
+    if (isGlobalView || targetCompanyId === 'ALL') return true;
+    const pTenant = p.companyId || 'ciclodrone';
+    return pTenant === targetTenant;
+  });
+
+  // 2. User profiles with role 'PILOT' belonging to target company (strictly role === 'PILOT')
+  const pilotUsers = (allUsers || []).filter(u => {
+    if (!u) return false;
+    if (isMasterUser(u) || isMasterOrNonPilot(u.name, u.id, u.role)) return false;
+    const roleUpper = (u.role || '').toUpperCase();
+    if (roleUpper !== 'PILOT') return false;
+
+    if (!isGlobalView && targetCompanyId && targetCompanyId !== 'ALL') {
+      const uTenant = u.companyId || 'ciclodrone';
+      if (uTenant !== targetTenant) return false;
+    }
+    return true;
+  });
+
+  // 3. Convert user profiles to CrewPilot format
+  const convertedPilots: CrewPilot[] = pilotUsers.map(u => ({
+    id: u.id,
+    companyId: u.companyId || targetTenant,
+    name: u.name,
+    email: u.email,
+    cpf: u.documentNumber,
+    phone: u.phone,
+    deceaLicense: u.licenseCode || u.badge || 'DECEA Habilitado',
+    cmaExpiration: '2027-12-31',
+    commissionRatePerHa: 8.00,
+    totalHoursFlown: 100.0,
+    available: u.status !== 'INACTIVE',
+    photoUrl: u.photoUrl,
+  }));
+
+  // 4. Merge direct pilots and converted user pilots, then deduplicate
+  const merged = deduplicateCrewPilots([...directPilots, ...convertedPilots]).filter(p => 
+    !isMasterOrNonPilot(p.name, p.id, (p as any).role)
+  );
+
+  // 5. If specific tenant has custom results, return them
+  if (merged.length > 0) {
+    return merged;
+  }
+
+  // 6. Fallback matching company (filtering out Master/Admin)
+  if (fallbackPilots && fallbackPilots.length > 0) {
+    const cleanFallback = fallbackPilots.filter(p => !isMasterOrNonPilot(p.name, p.id, (p as any).role));
+    const tenantFallback = cleanFallback.filter(p => isGlobalView || targetCompanyId === 'ALL' || (p.companyId || 'ciclodrone') === targetTenant);
+    return tenantFallback;
+  }
+
+  return [];
+}
+
+/**
+ * Synchronizes and extracts assistants for a target company with 100% precision:
+ * - Scans both crew_assistants (allAssistants) and user_profiles (allUsers) matching companyId.
+ * - Converts any user with role 'ASSISTANT' into CrewAssistant objects.
+ * - Explicitly excludes Master administrators (e.g. Heber) and non-assistant accounts.
+ * - Deduplicates entries by ID, CPF, or name.
+ */
+export function syncCompanyAssistants(
+  allAssistants: CrewAssistant[] = [],
+  allUsers: UserProfile[] = [],
+  targetCompanyId: string = 'ciclodrone',
+  isGlobalView: boolean = false,
+  fallbackAssistants: CrewAssistant[] = []
+): CrewAssistant[] {
+  const targetTenant = targetCompanyId || 'ciclodrone';
+
+  const isMasterOrNonAssistant = (name?: string | null, id?: string | null, role?: string | null) => {
+    if (id === 'user-heber-vieira' || id === 'user-thales-vieira') return true;
+    if (role === 'MASTER' || role === 'ADMIN' || role === 'USER') return true;
+    return false;
+  };
+
+  // 1. Direct assistants matching companyId
+  const directAssistants = (allAssistants || []).filter(a => {
+    if (!a) return false;
+    if (isMasterOrNonAssistant(a.name, a.id, (a as any).role)) return false;
+    if (isGlobalView || targetCompanyId === 'ALL') return true;
+    const aTenant = a.companyId || 'ciclodrone';
+    return aTenant === targetTenant;
+  });
+
+  // 2. User profiles with role 'ASSISTANT' belonging to target company (strictly role === 'ASSISTANT')
+  const assistantUsers = (allUsers || []).filter(u => {
+    if (!u) return false;
+    if (isMasterUser(u) || isMasterOrNonAssistant(u.name, u.id, u.role)) return false;
+    const roleUpper = (u.role || '').toUpperCase();
+    if (roleUpper !== 'ASSISTANT') return false;
+
+    if (!isGlobalView && targetCompanyId && targetCompanyId !== 'ALL') {
+      const uTenant = u.companyId || 'ciclodrone';
+      if (uTenant !== targetTenant) return false;
+    }
+    return true;
+  });
+
+  // 3. Convert user profiles to CrewAssistant format
+  const convertedAssistants: CrewAssistant[] = assistantUsers.map(u => ({
+    id: u.id,
+    companyId: u.companyId || targetTenant,
+    name: u.name,
+    cpf: u.documentNumber,
+    phone: u.phone,
+    commissionRatePerHa: 3.00,
+    nr31Certified: true,
+    available: u.status !== 'INACTIVE',
+    photoUrl: u.photoUrl,
+  }));
+
+  // 4. Merge direct assistants and converted user assistants, then deduplicate
+  const merged = deduplicateCrewAssistants([...directAssistants, ...convertedAssistants]).filter(a => 
+    !isMasterOrNonAssistant(a.name, a.id, (a as any).role)
+  );
+
+  // 5. If specific tenant has custom results, return them
+  if (merged.length > 0) {
+    return merged;
+  }
+
+  // 6. Fallback matching company
+  if (fallbackAssistants && fallbackAssistants.length > 0) {
+    const cleanFallback = fallbackAssistants.filter(a => !isMasterOrNonAssistant(a.name, a.id, (a as any).role));
+    const tenantFallback = cleanFallback.filter(a => isGlobalView || targetCompanyId === 'ALL' || (a.companyId || 'ciclodrone') === targetTenant);
+    return tenantFallback;
+  }
+
+  return [];
 }
 
 /**

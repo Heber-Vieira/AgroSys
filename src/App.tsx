@@ -61,7 +61,9 @@ import {
   canUserAccessView,
   deduplicateUserProfiles,
   deduplicateCrewPilots,
-  deduplicateCrewAssistants
+  deduplicateCrewAssistants,
+  syncCompanyPilots,
+  syncCompanyAssistants
 } from './utils/userPermissions';
 import { 
   getStoredConfiguredLogoUrl, 
@@ -390,7 +392,8 @@ export default function App() {
 
   const [allPilots, setAllPilots] = useState<CrewPilot[]>(() => {
     const raw = loadAndMergeWithMock('agrodrone_pilots_fleet', INITIAL_PILOTS);
-    return deduplicateCrewPilots(raw);
+    const sanitized = (raw || []).filter(p => p && p.id !== 'user-heber-vieira' && p.id !== 'user-thales-vieira' && !p.name?.toLowerCase().includes('heber'));
+    return deduplicateCrewPilots(sanitized);
   });
   useEffect(() => {
     try {
@@ -400,7 +403,8 @@ export default function App() {
 
   const [allAssistants, setAllAssistants] = useState<CrewAssistant[]>(() => {
     const raw = loadAndMergeWithMock('agrodrone_assistants_fleet', INITIAL_ASSISTANTS);
-    return deduplicateCrewAssistants(raw);
+    const sanitized = (raw || []).filter(a => a && a.id !== 'user-heber-vieira' && a.id !== 'user-thales-vieira' && !a.name?.toLowerCase().includes('heber'));
+    return deduplicateCrewAssistants(sanitized);
   });
   useEffect(() => {
     try {
@@ -466,15 +470,13 @@ export default function App() {
     [allDrones, activeTenantId, isGlobalView]
   );
 
-  const pilots = useMemo(() => 
-    isGlobalView ? allPilots : allPilots.filter(p => (p.companyId || 'ciclodrone') === activeTenantId), 
-    [allPilots, activeTenantId, isGlobalView]
-  );
+  const pilots = useMemo(() => {
+    return syncCompanyPilots(allPilots, allUsers, activeTenantId, isGlobalView, INITIAL_PILOTS);
+  }, [allPilots, allUsers, activeTenantId, isGlobalView]);
 
-  const assistants = useMemo(() => 
-    isGlobalView ? allAssistants : allAssistants.filter(a => (a.companyId || 'ciclodrone') === activeTenantId), 
-    [allAssistants, activeTenantId, isGlobalView]
-  );
+  const assistants = useMemo(() => {
+    return syncCompanyAssistants(allAssistants, allUsers, activeTenantId, isGlobalView, INITIAL_ASSISTANTS);
+  }, [allAssistants, allUsers, activeTenantId, isGlobalView]);
 
   const clients = useMemo(() => 
     isGlobalView ? allClients : allClients.filter(c => (c.companyId || 'ciclodrone') === activeTenantId), 
