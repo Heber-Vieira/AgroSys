@@ -397,7 +397,7 @@ export const SprayReportModal: React.FC<SprayReportModalProps> = ({
       </div>
 
       {/* Main Workspace (Split View: Config Drawer + Printable Canvas) */}
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="flex-1 flex overflow-hidden relative print:block print:overflow-visible print:h-auto print:static">
         
         {/* Left Options Drawer (Non-Printable) */}
         {showConfigDrawer && (
@@ -665,7 +665,7 @@ export const SprayReportModal: React.FC<SprayReportModalProps> = ({
         )}
 
         {/* Right Printable Preview Canvas */}
-        <div className="flex-1 bg-slate-950 p-4 sm:p-8 overflow-y-auto print:p-0 print:bg-white print:overflow-visible">
+        <div className="flex-1 bg-slate-950 p-4 sm:p-8 overflow-y-auto print:p-0 print:bg-white print:overflow-visible print:h-auto print:block">
           
           {activeOrder.status !== 'COMPLETED' && (
             <div className="print:hidden max-w-4xl mx-auto mb-4 p-3.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-200 flex items-center gap-3">

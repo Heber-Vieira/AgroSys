@@ -141,6 +141,15 @@ button, a, select, input, [role="button"] {
     display: none !important;
   }
 
+  /* Hide background view children inside main when printing a report modal, without hiding the modal if rendered inside main */
+  body:has(#printable-report-document) main > *:not(#printable-report-document):not(.spray-report-modal-wrapper):not(:has(#printable-report-document)),
+  body:has(#printable-certificate-document) main > *:not(#printable-certificate-document):not(.printable-document):not(:has(#printable-certificate-document)),
+  body:has(#printable-weather-document) main > *:not(#printable-weather-document):not(:has(#printable-weather-document)),
+  body:has(#printable-quotation-document) main > *:not(#printable-quotation-document):not(:has(#printable-quotation-document)),
+  body:has(#printable-maintenance-document) main > *:not(#printable-maintenance-document):not(:has(#printable-maintenance-document)) {
+    display: none !important;
+  }
+
   /* Unclip modal backdrops and containers so browser print engine flows pages naturally */
   .spray-report-modal-wrapper,
   .printable-wrapper,

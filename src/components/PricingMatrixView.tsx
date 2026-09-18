@@ -142,14 +142,29 @@ export const PricingMatrixView: React.FC<PricingMatrixViewProps> = ({
   };
 
   // Find matching rule for Simulator
-  const matchedRule = pricingRules.find(
+  const exactMatchedRule = pricingRules.find(
     r => r.cropType.toLowerCase() === simCrop.toLowerCase() && r.terrainType === simTerrain
-  ) || pricingRules.find(
+  );
+
+  const cropMatchedRule = pricingRules.find(
     r => r.cropType.toLowerCase() === simCrop.toLowerCase()
   ) || pricingRules[0];
 
+  const matchedRule = exactMatchedRule || cropMatchedRule;
   const baseRate = matchedRule?.baseRate || 75.0;
-  const difficultyMult = matchedRule?.difficultyMultiplier || 1.0;
+
+  const TERRAIN_DEFAULT_FACTORS: Record<TerrainType, number> = {
+    FLAT_GRAINS: 1.00,
+    STEEP_SLOPE: 1.25,
+    PASTURE: 1.15,
+    ORCHARD_FRUIT: 1.20,
+    WETLAND: 1.10,
+  };
+
+  const difficultyMult = exactMatchedRule
+    ? exactMatchedRule.difficultyMultiplier
+    : (TERRAIN_DEFAULT_FACTORS[simTerrain] ?? 1.0);
+
   const effectiveUnitRate = baseRate * difficultyMult;
 
   // Find volume discount
