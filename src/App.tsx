@@ -1130,10 +1130,12 @@ export default function App() {
             orders={orders}
             setOrders={setOrders}
             plots={plots}
+            setPlots={setPlots}
             drones={drones}
             pilots={pilots}
             assistants={assistants}
             clients={clients}
+            setClients={setClients}
             onNavigate={(view) => setCurrentView(view as AppViewMode)}
             showNewOSModal={showNewOSModal}
             setShowNewOSModal={setShowNewOSModal}
@@ -1177,10 +1179,12 @@ export default function App() {
             orders={orders}
             setOrders={setOrders}
             plots={plots}
+            setPlots={setPlots}
             drones={drones}
             pilots={pilots}
             assistants={assistants}
             clients={clients}
+            setClients={setClients}
             onNavigateToOS={() => setCurrentView('orders')}
           />
         )}

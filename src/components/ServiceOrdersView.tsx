@@ -40,8 +40,10 @@ import {
   Unlock,
   SlidersHorizontal,
   CheckCircle,
-  Trash2
+  Trash2,
+  UserPlus
 } from 'lucide-react';
+import { QuickAddClientModal } from './common/QuickAddClientModal';
 import { BrandLogo } from './BrandLogo';
 import { DronePhoto, DroneBadge, getDronePhotoUrl } from './DronePhotoBadge';
 import { UserAvatar, getStoredUserPhoto } from './UserAvatar';
@@ -57,10 +59,12 @@ interface ServiceOrdersViewProps {
   orders: ServiceOrder[];
   setOrders: React.Dispatch<React.SetStateAction<ServiceOrder[]>>;
   plots: FarmPlot[];
+  setPlots?: React.Dispatch<React.SetStateAction<FarmPlot[]>>;
   drones: AgriculturalDrone[];
   pilots: CrewPilot[];
   assistants: CrewAssistant[];
   clients?: ClientProducer[];
+  setClients?: React.Dispatch<React.SetStateAction<ClientProducer[]>>;
   onNavigate: (view: string) => void;
   showNewOSModal: boolean;
   setShowNewOSModal: (show: boolean) => void;
@@ -72,10 +76,12 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
   orders,
   setOrders,
   plots,
+  setPlots,
   drones,
   pilots,
   assistants,
   clients,
+  setClients,
   onNavigate,
   showNewOSModal,
   setShowNewOSModal,
@@ -84,6 +90,9 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
   const [showCompletedArchive, setShowCompletedArchive] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedCertificateOrder, setSelectedCertificateOrder] = useState<ServiceOrder | null>(null);
+
+  // Quick Add Client Sub-Modal state
+  const [isQuickAddClientOpen, setIsQuickAddClientOpen] = useState(false);
 
   // 1. Data Isolation & RBAC: Precision Filtering for Current User (Pilots/Assistants/Clients)
   const userScopedOrders = React.useMemo(() => {
@@ -138,6 +147,16 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
   const [newOSPlotId, setNewOSPlotId] = useState<string>(plots[0]?.id || '');
   const selectedPlot = plots.find(p => p.id === newOSPlotId) || plots[0];
   const targetCompanyId = selectedPlot?.companyId || theme?.tenantId || 'ciclodrone';
+
+  const handleQuickAddClientSave = (newClient: ClientProducer, newPlot: FarmPlot) => {
+    if (setClients) {
+      setClients(prev => [...prev, newClient]);
+    }
+    if (setPlots) {
+      setPlots(prev => [...prev, newPlot]);
+    }
+    setNewOSPlotId(newPlot.id);
+  };
 
   // Ensure pilots, assistants, and drones strictly match the selected company
   const effectivePilots = React.useMemo(() => {
@@ -781,9 +800,19 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
             <form onSubmit={handleCreateOS} className="space-y-4 text-xs">
               {/* Plot Selection */}
               <div>
-                <label className="font-bold text-emerald-950 dark:text-emerald-200 block mb-1">
-                  1. Selecione o Talhão (GIS)
-                </label>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="font-bold text-emerald-950 dark:text-emerald-200 block">
+                    1. Selecione o Talhão (GIS)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsQuickAddClientOpen(true)}
+                    className="text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 font-bold flex items-center gap-1 hover:underline transition-all cursor-pointer"
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    + Novo Cliente / Talhão
+                  </button>
+                </div>
                 <select
                   value={newOSPlotId}
                   onChange={(e) => setNewOSPlotId(e.target.value)}
@@ -1197,6 +1226,14 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
         drones={drones}
         pilots={pilots}
         assistants={assistants}
+      />
+
+      {/* Sub-modal: Cadastrar Novo Cliente & Talhão */}
+      <QuickAddClientModal
+        isOpen={isQuickAddClientOpen}
+        onClose={() => setIsQuickAddClientOpen(false)}
+        onSave={handleQuickAddClientSave}
+        companyId={targetCompanyId}
       />
     </div>
   );

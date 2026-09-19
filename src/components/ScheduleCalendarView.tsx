@@ -61,10 +61,12 @@ interface ScheduleCalendarViewProps {
   orders: ServiceOrder[];
   setOrders: React.Dispatch<React.SetStateAction<ServiceOrder[]>>;
   plots: FarmPlot[];
+  setPlots?: React.Dispatch<React.SetStateAction<FarmPlot[]>>;
   drones: AgriculturalDrone[];
   pilots: CrewPilot[];
   assistants: CrewAssistant[];
   clients?: ClientProducer[];
+  setClients?: React.Dispatch<React.SetStateAction<ClientProducer[]>>;
   onNavigateToOS?: () => void;
 }
 
@@ -77,10 +79,12 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
   orders,
   setOrders,
   plots,
+  setPlots,
   drones,
   pilots,
   assistants,
   clients,
+  setClients,
   onNavigateToOS,
 }) => {
   // Calendar Navigation State (Initializes to current system date)
@@ -1102,6 +1106,8 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
         initialStartTime={modalInitialStartTime}
         editingOrder={editingOrder}
         clients={clients}
+        setClients={setClients}
+        setPlots={setPlots}
       />
 
       {/* Schedule Conflicts Resolution Modal */}

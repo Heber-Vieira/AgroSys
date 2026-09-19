@@ -28,8 +28,10 @@ import {
   ShieldAlert,
   ArrowRight,
   Volume2,
-  Trash2
+  Trash2,
+  UserPlus
 } from 'lucide-react';
+import { QuickAddClientModal } from '../common/QuickAddClientModal';
 import { showConfirm } from '../../services/notificationService';
 import { 
   checkOrderConflicts, 
@@ -73,6 +75,10 @@ interface ScheduleOrderModalProps {
   initialStartTime?: string;
   editingOrder?: ServiceOrder | null;
   clients?: ClientProducer[];
+  onSaveClient?: (newClient: ClientProducer) => void;
+  onSavePlot?: (newPlot: FarmPlot) => void;
+  setClients?: React.Dispatch<React.SetStateAction<ClientProducer[]>>;
+  setPlots?: React.Dispatch<React.SetStateAction<FarmPlot[]>>;
 }
 
 export const ScheduleOrderModal: React.FC<ScheduleOrderModalProps> = ({
@@ -91,11 +97,34 @@ export const ScheduleOrderModal: React.FC<ScheduleOrderModalProps> = ({
   initialStartTime,
   editingOrder,
   clients,
+  onSaveClient,
+  onSavePlot,
+  setClients,
+  setPlots,
 }) => {
+  // Quick Add Client Sub-Modal state
+  const [isQuickAddClientOpen, setIsQuickAddClientOpen] = useState(false);
+
   // Form State
   const [selectedPlotId, setSelectedPlotId] = useState<string>(
     editingOrder?.plotId || plots[0]?.id || ''
   );
+
+  const handleQuickAddClientSave = (newClient: ClientProducer, newPlot: FarmPlot) => {
+    if (onSaveClient) {
+      onSaveClient(newClient);
+    } else if (setClients) {
+      setClients(prev => [...prev, newClient]);
+    }
+
+    if (onSavePlot) {
+      onSavePlot(newPlot);
+    } else if (setPlots) {
+      setPlots(prev => [...prev, newPlot]);
+    }
+
+    setSelectedPlotId(newPlot.id);
+  };
 
   const currentPlot = plots.find(p => p.id === selectedPlotId) || plots[0];
   const targetCompanyId = currentPlot?.companyId || editingOrder?.companyId || theme?.tenantId || 'ciclodrone';
@@ -480,9 +509,19 @@ export const ScheduleOrderModal: React.FC<ScheduleOrderModalProps> = ({
           {/* SECTION 1: Local e Talhão */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="md:col-span-2">
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                Talhão de Aplicação & Fazenda
-              </label>
+              <div className="flex justify-between items-center mb-1.5">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                  Talhão de Aplicação & Fazenda
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setIsQuickAddClientOpen(true)}
+                  className="text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 font-bold flex items-center gap-1 hover:underline transition-all cursor-pointer"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  + Novo Cliente / Talhão
+                </button>
+              </div>
               <select
                 value={selectedPlotId}
                 onChange={(e) => setSelectedPlotId(e.target.value)}
@@ -944,6 +983,14 @@ export const ScheduleOrderModal: React.FC<ScheduleOrderModalProps> = ({
 
         </form>
       </div>
+
+      {/* Sub-modal: Cadastrar Novo Cliente & Talhão */}
+      <QuickAddClientModal
+        isOpen={isQuickAddClientOpen}
+        onClose={() => setIsQuickAddClientOpen(false)}
+        onSave={handleQuickAddClientSave}
+        companyId={targetCompanyId}
+      />
     </div>
   );
 };
