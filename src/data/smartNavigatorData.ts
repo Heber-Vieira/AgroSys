@@ -235,11 +235,11 @@ export const SMART_FEATURES_REGISTRY: SmartFeatureItem[] = [
   },
   {
     id: 'executive-dashboard-bi',
-    title: 'Painel Geral Executivo (BI) & Analytics',
+    title: 'Painel Geral Executivo (BI) & Análises',
     category: 'Gestão Corporativa',
     description: 'Painel completo com gráficos de faturamento, pulverizações, desempenho de equipe/drone e métricas consolidadas da empresa.',
     moduleName: 'Painel Executivo',
-    tabName: '📈 BI & Analytics',
+    tabName: '📈 BI & Análises',
     targetView: 'dashboard',
     targetTab: 'bi-overview',
     keywords: ['bi', 'dashboard', 'painel', 'executivo', 'grafico', 'faturamento', 'desempenho', 'metricas', 'analytics', 'geral', 'empresa', 'pulverizações'],

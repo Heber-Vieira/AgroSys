@@ -414,8 +414,8 @@ export const MODULE_SUMMARIES: Record<AppViewMode, ModuleFeatureSummary> = {
     title: 'Painel Geral Executivo (BI)',
     subtitle: 'Indicadores globais, inteligência preditiva e análise de desempenho',
     category: 'frota',
-    categoryLabel: 'Business Intelligence',
-    badge: 'Analytics & IA',
+    categoryLabel: 'Inteligência de Negócios (BI)',
+    badge: 'Análises & IA',
     highlightText: 'Painel executivo completo com gráficos interativos, KPIs consolidados e recomendações agronômicas geradas por IA.',
     complianceOrValue: 'Tomada de decisão baseada em dados reais de campo com controle granular de acesso para cada colaborador.',
     features: [

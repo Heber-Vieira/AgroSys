@@ -199,22 +199,88 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return clients;
   }, [clients, isMaster, selectedCompanyFilter, currentUser]);
 
-  // 2. KEY METRICS CALCULATIONS
+  // 1.5. DATA FILTERING BY PERIOD (7D, 30D, 90D, SEASON, ALL)
+  const periodFilteredOrders = useMemo(() => {
+    if (period === 'ALL') return scopedOrders;
+
+    const referenceDate = new Date();
+
+    return scopedOrders.filter(o => {
+      const rawDate = o.scheduledDate || o.completedAt || o.createdAt;
+      if (!rawDate) return true;
+
+      const dateObj = new Date(rawDate);
+      if (isNaN(dateObj.getTime())) return true;
+
+      if (period === '7D') {
+        const pastLimit = new Date(referenceDate);
+        pastLimit.setDate(pastLimit.getDate() - 7);
+        pastLimit.setHours(0, 0, 0, 0);
+
+        const futureLimit = new Date(referenceDate);
+        futureLimit.setDate(futureLimit.getDate() + 7);
+        futureLimit.setHours(23, 59, 59, 999);
+
+        return dateObj >= pastLimit && dateObj <= futureLimit;
+      }
+
+      if (period === '30D') {
+        const pastLimit = new Date(referenceDate);
+        pastLimit.setDate(pastLimit.getDate() - 30);
+        pastLimit.setHours(0, 0, 0, 0);
+
+        const futureLimit = new Date(referenceDate);
+        futureLimit.setDate(futureLimit.getDate() + 30);
+        futureLimit.setHours(23, 59, 59, 999);
+
+        return dateObj >= pastLimit && dateObj <= futureLimit;
+      }
+
+      if (period === '90D') {
+        const pastLimit = new Date(referenceDate);
+        pastLimit.setDate(pastLimit.getDate() - 90);
+        pastLimit.setHours(0, 0, 0, 0);
+
+        const futureLimit = new Date(referenceDate);
+        futureLimit.setDate(futureLimit.getDate() + 90);
+        futureLimit.setHours(23, 59, 59, 999);
+
+        return dateObj >= pastLimit && dateObj <= futureLimit;
+      }
+
+      if (period === 'SEASON') {
+        const year = dateObj.getFullYear();
+        const month = dateObj.getMonth();
+
+        const currentYear = referenceDate.getFullYear();
+        const currentMonth = referenceDate.getMonth();
+        const currentSeasonStartYear = currentMonth >= 8 ? currentYear : currentYear - 1;
+
+        const orderSeasonStartYear = month >= 8 ? year : year - 1;
+
+        return orderSeasonStartYear === currentSeasonStartYear || year >= 2025;
+      }
+
+      return true;
+    });
+  }, [scopedOrders, period]);
+
+  // 2. KEY METRICS CALCULATIONS (Filtered by period: 7D / 30D / 90D / SEASON / ALL)
   const totalAppliedHa = useMemo(() => {
-    return scopedOrders.reduce((acc, o) => acc + (o.sprayedHectares || 0), 0);
-  }, [scopedOrders]);
+    return periodFilteredOrders.reduce((acc, o) => acc + (o.sprayedHectares || 0), 0);
+  }, [periodFilteredOrders]);
 
   const totalGrossRevenue = useMemo(() => {
-    return scopedOrders.reduce((acc, o) => acc + (o.totalGrossValue || 0), 0);
-  }, [scopedOrders]);
+    return periodFilteredOrders.reduce((acc, o) => acc + (o.totalGrossValue || 0), 0);
+  }, [periodFilteredOrders]);
 
   const totalCommissionsPaid = useMemo(() => {
-    return scopedOrders.reduce((acc, o) => acc + (o.pilotCommission || 0) + (o.assistantCommission || 0), 0);
-  }, [scopedOrders]);
+    return periodFilteredOrders.reduce((acc, o) => acc + (o.pilotCommission || 0) + (o.assistantCommission || 0), 0);
+  }, [periodFilteredOrders]);
 
-  const completedOrdersCount = scopedOrders.filter(o => o.status === 'COMPLETED').length;
-  const operatingOrdersCount = scopedOrders.filter(o => o.status === 'OPERATING' || o.status === 'IN_TRANSIT').length;
-  const scheduledOrdersCount = scopedOrders.filter(o => o.status === 'SCHEDULED').length;
+  const completedOrdersCount = periodFilteredOrders.filter(o => o.status === 'COMPLETED').length;
+  const operatingOrdersCount = periodFilteredOrders.filter(o => o.status === 'OPERATING' || o.status === 'IN_TRANSIT').length;
+  const scheduledOrdersCount = periodFilteredOrders.filter(o => o.status === 'SCHEDULED').length;
 
   const totalFlightHours = scopedDrones.reduce((acc, d) => acc + (d.totalFlightHours || 0), 0);
   const avgTicketPerHa = totalAppliedHa > 0 ? totalGrossRevenue / totalAppliedHa : 75;
@@ -232,17 +298,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   // Crop distribution
   const cropStats = useMemo(() => {
     const counts: Record<string, number> = {};
-    scopedOrders.forEach(o => {
+    periodFilteredOrders.forEach(o => {
       const crop = o.crop || 'Soja';
       counts[crop] = (counts[crop] || 0) + (o.sprayedHectares || o.targetHectares || 50);
     });
     return Object.entries(counts).sort((a, b) => b[1] - a[1]);
-  }, [scopedOrders]);
+  }, [periodFilteredOrders]);
 
   // Top clients by area
   const topClients = useMemo(() => {
     const map: Record<string, { name: string; ha: number; revenue: number; ordersCount: number }> = {};
-    scopedOrders.forEach(o => {
+    periodFilteredOrders.forEach(o => {
       const name = o.clientName || 'Produtor Rural';
       if (!map[name]) map[name] = { name, ha: 0, revenue: 0, ordersCount: 0 };
       map[name].ha += o.sprayedHectares || o.targetHectares || 0;
@@ -250,12 +316,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       map[name].ordersCount += 1;
     });
     return Object.values(map).sort((a, b) => b.ha - a.ha).slice(0, 5);
-  }, [scopedOrders]);
+  }, [periodFilteredOrders]);
 
   // Pilot leaderboard
   const pilotLeaderboard = useMemo(() => {
     const map: Record<string, { name: string; ha: number; commissions: number; orders: number }> = {};
-    scopedOrders.forEach(o => {
+    periodFilteredOrders.forEach(o => {
       const pName = o.pilotName || 'Piloto Principal';
       if (!map[pName]) map[pName] = { name: pName, ha: 0, commissions: 0, orders: 0 };
       map[pName].ha += o.sprayedHectares || 0;
@@ -263,7 +329,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       map[pName].orders += 1;
     });
     return Object.values(map).sort((a, b) => b.ha - a.ha);
-  }, [scopedOrders]);
+  }, [periodFilteredOrders]);
 
   return (
     <div className="space-y-4 sm:space-y-5 animate-in fade-in duration-150">
@@ -435,7 +501,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <CheckCircle2 className="w-4 h-4 text-blue-500" />
           </div>
           <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
-            {completedOrdersCount} <span className="text-xs font-normal text-slate-400">de {scopedOrders.length}</span>
+            {completedOrdersCount} <span className="text-xs font-normal text-slate-400">de {periodFilteredOrders.length}</span>
           </div>
           <div className="mt-1 text-[11px] text-blue-600 dark:text-blue-400 font-bold">
             {operatingOrdersCount} em voo ativo
@@ -546,7 +612,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           }`}
         >
           <BatteryCharging className="w-3.5 h-3.5" />
-          <span>Drones & Smart Batteries</span>
+          <span>Drones & Baterias Inteligentes</span>
         </button>
 
         <button
@@ -592,7 +658,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <h3 className="text-sm font-black text-slate-900 dark:text-white">
                     Distribuição de Pulverização por Cultura (ha)
                   </h3>
-                  <p className="text-xs text-slate-500">Volume acumulado aplicado na safra</p>
+                  <p className="text-xs text-slate-500">
+                    Volume acumulado no período ({period === '7D' ? '7 Dias' : period === '30D' ? '30 Dias' : period === '90D' ? '90 Dias' : period === 'SEASON' ? 'Safra' : 'Tudo'})
+                  </p>
                 </div>
                 <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">
                   {formatDecimal(totalAppliedHa, 0)} ha totais
@@ -638,25 +706,31 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
 
               <div className="space-y-2">
-                {scopedOrders.slice(0, 4).map(o => (
-                  <div key={o.id} className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/70 dark:border-slate-700/70 flex items-center justify-between gap-3 text-xs">
-                    <div>
-                      <div className="font-bold text-slate-900 dark:text-white">{o.clientName}</div>
-                      <div className="text-[11px] text-slate-500">{o.farmName} • {o.crop} ({o.sprayedHectares || o.targetHectares} ha)</div>
-                    </div>
-
-                    <div className="text-right">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                        o.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' :
-                        o.status === 'OPERATING' ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300' :
-                        'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                      }`}>
-                        {o.status}
-                      </span>
-                      <div className="text-[10px] text-slate-400 font-mono mt-0.5">{formatBRL(o.totalGrossValue || 0)}</div>
-                    </div>
+                {periodFilteredOrders.length === 0 ? (
+                  <div className="py-6 text-center text-xs text-slate-400">
+                    Nenhuma Ordem de Serviço encontrada para o período selecionado ({period === '7D' ? '7 Dias' : period === '30D' ? '30 Dias' : period === '90D' ? '90 Dias' : period === 'SEASON' ? 'Safra' : 'Tudo'}).
                   </div>
-                ))}
+                ) : (
+                  periodFilteredOrders.slice(0, 4).map(o => (
+                    <div key={o.id} className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/70 dark:border-slate-700/70 flex items-center justify-between gap-3 text-xs">
+                      <div>
+                        <div className="font-bold text-slate-900 dark:text-white">{o.clientName}</div>
+                        <div className="text-[11px] text-slate-500">{o.farmName} • {o.crop} ({o.sprayedHectares || o.targetHectares} ha)</div>
+                      </div>
+
+                      <div className="text-right">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          o.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' :
+                          o.status === 'OPERATING' ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300' :
+                          'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                        }`}>
+                          {o.status === 'COMPLETED' ? 'Concluída' : o.status === 'OPERATING' ? 'Em Voo' : o.status === 'IN_TRANSIT' ? 'Em Trânsito' : 'Agendada'}
+                        </span>
+                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">{formatBRL(o.totalGrossValue || 0)}</div>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
@@ -739,7 +813,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <span className="text-[11px] text-slate-500">{client.cityState || 'Brasil'}</span>
                   </div>
                   <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                    {client.status || 'ACTIVE'}
+                    {(client.status === 'ACTIVE' || !client.status) ? 'Ativo' : 'Inativo'}
                   </span>
                 </div>
 
@@ -859,7 +933,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           {/* Smart Batteries */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs space-y-3">
             <h3 className="text-base font-black text-slate-900 dark:text-white">
-              Monitor de Saúde das Smart Batteries
+              Monitor de Saúde das Baterias Inteligentes
             </h3>
             <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-200 dark:border-emerald-800 text-xs flex justify-between items-center">
               <span>Saúde Média (SoH):</span>
@@ -956,11 +1030,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2 hover:border-amber-500/40 transition-colors">
               <div className="flex items-center gap-2 text-amber-400 font-bold">
                 <BatteryCharging className="w-4 h-4" />
-                <span>Saúde das Smart Batteries</span>
+                <span>Saúde das Baterias Inteligentes</span>
               </div>
-              <h5 className="font-black text-white text-sm">Alerta de Storage</h5>
+              <h5 className="font-black text-white text-sm">Alerta de Carga de Armazenamento</h5>
               <p className="text-slate-400 leading-relaxed">
-                4 baterias estão com carga em 100% há mais de 4 dias sem voo registrado. Recomenda-se ativar o modo Storage (50%) para preservar a vida útil das células.
+                4 baterias estão com carga em 100% há mais de 4 dias sem voo registrado. Recomenda-se ativar o modo de armazenamento Storage (50%) para preservar a vida útil das células.
               </p>
             </div>
 

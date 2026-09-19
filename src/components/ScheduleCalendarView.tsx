@@ -83,10 +83,11 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
   clients,
   onNavigateToOS,
 }) => {
-  // Calendar Navigation State
-  const [currentDate, setCurrentDate] = useState<Date>(new Date(2026, 8, 9)); // Default September 2026
+  // Calendar Navigation State (Initializes to current system date)
+  const [currentDate, setCurrentDate] = useState<Date>(() => new Date());
   const [viewMode, setViewMode] = useState<CalendarViewMode>('week');
   const [timelineResource, setTimelineResource] = useState<TimelineResource>('pilot');
+  const hourlyGridRef = React.useRef<HTMLDivElement>(null);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -135,6 +136,13 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
       return () => clearTimeout(timer);
     }
   }, [totalConflictsCount, soundActive]);
+
+  // Auto-scroll hourly grid to center daytime operating hours on open
+  useEffect(() => {
+    if (hourlyGridRef.current && viewMode === 'week') {
+      hourlyGridRef.current.scrollTop = 44 * 1;
+    }
+  }, [viewMode, currentDate]);
 
   // Sound toggle handler
   const handleToggleSound = () => {
@@ -195,7 +203,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
 
   const handleToday = () => {
     playSlotSelectedTone();
-    setCurrentDate(new Date(2026, 8, 9));
+    setCurrentDate(new Date());
   };
 
   // Filtered Orders
@@ -364,24 +372,20 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
     return days;
   }, [currentDate]);
 
-  // Week Days (Mon - Sun)
+  // 7-Day Rolling Grid Centered around currentDate
   const weekDays = useMemo(() => {
-    const current = new Date(currentDate);
-    const day = current.getDay();
-    const diff = current.getDate() - day + (day === 0 ? -6 : 1); // Adjust when Sunday
-    const monday = new Date(current.setDate(diff));
-
     const days: { dateStr: string; dayNumber: number; dayName: string; fullDate: Date }[] = [];
-    const names = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+    const names = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
-    for (let i = 0; i < 7; i++) {
-      const nextDay = new Date(monday);
-      nextDay.setDate(monday.getDate() + i);
+    // Center currentDate at index 3 (4th column out of 7)
+    for (let i = -3; i <= 3; i++) {
+      const d = new Date(currentDate);
+      d.setDate(currentDate.getDate() + i);
       days.push({
-        dateStr: nextDay.toISOString().split('T')[0],
-        dayNumber: nextDay.getDate(),
-        dayName: names[i],
-        fullDate: nextDay,
+        dateStr: d.toISOString().split('T')[0],
+        dayNumber: d.getDate(),
+        dayName: names[d.getDay()],
+        fullDate: d,
       });
     }
 
@@ -678,90 +682,140 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                 })}
               </div>
 
-              {/* Scrollable Hourly Grid */}
-              <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-emerald-900/40 text-xs">
-                {visibleHours.map((hour) => {
-                  const timeSlotStr = `${String(hour).padStart(2, '0')}:00`;
-                  const isMorningGolden = hour >= 6 && hour <= 9; // Golden spray hours
-                  const isLateGolden = hour >= 16 && hour <= 17;
+              {/* Scrollable Hourly Grid with Continuous Event Blocks (Auto-Centered Vertically) */}
+              <div ref={hourlyGridRef} className="flex-1 overflow-y-auto relative text-xs">
+                <div className="grid grid-cols-8 relative min-h-full">
+                  {/* Time Labels Column */}
+                  <div className="border-r border-emerald-200/60 dark:border-emerald-800/60 flex flex-col shrink-0">
+                    {visibleHours.map((hour) => {
+                      const timeSlotStr = `${String(hour).padStart(2, '0')}:00`;
+                      const isMorningGolden = hour >= 6 && hour <= 9;
+                      const isLateGolden = hour >= 16 && hour <= 17;
 
-                  return (
-                    <div key={hour} className="grid grid-cols-8 min-h-[38px] group">
-                      {/* Time Column */}
-                      <div className={`p-1 border-r border-emerald-200/60 dark:border-emerald-800/60 text-center flex flex-col justify-center shrink-0 ${
-                        isMorningGolden || isLateGolden ? 'bg-amber-50/60 dark:bg-amber-950/20' : 'bg-slate-50/50 dark:bg-emerald-950/30'
-                      }`}>
-                        <span className="text-[10px] font-mono font-bold text-slate-600 dark:text-slate-300">
-                          {timeSlotStr}
-                        </span>
-                        {(isMorningGolden || isLateGolden) && (
-                          <span className="text-[8px] font-extrabold text-amber-700 dark:text-amber-400 flex items-center justify-center gap-0.5">
-                            ✨ Ouro
+                      return (
+                        <div
+                          key={hour}
+                          className={`h-[44px] p-1 border-b border-slate-100 dark:border-emerald-900/40 text-center flex flex-col justify-center shrink-0 ${
+                            isMorningGolden || isLateGolden ? 'bg-amber-50/60 dark:bg-amber-950/20' : 'bg-slate-50/50 dark:bg-emerald-950/30'
+                          }`}
+                        >
+                          <span className="text-[10px] font-mono font-bold text-slate-600 dark:text-slate-300">
+                            {timeSlotStr}
                           </span>
-                        )}
-                      </div>
+                          {(isMorningGolden || isLateGolden) && (
+                            <span className="text-[8px] font-extrabold text-amber-700 dark:text-amber-400 flex items-center justify-center gap-0.5">
+                              ✨ Ouro
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
 
-                      {/* Day Slot Cells */}
-                      {weekDays.map((d, dayIdx) => {
-                        const slotOrders = filteredOrders.filter(o => {
-                          if (o.scheduledDate !== d.dateStr) return false;
-                          const startMin = timeStringToMinutes(o.startTime || '07:00');
-                          const endMin = timeStringToMinutes(o.endTime || '09:30');
-                          const slotMin = hour * 60;
-                          return slotMin >= startMin && slotMin < endMin;
-                        });
+                  {/* 7 Day Columns with Continuous Event Overlays */}
+                  {weekDays.map((d, dayIdx) => {
+                    const dayOrders = filteredOrders.filter(o => o.scheduledDate === d.dateStr);
 
-                        return (
-                          <div
-                            key={dayIdx}
-                            onClick={() => {
-                              if (slotOrders.length === 0) {
-                                handleOpenNewModal(d.dateStr, timeSlotStr);
-                              }
-                            }}
-                            className={`p-1 border-r last:border-r-0 border-slate-100 dark:border-emerald-900/30 transition-colors relative cursor-pointer min-h-[38px] flex flex-col gap-0.5 justify-center ${
-                              isMorningGolden || isLateGolden 
-                                ? 'bg-amber-50/15 dark:bg-amber-950/10 hover:bg-emerald-50/60 dark:hover:bg-emerald-900/40' 
-                                : 'hover:bg-emerald-50/50 dark:hover:bg-emerald-950/50'
-                            }`}
-                          >
-                            {slotOrders.map((order) => {
-                              const hasConflict = conflictsMap.has(order.id);
+                    return (
+                      <div
+                        key={dayIdx}
+                        className="border-r last:border-r-0 border-slate-100 dark:border-emerald-900/30 relative flex flex-col h-full min-h-0"
+                      >
+                        {/* Background Clickable Hourly Rows */}
+                        {visibleHours.map((hour) => {
+                          const timeSlotStr = `${String(hour).padStart(2, '0')}:00`;
+                          const isMorningGolden = hour >= 6 && hour <= 9;
+                          const isLateGolden = hour >= 16 && hour <= 17;
 
-                              return (
-                                <div
-                                  key={order.id}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleOpenEditModal(order);
-                                  }}
-                                  className={`px-1.5 py-0.5 rounded-md text-left transition-all hover:scale-[1.01] cursor-pointer border text-[10px] ${
-                                    hasConflict
-                                      ? 'bg-rose-500 text-white border-rose-600 font-bold animate-pulse'
-                                      : order.status === 'OPERATING'
-                                      ? 'bg-emerald-600 text-white border-emerald-700 font-bold shadow-2xs'
-                                      : order.status === 'COMPLETED'
-                                      ? 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300'
-                                      : 'bg-emerald-50 dark:bg-emerald-950 border-emerald-300 dark:border-emerald-800 text-emerald-950 dark:text-emerald-100 font-bold'
-                                  }`}
-                                  title={`${order.code} • ${order.plotName} (${order.pilotName.split(' ')[0]} / ${order.droneModel.replace('DJI Agras ', '')})`}
-                                >
-                                  <div className="flex items-center justify-between gap-1 leading-tight">
-                                    <span className="truncate">{order.code}</span>
-                                    <span className="text-[9px] opacity-90 font-mono">{order.startTime}</span>
-                                  </div>
-                                  <div className="text-[9px] opacity-90 truncate font-normal">
-                                    {order.plotName} • {order.pilotName.split(' ')[0]}
-                                  </div>
+                          return (
+                            <div
+                              key={hour}
+                              onClick={() => handleOpenNewModal(d.dateStr, timeSlotStr)}
+                              className={`h-[44px] border-b border-slate-100 dark:border-emerald-900/30 transition-colors cursor-pointer ${
+                                isMorningGolden || isLateGolden
+                                  ? 'bg-amber-50/15 dark:bg-amber-950/10 hover:bg-emerald-50/60 dark:hover:bg-emerald-900/40'
+                                  : 'hover:bg-emerald-50/50 dark:hover:bg-emerald-950/50'
+                              }`}
+                            />
+                          );
+                        })}
+
+                        {/* Continuous Scheduled Event Blocks Overlay */}
+                        <div className="absolute inset-0 pointer-events-none p-0.5">
+                          {dayOrders.map((order) => {
+                            const startMin = timeStringToMinutes(order.startTime || '07:00');
+                            const rawEndMin = timeStringToMinutes(order.endTime || '09:30');
+                            const endMin = Math.max(startMin + 30, rawEndMin);
+
+                            const firstHour = visibleHours[0] ?? 6;
+                            const firstMin = firstHour * 60;
+
+                            const startOffsetMin = Math.max(0, startMin - firstMin);
+                            const durationMin = Math.max(25, endMin - startMin);
+
+                            const topPx = (startOffsetMin / 60) * 44; // 44px per hour slot
+                            const heightPx = Math.max(26, (durationMin / 60) * 44 - 2);
+
+                            // Overlap Detection
+                            const overlapping = dayOrders.filter(other => {
+                              const oStart = timeStringToMinutes(other.startTime || '07:00');
+                              const oEnd = Math.max(oStart + 30, timeStringToMinutes(other.endTime || '09:30'));
+                              return oStart < endMin && oEnd > startMin;
+                            });
+
+                            const overlapIndex = overlapping.findIndex(o => o.id === order.id);
+                            const overlapCount = Math.max(1, overlapping.length);
+                            const widthPct = 100 / overlapCount;
+                            const leftPct = (overlapIndex >= 0 ? overlapIndex : 0) * widthPct;
+
+                            const hasConflict = conflictsMap.has(order.id);
+
+                            return (
+                              <div
+                                key={order.id}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenEditModal(order);
+                                }}
+                                style={{
+                                  top: `${topPx}px`,
+                                  height: `${heightPx}px`,
+                                  left: `${leftPct}%`,
+                                  width: `calc(${widthPct}% - 2px)`,
+                                }}
+                                className={`absolute z-10 p-1.5 rounded-lg text-left transition-all hover:scale-[1.01] hover:z-20 cursor-pointer border text-[10px] shadow-sm pointer-events-auto flex flex-col justify-between overflow-hidden ${
+                                  hasConflict
+                                    ? 'bg-rose-500 text-white border-rose-600 font-bold animate-pulse'
+                                    : order.status === 'OPERATING'
+                                    ? 'bg-emerald-600 text-white border-emerald-700 font-bold shadow-md'
+                                    : order.status === 'COMPLETED'
+                                    ? 'bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                                    : 'bg-emerald-600 dark:bg-emerald-700 text-white border-emerald-700 dark:border-emerald-600 font-bold'
+                                }`}
+                                title={`${order.code} • ${order.startTime} às ${order.endTime}\n${order.plotName} (${order.pilotName.split(' ')[0]} / ${order.droneModel.replace('DJI Agras ', '')})`}
+                              >
+                                <div className="flex items-center justify-between gap-1 leading-tight font-black">
+                                  <span className="truncate">{order.code}</span>
+                                  <span className="text-[9px] opacity-95 font-mono shrink-0">
+                                    {order.startTime} - {order.endTime}
+                                  </span>
                                 </div>
-                              );
-                            })}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
+                                <div className="text-[9.5px] opacity-90 truncate font-semibold">
+                                  {order.plotName}
+                                </div>
+                                {heightPx > 40 && (
+                                  <div className="text-[9px] opacity-80 truncate font-normal">
+                                    👨‍✈️ {order.pilotName.split(' ')[0]} • 🛸 {order.droneModel.replace('DJI Agras ', '')}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
