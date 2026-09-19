@@ -18,14 +18,16 @@ import {
   ShieldCheck, 
   ChevronRight, 
   Building2, 
-  Plane,
   Grid,
   List,
   Check,
   Droplets,
   HelpCircle,
-  ExternalLink
+  ExternalLink,
+  User,
+  Plane,
 } from 'lucide-react';
+import { AgriDroneIcon } from './icons/AgriDroneIcon';
 import { SprayProduct } from '../types';
 
 interface ChemicalLeafletLibraryProps {
@@ -97,6 +99,20 @@ export const ChemicalLeafletLibrary: React.FC<ChemicalLeafletLibraryProps> = ({
       case 'BIOLOGICAL': return 'bg-emerald-600/15 text-emerald-900 dark:text-emerald-200 border-emerald-600/30';
       case 'FOLIAR_FERT': return 'bg-purple-500/10 text-purple-800 dark:text-purple-300 border-purple-500/30';
       default: return 'bg-slate-500/10 text-slate-800 dark:text-slate-300 border-slate-500/30';
+    }
+  };
+
+  const translateCategory = (cat: string) => {
+    switch (cat) {
+      case 'FUNGICIDE': return 'Fungicida';
+      case 'INSECTICIDE': return 'Inseticida';
+      case 'HERBICIDE': return 'Herbicida';
+      case 'ADJUVANT': return 'Adjuvante';
+      case 'BIOLOGICAL': return 'Biológico';
+      case 'FOLIAR_FERT': return 'Nutrição Foliar';
+      case 'ACARICIDE': return 'Acaricida';
+      case 'NEMATICIDE': return 'Nematicida';
+      default: return cat;
     }
   };
 
@@ -286,7 +302,7 @@ export const ChemicalLeafletLibrary: React.FC<ChemicalLeafletLibraryProps> = ({
                   {/* Category & WALES Step badges */}
                   <div className="flex items-center justify-between gap-1.5">
                     <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${catColor} leading-none`}>
-                      {leaflet.category.replace('_', ' ')}
+                      {translateCategory(leaflet.category)}
                     </span>
                     
                     <span className="text-[9px] font-bold font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 leading-none" title={`Ordem WALES: ${leaflet.walesStageName}`}>
@@ -336,7 +352,7 @@ export const ChemicalLeafletLibrary: React.FC<ChemicalLeafletLibraryProps> = ({
                       pH: <strong className="text-emerald-800 dark:text-emerald-200">{leaflet.phWaterOptimalRange.min}-{leaflet.phWaterOptimalRange.max}</strong>
                     </span>
                     <span className="flex items-center gap-1" title="Volume recomendado para drone">
-                      <Plane className="w-3 h-3 text-emerald-500/70" />
+                      <AgriDroneIcon className="w-3 h-3 text-emerald-500/70" />
                       <strong className="text-emerald-800 dark:text-emerald-200">{leaflet.droneGuidelines.minVolumeLHa}-{leaflet.droneGuidelines.maxVolumeLHa} L/ha</strong>
                     </span>
                   </div>
@@ -398,7 +414,7 @@ export const ChemicalLeafletLibrary: React.FC<ChemicalLeafletLibraryProps> = ({
                       </td>
                       <td className="p-3.5">
                         <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${getCategoryColor(leaflet.category)}`}>
-                          {leaflet.category}
+                          {translateCategory(leaflet.category)}
                         </span>
                       </td>
                       <td className="p-3.5">
