@@ -23,7 +23,8 @@ import {
   AlertTriangle,
   Pencil,
   Lock,
-  ShieldCheck
+  ShieldCheck,
+  UserPlus
 } from 'lucide-react';
 import { 
   UserProfile, 
@@ -44,6 +45,7 @@ import {
 import { showToast, showConfirm } from '../services/notificationService';
 import { ChemicalLeafletModal } from './ChemicalLeafletModal';
 import { BrandLogo } from './BrandLogo';
+import { QuickAddClientModal } from './common/QuickAddClientModal';
 import { formatDecimal, formatBRL, formatHectares, formatNumber, formatPercent, toSafeNumber } from '../utils/formatters';
 import { canUserAccessView } from '../utils/userPermissions';
 
@@ -53,7 +55,9 @@ interface QuotationsViewProps {
   quotations: SprayQuotation[];
   setQuotations: React.Dispatch<React.SetStateAction<SprayQuotation[]>>;
   clients: ClientProducer[];
+  setClients: React.Dispatch<React.SetStateAction<ClientProducer[]>>;
   plots: FarmPlot[];
+  setPlots: React.Dispatch<React.SetStateAction<FarmPlot[]>>;
   drones: AgriculturalDrone[];
   orders: ServiceOrder[];
   setOrders: React.Dispatch<React.SetStateAction<ServiceOrder[]>>;
@@ -66,7 +70,9 @@ export const QuotationsView: React.FC<QuotationsViewProps> = ({
   quotations,
   setQuotations,
   clients,
+  setClients,
   plots,
+  setPlots,
   drones,
   orders,
   setOrders,
@@ -109,6 +115,8 @@ export const QuotationsView: React.FC<QuotationsViewProps> = ({
   ]);
 
   const [formProducts, setFormProducts] = useState<Omit<SprayQuotationProduct, 'id'>[]>([]);
+  
+  const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
 
   // Start creating new blank quotation
   const handleStartNew = () => {
@@ -288,6 +296,34 @@ export const QuotationsView: React.FC<QuotationsViewProps> = ({
         crop: formData.crop
       }]);
     }
+  };
+
+  const handleQuickAddClient = (newClient: ClientProducer, newPlot: FarmPlot) => {
+    setClients(prev => [...prev, newClient]);
+    setPlots(prev => [...prev, newPlot]);
+    
+    // Automatically select the new client
+    setFormData(prev => ({
+      ...prev,
+      clientId: newClient.id,
+      clientName: newClient.name,
+      clientCpfCnpj: newClient.cpfCnpj,
+      clientPhone: newClient.phone,
+      clientEmail: newClient.email || '',
+      cityState: newClient.cityState || '',
+      farmName: newPlot.farmName || '',
+      crop: newPlot.crop || 'Soja',
+      totalHectares: newPlot.hectares || 50
+    }));
+
+    // Update items to match new hectares
+    setFormItems([{
+      description: `Serviço de pulverização agrícola na cultura de ${newPlot.crop || 'Soja'}`,
+      hectares: newPlot.hectares || 50,
+      ratePerHa: formData.baseRatePerHa,
+      subtotal: (newPlot.hectares || 50) * formData.baseRatePerHa,
+      crop: newPlot.crop || 'Soja'
+    }]);
   };
 
   const handleApplyPreset = (preset: typeof PRODUCT_PRESETS[0], autoInclude = false) => {
@@ -714,7 +750,17 @@ export const QuotationsView: React.FC<QuotationsViewProps> = ({
               
               <div className="space-y-3.5">
                 <div>
-                  <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block mb-1">Cliente Contratante</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Cliente Contratante</label>
+                    <button
+                      type="button"
+                      onClick={() => setIsAddClientModalOpen(true)}
+                      className="text-[10px] flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors"
+                    >
+                      <UserPlus className="w-3 h-3" />
+                      Novo Cliente / Talhão
+                    </button>
+                  </div>
                   <select
                     value={formData.clientId}
                     onChange={(e) => handleClientChange(e.target.value)}
@@ -1640,6 +1686,15 @@ export const QuotationsView: React.FC<QuotationsViewProps> = ({
             </div>
           )}
         </div>
+      )}
+
+      {isAddClientModalOpen && (
+        <QuickAddClientModal
+          isOpen={isAddClientModalOpen}
+          companyId={theme.tenantId || 'ciclodrone'}
+          onSave={handleQuickAddClient}
+          onClose={() => setIsAddClientModalOpen(false)}
+        />
       )}
     </div>
   );

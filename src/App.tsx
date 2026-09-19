@@ -1164,7 +1164,9 @@ export default function App() {
             quotations={quotations}
             setQuotations={setQuotations}
             clients={clients}
+            setClients={setClients}
             plots={plots}
+            setPlots={setPlots}
             drones={drones}
             orders={orders}
             setOrders={setOrders}

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, MapPin, Navigation, Mountain, Wheat, Check, Loader2, Sparkles } from 'lucide-react';
+import { Search, MapPin, Navigation, Mountain, Wheat, Check, Loader2, Sparkles, Settings } from 'lucide-react';
 import { CityLocation, POPULAR_AGRO_CITIES, searchCities } from '../../services/weatherService';
 import { FarmPlot } from '../../types';
 
 import { showToast } from '../../services/notificationService';
+import { ConfigureQuickCitiesModal } from './ConfigureQuickCitiesModal';
 
 interface WeatherCitySelectorProps {
   selectedCity: CityLocation;
@@ -23,7 +24,31 @@ export const WeatherCitySelector: React.FC<WeatherCitySelectorProps> = ({
   const [searchResults, setSearchResults] = useState<CityLocation[]>(POPULAR_AGRO_CITIES);
   const [isSearching, setIsSearching] = useState(false);
   const [isLocatingGPS, setIsLocatingGPS] = useState(false);
+  
+  const [quickCities, setQuickCities] = useState<CityLocation[]>([]);
+  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Load quick cities from local storage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('AGROSYS_QUICK_CITIES');
+      if (stored) {
+        setQuickCities(JSON.parse(stored));
+      } else {
+        setQuickCities(POPULAR_AGRO_CITIES.slice(0, 10));
+      }
+    } catch (err) {
+      console.error('Failed to parse quick cities', err);
+      setQuickCities(POPULAR_AGRO_CITIES.slice(0, 10));
+    }
+  }, []);
+
+  const handleSaveQuickCities = (newCities: CityLocation[]) => {
+    setQuickCities(newCities);
+    localStorage.setItem('AGROSYS_QUICK_CITIES', JSON.stringify(newCities));
+  };
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -267,13 +292,21 @@ export const WeatherCitySelector: React.FC<WeatherCitySelectorProps> = ({
       </div>
 
       {/* Quick Select Agricultural Hub Chips */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
+      <div className="flex flex-wrap items-center gap-1.5 pb-1 text-xs">
         <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800/80 dark:text-emerald-400/80 shrink-0 mr-1 flex items-center gap-1">
           <Wheat className="w-3 h-3" />
           <span>Polos Rápidos:</span>
+          <button 
+            type="button"
+            onClick={() => setIsConfigModalOpen(true)}
+            className="p-1 rounded-md hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition-colors ml-0.5"
+            title="Configurar Polos Rápidos"
+          >
+            <Settings className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+          </button>
         </span>
-        {POPULAR_AGRO_CITIES.map((city) => {
-          const isSelected = (selectedCity?.name || '') === city.name;
+        {quickCities.map((city) => {
+          const isSelected = (selectedCity?.name || '') === city.name && (selectedCity?.state || '') === city.state;
           return (
             <button
               key={city.id}
@@ -329,6 +362,14 @@ export const WeatherCitySelector: React.FC<WeatherCitySelectorProps> = ({
           </div>
         )}
       </div>
+
+      {isConfigModalOpen && (
+        <ConfigureQuickCitiesModal
+          initialCities={quickCities}
+          onSave={handleSaveQuickCities}
+          onClose={() => setIsConfigModalOpen(false)}
+        />
+      )}
     </div>
   );
 };
