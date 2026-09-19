@@ -130,6 +130,9 @@ export const PricingMatrixView: React.FC<PricingMatrixViewProps> = ({
     ],
   });
 
+  // Custom Crop Input State (when "Outra Cultura" is chosen)
+  const [customCropInput, setCustomCropInput] = useState<string>('');
+
   // Modal Simulator Sample Area
   const [modalSimHa, setModalSimHa] = useState<number>(150);
 
@@ -198,6 +201,7 @@ export const PricingMatrixView: React.FC<PricingMatrixViewProps> = ({
   // Open Add Rule Modal
   const handleOpenAddModal = () => {
     setEditingRule(null);
+    setCustomCropInput('');
     setFormData({
       id: `rule-${Date.now()}`,
       name: '',
@@ -218,10 +222,13 @@ export const PricingMatrixView: React.FC<PricingMatrixViewProps> = ({
   // Open Edit Rule Modal
   const handleOpenEditModal = (rule: PricingMatrixRule) => {
     setEditingRule(rule);
+    const isStandardCrop = CROP_OPTIONS.includes(rule.cropType);
     setFormData({
       ...rule,
+      cropType: isStandardCrop ? rule.cropType : 'Outra Cultura',
       volumeDiscounts: rule.volumeDiscounts ? [...rule.volumeDiscounts] : [],
     });
+    setCustomCropInput(isStandardCrop ? '' : rule.cropType);
     setIsModalOpen(true);
   };
 
@@ -234,6 +241,8 @@ export const PricingMatrixView: React.FC<PricingMatrixViewProps> = ({
       volumeDiscounts: rule.volumeDiscounts ? [...rule.volumeDiscounts] : [],
     };
     setPricingRules(prev => [newRule, ...prev]);
+    setSimCrop(newRule.cropType);
+    setSimTerrain(newRule.terrainType);
     showToast(`Regra duplicada com sucesso: "${newRule.name}"`);
   };
 
@@ -276,8 +285,17 @@ export const PricingMatrixView: React.FC<PricingMatrixViewProps> = ({
       return;
     }
 
+    const effectiveCrop = (formData.cropType === 'Outra Cultura' && customCropInput.trim())
+      ? customCropInput.trim()
+      : formData.cropType;
+
+    if (!effectiveCrop.trim()) {
+      showToast('Por favor, especifique a cultura agrícola.');
+      return;
+    }
+
     if (formData.baseRate <= 0) {
-      showToast('A tarifa base deve ser maior que zero.');
+      showToast('A tarifa base deve ser maior que zero (ex: R$ 75,00/ha).');
       return;
     }
 
@@ -285,6 +303,10 @@ export const PricingMatrixView: React.FC<PricingMatrixViewProps> = ({
     const sortedDiscounts = [...formData.volumeDiscounts].sort((a, b) => a.minHa - b.minHa);
     const cleanedRule: PricingMatrixRule = {
       ...formData,
+      id: editingRule ? editingRule.id : `rule-${Date.now()}`,
+      cropType: effectiveCrop,
+      difficultyMultiplier: formData.difficultyMultiplier > 0 ? formData.difficultyMultiplier : 1.0,
+      minHectaresThreshold: Math.max(0, formData.minHectaresThreshold || 0),
       volumeDiscounts: sortedDiscounts,
     };
 
@@ -296,6 +318,9 @@ export const PricingMatrixView: React.FC<PricingMatrixViewProps> = ({
       showToast(`Nova regra "${cleanedRule.name}" criada com sucesso!`);
     }
 
+    // Automatically update the simulator to use the new/edited rule
+    setSimCrop(cleanedRule.cropType);
+    setSimTerrain(cleanedRule.terrainType);
     setIsModalOpen(false);
   };
 
@@ -953,6 +978,16 @@ export const PricingMatrixView: React.FC<PricingMatrixViewProps> = ({
                       <option key={crop} value={crop}>{crop}</option>
                     ))}
                   </select>
+                  {formData.cropType === 'Outra Cultura' && (
+                    <input
+                      id="input-rule-custom-crop"
+                      type="text"
+                      placeholder="Digite a cultura (ex: Girassol, Eucalipto)"
+                      value={customCropInput}
+                      onChange={(e) => setCustomCropInput(e.target.value)}
+                      className="mt-2 w-full p-2.5 rounded-xl bg-white dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-600 text-emerald-950 dark:text-emerald-50 font-medium outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs text-xs"
+                    />
+                  )}
                 </div>
 
                 <div>
