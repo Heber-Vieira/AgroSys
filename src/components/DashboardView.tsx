@@ -54,7 +54,7 @@ import {
   Cpu,
   Power
 } from 'lucide-react';
-import { formatBRL, formatDecimal } from '../utils/formatters';
+import { formatBRL, formatDecimal, formatLocalDate } from '../utils/formatters';
 import { isMasterUser, isCompanyAdmin, filterOrdersForUser } from '../utils/userPermissions';
 import { isAIAnalysisActive, setAIAnalysisActive, AI_ANALYSIS_UPDATED_EVENT } from '../services/aiSettingsService';
 import { EmployeeAccessControlModal } from './EmployeeAccessControlModal';
@@ -115,6 +115,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [period, setPeriod] = useState<PeriodFilter>('SEASON');
   const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
   const [toastFeedback, setToastFeedback] = useState<string | null>(null);
+
+  // Future Revenue Forecast State (Executive & Admin Exclusive)
+  const [forecastDaysRange, setForecastDaysRange] = useState<'7' | '15' | '30' | '60' | '90' | 'CUSTOM'>('30');
+  const [forecastStartDate, setForecastStartDate] = useState<string>(() => formatLocalDate(new Date()));
+  const [forecastEndDate, setForecastEndDate] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return formatLocalDate(d);
+  });
+  const [forecastPilotId, setForecastPilotId] = useState<string>('ALL');
+  const [forecastDroneId, setForecastDroneId] = useState<string>('ALL');
+  const [forecastCrop, setForecastCrop] = useState<string>('ALL');
 
   // Sync selectedCompanyFilter when activeCompanyId changes
   useEffect(() => {
@@ -331,6 +343,104 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return Object.values(map).sort((a, b) => b.ha - a.ha);
   }, [periodFilteredOrders]);
 
+  // 3. FUTURE REVENUE PROJECTION (Executive & Company Admin Exclusive)
+  const futureRevenueProjection = useMemo(() => {
+    if (!isExecutive) return null;
+
+    const todayStr = formatLocalDate(new Date());
+
+    const matchingOrders = scopedOrders.filter(order => {
+      // Exclude completed or cancelled orders
+      if (order.status === 'COMPLETED' || order.status === 'CANCELLED') {
+        return false;
+      }
+
+      // Filter Date Range
+      const dateStr = order.scheduledDate || todayStr;
+      if (forecastDaysRange !== 'CUSTOM') {
+        const days = parseInt(forecastDaysRange, 10) || 30;
+        const maxDate = new Date();
+        maxDate.setDate(maxDate.getDate() + days);
+        const maxDateStr = formatLocalDate(maxDate);
+        if (dateStr < todayStr || dateStr > maxDateStr) {
+          return false;
+        }
+      } else {
+        if (forecastStartDate && dateStr < forecastStartDate) return false;
+        if (forecastEndDate && dateStr > forecastEndDate) return false;
+      }
+
+      // Filter Pilot
+      if (forecastPilotId !== 'ALL' && order.pilotId !== forecastPilotId) {
+        return false;
+      }
+
+      // Filter Drone
+      if (forecastDroneId !== 'ALL' && order.droneId !== forecastDroneId) {
+        return false;
+      }
+
+      // Filter Crop
+      if (forecastCrop !== 'ALL' && order.crop !== forecastCrop) {
+        return false;
+      }
+
+      return true;
+    });
+
+    const totalGrossRevenue = matchingOrders.reduce((acc, o) => acc + (o.totalGrossValue || ((o.targetHectares || 30) * (o.baseRatePerHa || 75))), 0);
+    const totalTargetHectares = matchingOrders.reduce((acc, o) => acc + (o.targetHectares || 0), 0);
+    const osCount = matchingOrders.length;
+    const avgTicketPerOS = osCount > 0 ? totalGrossRevenue / osCount : 0;
+    const estimatedPilotCommissions = matchingOrders.reduce((acc, o) => acc + (o.pilotCommission || 0), 0);
+
+    // Group by Pilot
+    const pilotMap = new Map<string, { id: string; name: string; count: number; ha: number; gross: number }>();
+    matchingOrders.forEach(o => {
+      const pId = o.pilotId || 'unassigned';
+      const pName = o.pilotName || 'Não Alocado';
+      const val = o.totalGrossValue || ((o.targetHectares || 30) * (o.baseRatePerHa || 75));
+      const existing = pilotMap.get(pId) || { id: pId, name: pName, count: 0, ha: 0, gross: 0 };
+      existing.count += 1;
+      existing.ha += (o.targetHectares || 0);
+      existing.gross += val;
+      pilotMap.set(pId, existing);
+    });
+
+    // Group by Drone
+    const droneMap = new Map<string, { id: string; model: string; count: number; ha: number; gross: number }>();
+    matchingOrders.forEach(o => {
+      const dId = o.droneId || 'unassigned';
+      const dModel = o.droneModel || 'Não Alocado';
+      const val = o.totalGrossValue || ((o.targetHectares || 30) * (o.baseRatePerHa || 75));
+      const existing = droneMap.get(dId) || { id: dId, model: dModel, count: 0, ha: 0, gross: 0 };
+      existing.count += 1;
+      existing.ha += (o.targetHectares || 0);
+      existing.gross += val;
+      droneMap.set(dId, existing);
+    });
+
+    return {
+      orders: matchingOrders,
+      totalGrossRevenue,
+      totalTargetHectares,
+      osCount,
+      avgTicketPerOS,
+      estimatedPilotCommissions,
+      byPilot: Array.from(pilotMap.values()).sort((a, b) => b.gross - a.gross),
+      byDrone: Array.from(droneMap.values()).sort((a, b) => b.gross - a.gross),
+    };
+  }, [
+    scopedOrders,
+    isExecutive,
+    forecastDaysRange,
+    forecastStartDate,
+    forecastEndDate,
+    forecastPilotId,
+    forecastDroneId,
+    forecastCrop,
+  ]);
+
   return (
     <div className="space-y-4 sm:space-y-5 animate-in fade-in duration-150">
       {/* Toast Notification */}
@@ -460,6 +570,199 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           )
         )}
       </div>
+
+      {/* ========================================================================= */}
+      {/* 1.5. PROJEÇÃO DE FATURAMENTO FUTURO (EXCLUSIVO PARA ADMINS & MASTERS) */}
+      {/* ========================================================================= */}
+      {isExecutive && futureRevenueProjection && (
+        <div className="bg-gradient-to-br from-[#06382a] via-[#04281e] to-slate-950 text-white rounded-3xl p-4 sm:p-6 border border-emerald-500/40 shadow-xl space-y-4">
+          {/* Header Row */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-emerald-500/20 pb-3.5">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-400 text-slate-950 flex items-center gap-1 shadow-2xs">
+                  <DollarSign className="w-3 h-3" />
+                  Exclusivo Executivo & Admin
+                </span>
+                <span className="text-xs text-emerald-300 font-bold">
+                  {isMaster ? '🌐 Projeção Consolidada Multi-Empresa' : `🏢 Isolação: ${currentUser.companyId || 'Empresa'}`}
+                </span>
+              </div>
+              <h2 className="text-base sm:text-xl font-black text-white flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-emerald-400 inline" />
+                Projeção de Faturamento Futuro (Pulverizações Agendadas)
+              </h2>
+              <p className="text-xs text-slate-300">
+                Faturamento e hectares previstos em agendamentos futuros não concluídos.
+              </p>
+            </div>
+
+            {/* Interactive Filters: Period, Dates, Pilots, Drones */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Preset Period */}
+              <select
+                value={forecastDaysRange}
+                onChange={(e) => setForecastDaysRange(e.target.value as any)}
+                className="px-3 py-1.5 bg-slate-950 border border-emerald-500/40 rounded-xl text-xs font-bold text-emerald-200 focus:outline-none cursor-pointer"
+              >
+                <option value="7">Próximos 7 Dias</option>
+                <option value="15">Próximos 15 Dias</option>
+                <option value="30">Próximos 30 Dias</option>
+                <option value="60">Próximos 60 Dias</option>
+                <option value="90">Próximos 90 Dias</option>
+                <option value="CUSTOM">📅 Personalizado</option>
+              </select>
+
+              {/* Custom Date Pickers */}
+              {forecastDaysRange === 'CUSTOM' && (
+                <div className="flex items-center gap-1.5 bg-slate-950 border border-emerald-500/40 p-1 rounded-xl">
+                  <input
+                    type="date"
+                    value={forecastStartDate}
+                    onChange={(e) => setForecastStartDate(e.target.value)}
+                    className="bg-transparent text-xs text-emerald-200 font-semibold focus:outline-none"
+                  />
+                  <span className="text-slate-400 text-xs">até</span>
+                  <input
+                    type="date"
+                    value={forecastEndDate}
+                    onChange={(e) => setForecastEndDate(e.target.value)}
+                    className="bg-transparent text-xs text-emerald-200 font-semibold focus:outline-none"
+                  />
+                </div>
+              )}
+
+              {/* Pilot Filter */}
+              <select
+                value={forecastPilotId}
+                onChange={(e) => setForecastPilotId(e.target.value)}
+                className="px-3 py-1.5 bg-slate-950 border border-emerald-500/40 rounded-xl text-xs font-bold text-emerald-200 focus:outline-none cursor-pointer"
+              >
+                <option value="ALL">👨‍✈️ Todos os Pilotos</option>
+                {pilots.map(p => (
+                  <option key={p.id} value={p.id}>{p.name.split(' ')[0]}</option>
+                ))}
+              </select>
+
+              {/* Drone Filter */}
+              <select
+                value={forecastDroneId}
+                onChange={(e) => setForecastDroneId(e.target.value)}
+                className="px-3 py-1.5 bg-slate-950 border border-emerald-500/40 rounded-xl text-xs font-bold text-emerald-200 focus:outline-none cursor-pointer"
+              >
+                <option value="ALL">🛸 Todos os Drones</option>
+                {scopedDrones.map(d => (
+                  <option key={d.id} value={d.id}>{d.modelName}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Metric Cards Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Faturamento Futuro Total */}
+            <div className="p-4 rounded-2xl bg-slate-950/80 border border-emerald-500/30 space-y-1">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
+                <span>Faturamento Futuro Projetado</span>
+                <DollarSign className="w-4 h-4 text-emerald-400" />
+              </div>
+              <div className="text-xl sm:text-2xl font-black text-emerald-400">
+                {formatBRL(futureRevenueProjection.totalGrossRevenue)}
+              </div>
+              <div className="text-[10px] text-emerald-300/80 font-medium">
+                Comissão Est. Pilotos: {formatBRL(futureRevenueProjection.estimatedPilotCommissions)}
+              </div>
+            </div>
+
+            {/* Área Futura Total */}
+            <div className="p-4 rounded-2xl bg-slate-950/80 border border-emerald-500/30 space-y-1">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
+                <span>Área Agendada Futura</span>
+                <Droplets className="w-4 h-4 text-emerald-400" />
+              </div>
+              <div className="text-xl sm:text-2xl font-black text-white">
+                {formatDecimal(futureRevenueProjection.totalTargetHectares)} ha
+              </div>
+              <div className="text-[10px] text-slate-400">
+                Meta de Cobertura Futura
+              </div>
+            </div>
+
+            {/* Ordens Futuras */}
+            <div className="p-4 rounded-2xl bg-slate-950/80 border border-emerald-500/30 space-y-1">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
+                <span>Total de OS Agendadas</span>
+                <Calendar className="w-4 h-4 text-emerald-400" />
+              </div>
+              <div className="text-xl sm:text-2xl font-black text-white">
+                {futureRevenueProjection.osCount} OS
+              </div>
+              <div className="text-[10px] text-slate-400">
+                Operações Previstas na Janela
+              </div>
+            </div>
+
+            {/* Ticket Médio por OS */}
+            <div className="p-4 rounded-2xl bg-slate-950/80 border border-emerald-500/30 space-y-1">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
+                <span>Ticket Médio por OS</span>
+                <TrendingUp className="w-4 h-4 text-amber-400" />
+              </div>
+              <div className="text-xl sm:text-2xl font-black text-amber-300">
+                {formatBRL(futureRevenueProjection.avgTicketPerOS)}
+              </div>
+              <div className="text-[10px] text-amber-200/70">
+                Valor Médio Estimado por Operação
+              </div>
+            </div>
+          </div>
+
+          {/* Breakdown Tables: By Pilot & By Drone */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+            {/* By Pilot */}
+            <div className="bg-slate-950/70 p-3.5 rounded-2xl border border-slate-800 space-y-2">
+              <span className="text-xs font-black text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5 text-emerald-400" />
+                Projeção de Faturamento por Piloto
+              </span>
+              {futureRevenueProjection.byPilot.length === 0 ? (
+                <p className="text-xs text-slate-500 py-3 text-center">Nenhum agendamento futuro no período selecionado.</p>
+              ) : (
+                <div className="space-y-1.5 text-xs">
+                  {futureRevenueProjection.byPilot.map((p, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-2 rounded-xl bg-slate-900/80 border border-slate-800">
+                      <span className="font-bold text-white truncate max-w-[140px]">{p.name}</span>
+                      <span className="text-slate-400 text-[11px]">{p.count} OS ({formatDecimal(p.ha)} ha)</span>
+                      <span className="font-black text-emerald-400">{formatBRL(p.gross)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* By Drone */}
+            <div className="bg-slate-950/70 p-3.5 rounded-2xl border border-slate-800 space-y-2">
+              <span className="text-xs font-black text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
+                <Plane className="w-3.5 h-3.5 text-emerald-400" />
+                Projeção por Drone / Equipamento
+              </span>
+              {futureRevenueProjection.byDrone.length === 0 ? (
+                <p className="text-xs text-slate-500 py-3 text-center">Nenhum agendamento futuro no período selecionado.</p>
+              ) : (
+                <div className="space-y-1.5 text-xs">
+                  {futureRevenueProjection.byDrone.map((d, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-2 rounded-xl bg-slate-900/80 border border-slate-800">
+                      <span className="font-bold text-white truncate max-w-[140px]">{d.model}</span>
+                      <span className="text-slate-400 text-[11px]">{d.count} OS ({formatDecimal(d.ha)} ha)</span>
+                      <span className="font-black text-emerald-400">{formatBRL(d.gross)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ========================================================================= */}
       {/* 2. EXECUTIVE KPI CARDS GRID */}

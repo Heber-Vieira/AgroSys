@@ -40,7 +40,10 @@ import {
   Sprout,
   Target,
   Check,
-  Maximize2
+  Maximize2,
+  DollarSign,
+  TrendingUp,
+  Users
 } from 'lucide-react';
 import { 
   detectAllScheduleCollisions, 
@@ -56,8 +59,8 @@ import {
 } from '../utils/audioAlerts';
 import { ScheduleOrderModal } from './scheduling/ScheduleOrderModal';
 import { ScheduleConflictsModal } from './scheduling/ScheduleConflictsModal';
-import { formatDateBR, formatLocalDate, parseLocalDate } from '../utils/formatters';
-import { filterOrdersForUser, isServiceOrderAssignedToUser, doNamesMatch } from '../utils/userPermissions';
+import { formatDateBR, formatLocalDate, parseLocalDate, formatBRL, formatDecimal } from '../utils/formatters';
+import { filterOrdersForUser, isServiceOrderAssignedToUser, doNamesMatch, isMasterUser, isCompanyAdmin } from '../utils/userPermissions';
 
 interface ScheduleCalendarViewProps {
   currentUser: UserProfile;
@@ -114,6 +117,21 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
   const [modalInitialStartTime, setModalInitialStartTime] = useState<string>('07:00');
   const [editingOrder, setEditingOrder] = useState<ServiceOrder | null>(null);
 
+  // Executive RBAC check (Master or Company Admin ONLY)
+  const isExecutive = isMasterUser(currentUser) || isCompanyAdmin(currentUser) || currentUser.role === 'ADMIN';
+
+  // Future Revenue Forecast Panel State (Admin & Master Exclusive)
+  const [showFutureRevenuePanel, setShowFutureRevenuePanel] = useState<boolean>(false);
+  const [forecastDaysRange, setForecastDaysRange] = useState<'7' | '15' | '30' | '60' | '90' | 'CUSTOM'>('30');
+  const [forecastStartDate, setForecastStartDate] = useState<string>(() => formatLocalDate(new Date()));
+  const [forecastEndDate, setForecastEndDate] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return formatLocalDate(d);
+  });
+  const [forecastPilotId, setForecastPilotId] = useState<string>('ALL');
+  const [forecastDroneId, setForecastDroneId] = useState<string>('ALL');
+
   // Operational hours filter ('OPERATIONAL' 06-18h vs 'FULL' 00-23h)
   const [hoursMode, setHoursMode] = useState<'OPERATIONAL' | 'FULL'>('OPERATIONAL');
 
@@ -121,6 +139,98 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
   const userScopedOrders = useMemo(() => {
     return filterOrdersForUser(orders, currentUser, pilots, assistants);
   }, [orders, currentUser, pilots, assistants]);
+
+  // Future Revenue Projection Calculation for Agenda Operacional
+  const futureCalendarRevenueProjection = useMemo(() => {
+    if (!isExecutive) return null;
+
+    const todayStr = formatLocalDate(new Date());
+
+    const matchingOrders = userScopedOrders.filter(order => {
+      // Exclude completed or cancelled
+      if (order.status === 'COMPLETED' || order.status === 'CANCELLED') {
+        return false;
+      }
+
+      // Filter Date Range
+      const dateStr = order.scheduledDate || todayStr;
+      if (forecastDaysRange !== 'CUSTOM') {
+        const days = parseInt(forecastDaysRange, 10) || 30;
+        const maxDate = new Date();
+        maxDate.setDate(maxDate.getDate() + days);
+        const maxDateStr = formatLocalDate(maxDate);
+        if (dateStr < todayStr || dateStr > maxDateStr) {
+          return false;
+        }
+      } else {
+        if (forecastStartDate && dateStr < forecastStartDate) return false;
+        if (forecastEndDate && dateStr > forecastEndDate) return false;
+      }
+
+      // Filter Pilot
+      if (forecastPilotId !== 'ALL' && order.pilotId !== forecastPilotId) {
+        return false;
+      }
+
+      // Filter Drone
+      if (forecastDroneId !== 'ALL' && order.droneId !== forecastDroneId) {
+        return false;
+      }
+
+      return true;
+    });
+
+    const totalGrossRevenue = matchingOrders.reduce((acc, o) => acc + (o.totalGrossValue || ((o.targetHectares || 30) * (o.baseRatePerHa || 75))), 0);
+    const totalTargetHectares = matchingOrders.reduce((acc, o) => acc + (o.targetHectares || 0), 0);
+    const osCount = matchingOrders.length;
+    const avgTicketPerOS = osCount > 0 ? totalGrossRevenue / osCount : 0;
+    const estimatedPilotCommissions = matchingOrders.reduce((acc, o) => acc + (o.pilotCommission || 0), 0);
+
+    // Group by Pilot
+    const pilotMap = new Map<string, { id: string; name: string; count: number; ha: number; gross: number }>();
+    matchingOrders.forEach(o => {
+      const pId = o.pilotId || 'unassigned';
+      const pName = o.pilotName || 'Não Alocado';
+      const val = o.totalGrossValue || ((o.targetHectares || 30) * (o.baseRatePerHa || 75));
+      const existing = pilotMap.get(pId) || { id: pId, name: pName, count: 0, ha: 0, gross: 0 };
+      existing.count += 1;
+      existing.ha += (o.targetHectares || 0);
+      existing.gross += val;
+      pilotMap.set(pId, existing);
+    });
+
+    // Group by Drone
+    const droneMap = new Map<string, { id: string; model: string; count: number; ha: number; gross: number }>();
+    matchingOrders.forEach(o => {
+      const dId = o.droneId || 'unassigned';
+      const dModel = o.droneModel || 'Não Alocado';
+      const val = o.totalGrossValue || ((o.targetHectares || 30) * (o.baseRatePerHa || 75));
+      const existing = droneMap.get(dId) || { id: dId, model: dModel, count: 0, ha: 0, gross: 0 };
+      existing.count += 1;
+      existing.ha += (o.targetHectares || 0);
+      existing.gross += val;
+      droneMap.set(dId, existing);
+    });
+
+    return {
+      orders: matchingOrders,
+      totalGrossRevenue,
+      totalTargetHectares,
+      osCount,
+      avgTicketPerOS,
+      estimatedPilotCommissions,
+      byPilot: Array.from(pilotMap.values()).sort((a, b) => b.gross - a.gross),
+      byDrone: Array.from(droneMap.values()).sort((a, b) => b.gross - a.gross),
+    };
+  }, [
+    userScopedOrders,
+    isExecutive,
+    forecastDaysRange,
+    forecastStartDate,
+    forecastEndDate,
+    forecastPilotId,
+    forecastDroneId,
+  ]);
 
   // Global Collision Detector across user's visible orders
   const conflictsMap = useMemo(() => {
@@ -598,6 +708,25 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
             {soundActive ? <Volume2 className="w-3.5 h-3.5 text-emerald-600" /> : <VolumeX className="w-3.5 h-3.5" />}
           </button>
 
+          {/* Future Revenue Projection Button (Admins & Masters Only) */}
+          {isExecutive && (
+            <button
+              onClick={() => {
+                playSlotSelectedTone();
+                setShowFutureRevenuePanel(prev => !prev);
+              }}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold flex items-center gap-1 transition-all cursor-pointer border shrink-0 ${
+                showFutureRevenuePanel
+                  ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md ring-2 ring-amber-300'
+                  : 'bg-emerald-900/90 hover:bg-emerald-800 text-amber-300 border-amber-500/40 hover:border-amber-400 hover:text-amber-200'
+              }`}
+              title="Exibir/Ocultar Projeção de Faturamento Futuro (Acesso Exclusivo Executivo/Admin)"
+            >
+              <DollarSign className="w-3.5 h-3.5 text-amber-400" />
+              <span>Faturamento Futuro</span>
+            </button>
+          )}
+
           {/* New Schedule Button */}
           <button
             onClick={() => handleOpenNewModal()}
@@ -608,6 +737,117 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Future Revenue Projection Drawer (Admin & Master Exclusive) */}
+      {isExecutive && showFutureRevenuePanel && futureCalendarRevenueProjection && (
+        <div className="flex-none p-4 rounded-2xl bg-gradient-to-br from-[#06382a] via-[#04281e] to-slate-950 border border-emerald-500/40 shadow-xl space-y-3 text-white animate-in fade-in duration-200">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-emerald-500/20 pb-2.5">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="px-2 py-0.5 rounded-full text-[9.5px] font-black uppercase tracking-wider bg-amber-400 text-slate-950 flex items-center gap-1 shadow-2xs">
+                <DollarSign className="w-3 h-3" />
+                Projeção Financeira Futura (Agenda Operacional)
+              </span>
+              <span className="text-[11px] text-emerald-300 font-bold">
+                {isMasterUser(currentUser) ? '🌐 Multi-Empresa' : `🏢 Isolação: ${currentUser.companyId || 'Empresa'}`}
+              </span>
+            </div>
+
+            {/* Controls: Range, Pilot, Drone */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <select
+                value={forecastDaysRange}
+                onChange={(e) => setForecastDaysRange(e.target.value as any)}
+                className="px-2.5 py-1 bg-slate-950 border border-emerald-500/40 rounded-lg text-[10.5px] font-bold text-emerald-200 cursor-pointer"
+              >
+                <option value="7">Próximos 7 Dias</option>
+                <option value="15">Próximos 15 Dias</option>
+                <option value="30">Próximos 30 Dias</option>
+                <option value="60">Próximos 60 Dias</option>
+                <option value="90">Próximos 90 Dias</option>
+                <option value="CUSTOM">📅 Personalizado</option>
+              </select>
+
+              {forecastDaysRange === 'CUSTOM' && (
+                <div className="flex items-center gap-1 bg-slate-950 border border-emerald-500/40 p-0.5 rounded-lg text-[10px]">
+                  <input
+                    type="date"
+                    value={forecastStartDate}
+                    onChange={(e) => setForecastStartDate(e.target.value)}
+                    className="bg-transparent text-emerald-200 font-semibold focus:outline-none"
+                  />
+                  <span className="text-slate-400">até</span>
+                  <input
+                    type="date"
+                    value={forecastEndDate}
+                    onChange={(e) => setForecastEndDate(e.target.value)}
+                    className="bg-transparent text-emerald-200 font-semibold focus:outline-none"
+                  />
+                </div>
+              )}
+
+              <select
+                value={forecastPilotId}
+                onChange={(e) => setForecastPilotId(e.target.value)}
+                className="px-2.5 py-1 bg-slate-950 border border-emerald-500/40 rounded-lg text-[10.5px] font-bold text-emerald-200 cursor-pointer"
+              >
+                <option value="ALL">👨‍✈️ Todos Pilotos</option>
+                {pilots.map(p => (
+                  <option key={p.id} value={p.id}>{p.name.split(' ')[0]}</option>
+                ))}
+              </select>
+
+              <select
+                value={forecastDroneId}
+                onChange={(e) => setForecastDroneId(e.target.value)}
+                className="px-2.5 py-1 bg-slate-950 border border-emerald-500/40 rounded-lg text-[10.5px] font-bold text-emerald-200 cursor-pointer"
+              >
+                <option value="ALL">🛸 Todos Drones</option>
+                {drones.map(d => (
+                  <option key={d.id} value={d.id}>{d.modelName.replace('DJI Agras ', '')}</option>
+                ))}
+              </select>
+
+              <button
+                onClick={() => setShowFutureRevenuePanel(false)}
+                className="px-2 py-0.5 text-[10px] font-bold text-slate-400 hover:text-white hover:underline ml-1 cursor-pointer"
+              >
+                ✕ Fechar
+              </button>
+            </div>
+          </div>
+
+          {/* Metric Cards Banner */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <div className="p-2.5 rounded-xl bg-slate-950/80 border border-emerald-500/30">
+              <div className="text-[10px] text-slate-400 font-semibold">Faturamento Futuro (R$)</div>
+              <div className="text-lg font-black text-emerald-400">{formatBRL(futureCalendarRevenueProjection.totalGrossRevenue)}</div>
+              <div className="text-[9px] text-emerald-300/80">Comissão Pilotos: {formatBRL(futureCalendarRevenueProjection.estimatedPilotCommissions)}</div>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-slate-950/80 border border-emerald-500/30">
+              <div className="text-[10px] text-slate-400 font-semibold">Área Agendada (ha)</div>
+              <div className="text-lg font-black text-white">{formatDecimal(futureCalendarRevenueProjection.totalTargetHectares)} ha</div>
+              <div className="text-[9px] text-slate-400">{futureCalendarRevenueProjection.osCount} Agendamentos Futuros</div>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-slate-950/80 border border-emerald-500/30">
+              <div className="text-[10px] text-slate-400 font-semibold">Ticket Médio por OS</div>
+              <div className="text-lg font-black text-amber-300">{formatBRL(futureCalendarRevenueProjection.avgTicketPerOS)}</div>
+              <div className="text-[9px] text-amber-200/70">Média de R$/Operação</div>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-slate-950/80 border border-emerald-500/30 overflow-hidden">
+              <div className="text-[10px] text-slate-400 font-semibold mb-1">Top Piloto & Drone</div>
+              <div className="text-[10.5px] font-bold text-emerald-200 truncate">
+                👨‍✈️ {futureCalendarRevenueProjection.byPilot[0]?.name || 'N/A'}: {formatBRL(futureCalendarRevenueProjection.byPilot[0]?.gross || 0)}
+              </div>
+              <div className="text-[10.5px] font-bold text-emerald-200 truncate">
+                🛸 {futureCalendarRevenueProjection.byDrone[0]?.model || 'N/A'}: {formatBRL(futureCalendarRevenueProjection.byDrone[0]?.gross || 0)}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Active Conflict Filter Banner */}
       {showConflictsOnly && (
