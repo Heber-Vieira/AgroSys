@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { BrazilCityAutocomplete } from './common/BrazilCityAutocomplete';
+import { BrazilDistrictAutocomplete } from './common/BrazilDistrictAutocomplete';
 import { 
   UserProfile, 
   AgriculturalDrone, 
@@ -38,6 +39,7 @@ import {
   Sparkles, 
   BatteryCharging, 
   MapPin, 
+  Landmark,
   Phone, 
   Mail, 
   FileText, 
@@ -280,6 +282,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
     phone: '',
     email: '',
     cityState: '',
+    district: '',
     farmNames: [''],
     totalHectaresRegistered: 100,
     creditLimit: 50000,
@@ -859,6 +862,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
       phone: '',
       email: '',
       cityState: 'Rio Verde - GO',
+      district: 'Distrito Sede',
       farmNames: ['Fazenda Nova'],
       totalHectaresRegistered: 500,
       creditLimit: 80000,
@@ -897,7 +901,8 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
         stateRegistration: clientFormData.stateRegistration || '',
         phone: clientFormData.phone || '',
         email: clientFormData.email || '',
-        cityState: clientFormData.cityState || 'Goiás',
+        cityState: clientFormData.cityState || 'Rio Verde - GO',
+        district: clientFormData.district || 'Distrito Sede',
         farmNames: clientFormData.farmNames && clientFormData.farmNames.length > 0 ? clientFormData.farmNames : ['Fazenda Principal'],
         totalHectaresRegistered: Number(clientFormData.totalHectaresRegistered) || 0,
         creditLimit: Number(clientFormData.creditLimit) || 0,
@@ -1745,6 +1750,14 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
                         <span className="text-slate-400 text-[10px]">UF/Cidade:</span>
                         <span className="font-semibold text-emerald-600 dark:text-emerald-400 text-[10px] truncate max-w-[130px]">{c.cityState}</span>
                       </div>
+                      {c.district && (
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-slate-400 text-[10px]">Distrito:</span>
+                          <span className="font-semibold text-teal-600 dark:text-teal-400 text-[10px] truncate max-w-[130px] flex items-center gap-0.5">
+                            <Landmark className="w-2.5 h-2.5 shrink-0" /> {c.district}
+                          </span>
+                        </div>
+                      )}
 
                       {/* Fazendas Chips */}
                       {c.farmNames && c.farmNames.length > 0 && (
@@ -3509,13 +3522,26 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
                   />
                 </div>
 
-                <div className="sm:col-span-2">
+                <div className="sm:col-span-1">
                   <BrazilCityAutocomplete
-                    label="Município e UF de Cadastro do Cliente (Busca Automática IBGE)"
+                    label="Município e UF (Busca Automática IBGE)"
                     value={clientFormData.cityState || ''}
-                    onChange={(cityStateStr) => setClientFormData({ ...clientFormData, cityState: cityStateStr })}
-                    placeholder="Digite e busque a cidade do cliente (ex: Rio Verde - GO)..."
-                    helperText="A cidade cadastrada aqui é vinculada automaticamente como cidade meteorológica de referência em agendamentos e Ordens de Serviço."
+                    onChange={(cityStateStr) => setClientFormData(prev => ({ ...prev, cityState: cityStateStr }))}
+                    onSelectDistrict={(distName) => setClientFormData(prev => ({ ...prev, district: distName }))}
+                    placeholder="Digite e busque a cidade (ex: Rio Verde - GO)..."
+                    helperText="Cidade meteorológica de referência."
+                  />
+                </div>
+
+                <div className="sm:col-span-1">
+                  <BrazilDistrictAutocomplete
+                    label="Distrito Municipal (Cadastro IBGE)"
+                    cityState={clientFormData.cityState || ''}
+                    value={clientFormData.district || ''}
+                    onChange={(districtStr) => setClientFormData(prev => ({ ...prev, district: districtStr }))}
+                    onSelectCity={(cityFullName) => setClientFormData(prev => ({ ...prev, cityState: cityFullName }))}
+                    placeholder="Digite ou busque o distrito (ex: Jacarandira)..."
+                    helperText="Busca em todos os 10.600+ distritos do Brasil."
                   />
                 </div>
 

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { ClientProducer, FarmPlot, TerrainType } from '../../types';
 import { BrazilCityAutocomplete } from './BrazilCityAutocomplete';
+import { BrazilDistrictAutocomplete } from './BrazilDistrictAutocomplete';
 import { playSuccessChime } from '../../utils/audioAlerts';
 import { showToast } from '../../services/notificationService';
 
@@ -32,6 +33,7 @@ export const QuickAddClientModal: React.FC<QuickAddClientModalProps> = ({
   const [cpfCnpj, setCpfCnpj] = useState('');
   const [phone, setPhone] = useState('');
   const [cityState, setCityState] = useState('Rio Verde - GO');
+  const [district, setDistrict] = useState('Distrito Sede');
   const [farmName, setFarmName] = useState('');
   const [plotName, setPlotName] = useState('Talhão 01');
   const [crop, setCrop] = useState<'Soja' | 'Milho' | 'Algodão' | 'Cana-de-açúcar' | 'Pastagem' | 'Café'>('Soja');
@@ -78,6 +80,7 @@ export const QuickAddClientModal: React.FC<QuickAddClientModalProps> = ({
       phone: phone.trim() || '(64) 99999-0000',
       email: `${clientName.trim().toLowerCase().replace(/[^a-z0-9]/g, '') || 'cliente'}@produtor.com.br`,
       cityState: cityState || 'Rio Verde - GO',
+      district: district || 'Distrito Sede',
       farmNames: [farmName.trim()],
       totalHectaresRegistered: numHectares,
       creditLimit: 50000,
@@ -212,7 +215,21 @@ export const QuickAddClientModal: React.FC<QuickAddClientModalProps> = ({
                 <BrazilCityAutocomplete
                   value={cityState}
                   onChange={(val) => setCityState(val)}
+                  onSelectDistrict={(dist) => setDistrict(dist)}
                   placeholder="Selecione a cidade..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Distrito Municipal (IBGE)
+                </label>
+                <BrazilDistrictAutocomplete
+                  cityState={cityState}
+                  value={district}
+                  onChange={(val) => setDistrict(val)}
+                  onSelectCity={(cityFullName) => setCityState(cityFullName)}
+                  placeholder="Digite ou busque o distrito (ex: Jacarandira)..."
                 />
               </div>
             </div>

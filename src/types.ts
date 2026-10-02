@@ -60,6 +60,7 @@ export interface ClientProducer {
   phone: string;
   email: string;
   cityState: string;
+  district?: string; // Distrito / Bairro / Distrito Municipal (Cadastro IBGE)
   farmNames: string[];
   totalHectaresRegistered: number;
   creditLimit: number;

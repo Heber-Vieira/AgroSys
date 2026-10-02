@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  searchBrazilCities, 
-  fetchAllIbgeMunicipalities, 
-  BrazilCity, 
+  fetchDistrictsForCity, 
+  searchBrazilDistricts, 
+  fetchAllIbgeDistricts,
+  BrazilDistrict,
   BRAZIL_STATES 
 } from '../../services/brazilCitiesService';
-import { Search, MapPin, ChevronDown, Check, Loader2, X } from 'lucide-react';
+import { Landmark, ChevronDown, Check, Loader2, X, Compass, Search, MapPin } from 'lucide-react';
 
-interface BrazilCityAutocompleteProps {
-  value: string; // e.g. "Rio Verde - GO" or "Sorriso - MT"
-  onChange: (cityState: string, cityObj?: BrazilCity) => void;
-  onSelectDistrict?: (districtName: string) => void;
+interface BrazilDistrictAutocompleteProps {
+  cityState?: string; // e.g. "Rio Verde - GO" or "Resende Costa - MG"
+  value: string; // e.g. "Jacarandira" or "Distrito Sede"
+  onChange: (districtName: string, districtObj?: BrazilDistrict) => void;
+  onSelectCity?: (cityFullName: string) => void;
   label?: string;
   placeholder?: string;
   required?: boolean;
@@ -19,12 +21,13 @@ interface BrazilCityAutocompleteProps {
   helperText?: string;
 }
 
-export const BrazilCityAutocomplete: React.FC<BrazilCityAutocompleteProps> = ({
+export const BrazilDistrictAutocomplete: React.FC<BrazilDistrictAutocompleteProps> = ({
+  cityState = '',
   value,
   onChange,
-  onSelectDistrict,
-  label = 'Município e UF',
-  placeholder = 'Digite o nome da cidade (ex: Rio Verde, Sorriso, Cascavel)...',
+  onSelectCity,
+  label = 'Distrito Municipal (Cadastro IBGE)',
+  placeholder = 'Digite ou busque o distrito (ex: Jacarandira, Riverlândia, Sede)...',
   required = false,
   className = '',
   disabled = false,
@@ -33,7 +36,7 @@ export const BrazilCityAutocomplete: React.FC<BrazilCityAutocompleteProps> = ({
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>(value || '');
   const [selectedState, setSelectedState] = useState<string>('ALL');
-  const [results, setResults] = useState<BrazilCity[]>([]);
+  const [results, setResults] = useState<BrazilDistrict[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -42,35 +45,35 @@ export const BrazilCityAutocomplete: React.FC<BrazilCityAutocompleteProps> = ({
     setSearchTerm(value || '');
   }, [value]);
 
-  // Load IBGE background list on component mount
+  // Pre-load all Brazilian districts on mount
   useEffect(() => {
-    fetchAllIbgeMunicipalities();
+    fetchAllIbgeDistricts();
   }, []);
 
-  // Perform city search when search term or state filter changes
+  // Load districts when searchTerm, cityState, or state filter changes
   useEffect(() => {
     let isMounted = true;
 
-    const performSearch = async () => {
+    const loadDistricts = async () => {
       setIsLoading(true);
       try {
-        const matches = await searchBrazilCities(searchTerm, selectedState);
+        const matches = await searchBrazilDistricts(searchTerm, cityState, selectedState);
         if (isMounted) {
           setResults(matches);
         }
       } catch (e) {
-        console.error('Error searching Brazilian cities:', e);
+        console.error('Error fetching Brazilian districts:', e);
       } finally {
         if (isMounted) setIsLoading(false);
       }
     };
 
-    const timer = setTimeout(performSearch, 150);
+    const timer = setTimeout(loadDistricts, 150);
     return () => {
       isMounted = false;
       clearTimeout(timer);
     };
-  }, [searchTerm, selectedState]);
+  }, [searchTerm, cityState, selectedState]);
 
   // Handle outside click to close dropdown
   useEffect(() => {
@@ -83,11 +86,11 @@ export const BrazilCityAutocomplete: React.FC<BrazilCityAutocompleteProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleSelect = (city: BrazilCity) => {
-    setSearchTerm(city.fullName);
-    onChange(city.fullName, city);
-    if (city.matchedDistrict && onSelectDistrict) {
-      onSelectDistrict(city.matchedDistrict);
+  const handleSelect = (district: BrazilDistrict) => {
+    setSearchTerm(district.name);
+    onChange(district.name, district);
+    if (district.cityFullName && onSelectCity) {
+      onSelectCity(district.cityFullName);
     }
     setIsOpen(false);
   };
@@ -107,7 +110,7 @@ export const BrazilCityAutocomplete: React.FC<BrazilCityAutocompleteProps> = ({
       )}
 
       <div className="relative flex items-center">
-        <MapPin className="w-4 h-4 absolute left-3 text-emerald-600 dark:text-emerald-400 flex-shrink-0 pointer-events-none" />
+        <Landmark className="w-4 h-4 absolute left-3 text-teal-600 dark:text-teal-400 flex-shrink-0 pointer-events-none" />
 
         <input
           type="text"
@@ -120,18 +123,18 @@ export const BrazilCityAutocomplete: React.FC<BrazilCityAutocompleteProps> = ({
             onChange(e.target.value); // Allow typing directly if custom
           }}
           placeholder={placeholder}
-          className="w-full pl-9 pr-16 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+          className="w-full pl-9 pr-16 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 transition-all"
         />
 
         <div className="absolute right-2 flex items-center gap-1">
           {isLoading ? (
-            <Loader2 className="w-3.5 h-3.5 text-emerald-600 animate-spin mr-1" />
+            <Loader2 className="w-3.5 h-3.5 text-teal-600 animate-spin mr-1" />
           ) : searchTerm ? (
             <button
               type="button"
               onClick={handleClear}
               className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-md cursor-pointer"
-              title="Limpar busca"
+              title="Limpar distrito"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -153,19 +156,19 @@ export const BrazilCityAutocomplete: React.FC<BrazilCityAutocompleteProps> = ({
 
       {/* Autocomplete Suggestions Dropdown */}
       {isOpen && (
-        <div className="absolute z-50 left-0 right-0 mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl overflow-hidden max-h-64 flex flex-col animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="absolute z-50 left-0 right-0 mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl overflow-hidden max-h-72 flex flex-col animate-in fade-in slide-in-from-top-2 duration-200">
           
           {/* Header State Filter Bar */}
           <div className="p-2 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
             <span className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 flex items-center gap-1">
-              <Search className="w-3 h-3 text-emerald-600" />
-              Filtrar por Estado (UF):
+              <Search className="w-3 h-3 text-teal-600" />
+              Filtrar por Estado:
             </span>
 
             <select
               value={selectedState}
               onChange={(e) => setSelectedState(e.target.value)}
-              className="px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-bold text-slate-700 dark:text-slate-300 cursor-pointer focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-bold text-slate-700 dark:text-slate-300 cursor-pointer focus:outline-none focus:ring-1 focus:ring-teal-500"
             >
               <option value="ALL">🇧🇷 Todos os 27 Estados</option>
               {BRAZIL_STATES.map(st => (
@@ -179,57 +182,51 @@ export const BrazilCityAutocomplete: React.FC<BrazilCityAutocompleteProps> = ({
             {results.length === 0 ? (
               <div className="p-4 text-center text-xs text-slate-400">
                 {isLoading ? (
-                  <div className="flex items-center justify-center gap-2 text-emerald-600">
-                    <Loader2 className="w-4 h-4 animate-spin" /> Buscando municípios e distritos do Brasil...
+                  <div className="flex items-center justify-center gap-2 text-teal-600">
+                    <Loader2 className="w-4 h-4 animate-spin" /> Buscando nos 10.600+ distritos do IBGE...
                   </div>
                 ) : (
                   <>
-                    Nenhum município ou distrito encontrado para "{searchTerm}".
+                    Nenhum distrito oficial do IBGE listado para "{searchTerm}".
                     <br />
-                    <span className="text-[10px] text-slate-500 mt-1 block">
-                      Você pode digitar o nome personalizado se necessário.
+                    <span className="text-[10px] text-slate-500 mt-1 block font-medium">
+                      Você pode salvar o nome do distrito customizado digitando diretamente no campo acima.
                     </span>
                   </>
                 )}
               </div>
             ) : (
-              results.map((city) => {
-                const isSelected = value === city.fullName || value?.toLowerCase() === city.name.toLowerCase();
+              results.map((district) => {
+                const isSelected = value?.toLowerCase() === district.name.toLowerCase();
 
                 return (
                   <button
-                    key={city.id + '-' + city.state + (city.matchedDistrict ? '-' + city.matchedDistrict : '')}
+                    key={district.id}
                     type="button"
-                    onClick={() => handleSelect(city)}
+                    onClick={() => handleSelect(district)}
                     className={`w-full px-3 py-2 text-left rounded-lg text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
                       isSelected
-                        ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-950 dark:text-emerald-200 font-bold'
+                        ? 'bg-teal-50 dark:bg-teal-950/60 text-teal-950 dark:text-teal-200 font-bold'
                         : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200'
                     }`}
                   >
                     <div className="flex items-center gap-2 truncate">
-                      <div className="w-6 h-6 rounded-md bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 font-black text-[10px] flex items-center justify-center flex-shrink-0">
-                        {city.state}
+                      <div className="w-6 h-6 rounded-md bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 font-black text-[10px] flex items-center justify-center flex-shrink-0">
+                        {district.state}
                       </div>
                       <div className="truncate">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-bold truncate text-slate-900 dark:text-white">{city.name}</span>
-                          {city.matchedDistrict && (
-                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-teal-100 dark:bg-teal-900/60 text-teal-800 dark:text-teal-300 font-semibold border border-teal-200 dark:border-teal-800">
-                              Distrito: {city.matchedDistrict}
-                            </span>
-                          )}
-                        </div>
-                        {city.region && !city.matchedDistrict && (
-                          <span className="text-[10px] text-slate-400 font-normal block truncate">
-                            {city.region}
-                          </span>
-                        )}
+                        <span className="block font-bold truncate text-slate-900 dark:text-white">
+                          {district.name}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-normal block truncate flex items-center gap-1">
+                          <MapPin className="w-2.5 h-2.5 text-slate-400" />
+                          Município: <strong className="text-teal-700 dark:text-teal-300 font-semibold">{district.cityName} - {district.state}</strong>
+                        </span>
                       </div>
                     </div>
 
                     {isSelected && (
-                      <Check className="w-4 h-4 text-emerald-600 flex-shrink-0 ml-2" />
+                      <Check className="w-4 h-4 text-teal-600 flex-shrink-0 ml-2" />
                     )}
                   </button>
                 );
@@ -237,9 +234,9 @@ export const BrazilCityAutocomplete: React.FC<BrazilCityAutocompleteProps> = ({
             )}
           </div>
 
-          {/* Footer IBGE Badge */}
+          {/* Footer IBGE District Badge */}
           <div className="p-1.5 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-400 text-center font-medium">
-            Sincronizado com Base Oficial IBGE de Municípios e Distritos Brasileiros
+            Base Completa de todos os ~10.600+ Distritos Brasileiros do IBGE
           </div>
         </div>
       )}
