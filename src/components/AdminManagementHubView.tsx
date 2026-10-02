@@ -1016,6 +1016,7 @@ export const AdminManagementHubView: React.FC<AdminManagementHubViewProps> = ({
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (c.tradeName && c.tradeName.toLowerCase().includes(searchQuery.toLowerCase())) ||
     c.cpfCnpj.includes(searchQuery) ||
+    (c.district && c.district.toLowerCase().includes(searchQuery.toLowerCase())) ||
     c.cityState.toLowerCase().includes(searchQuery.toLowerCase())
   );
 

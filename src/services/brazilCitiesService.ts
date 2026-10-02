@@ -1,7 +1,7 @@
 /**
  * Brazilian Municipalities & IBGE Search Service
  * Provides automatic searching, autocomplete, and weather location mapping
- * for all 5,570 Brazilian municipalities and 27 UFs.
+ * for all 5,570 Brazilian municipalities and ~10,750+ Brazilian districts.
  */
 
 import { CityLocation, POPULAR_AGRO_CITIES } from './weatherService';
@@ -10,8 +10,8 @@ export interface BrazilCity {
   id: string;
   ibgeCode?: number;
   name: string;
-  state: string; // UF e.g. "GO", "MT"
-  fullName: string; // e.g. "Rio Verde - GO"
+  state: string; // UF e.g. "GO", "MT", "MG"
+  fullName: string; // e.g. "Rio Verde - GO", "Resende Costa - MG"
   latitude?: number;
   longitude?: number;
   region?: string;
@@ -48,9 +48,19 @@ export const BRAZIL_STATES: { uf: string; name: string }[] = [
   { uf: 'TO', name: 'Tocantins' },
 ];
 
+export function normalizeLocationString(str: string): string {
+  if (!str) return '';
+  return str
+    .toLowerCase()
+    .trim()
+    .replace(/matheus/g, 'mateus')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
 /**
-  Top Agro Cities dataset pre-loaded with geographic coordinates
-*/
+ * Top Agro & Reference Municipalities dataset pre-loaded with geographic coordinates
+ */
 export const EXPANDED_AGRO_CITIES: BrazilCity[] = [
   { id: 'rio-verde-go', ibgeCode: 5218805, name: 'Rio Verde', state: 'GO', fullName: 'Rio Verde - GO', latitude: -17.7947, longitude: -50.9192, region: 'Sudoeste Goiano' },
   { id: 'sorriso-mt', ibgeCode: 5107925, name: 'Sorriso', state: 'MT', fullName: 'Sorriso - MT', latitude: -12.5425, longitude: -55.7214, region: 'Norte MT' },
@@ -76,6 +86,8 @@ export const EXPANDED_AGRO_CITIES: BrazilCity[] = [
   { id: 'patos-de-minas-mg', ibgeCode: 3148004, name: 'Patos de Minas', state: 'MG', fullName: 'Patos de Minas - MG', latitude: -18.5789, longitude: -46.5181, region: 'Alto Paranaíba' },
   { id: 'uberaba-mg', ibgeCode: 3170107, name: 'Uberaba', state: 'MG', fullName: 'Uberaba - MG', latitude: -19.7483, longitude: -47.9319, region: 'Triângulo Mineiro' },
   { id: 'uberlandia-mg', ibgeCode: 3170206, name: 'Uberlândia', state: 'MG', fullName: 'Uberlândia - MG', latitude: -18.9186, longitude: -48.2772, region: 'Triângulo Mineiro' },
+  { id: 'resende-costa-mg', ibgeCode: 3154200, name: 'Resende Costa', state: 'MG', fullName: 'Resende Costa - MG', latitude: -20.9139, longitude: -44.2464, region: 'Campo das Vertentes' },
+  { id: 'mateus-leme-mg', ibgeCode: 3140704, name: 'Mateus Leme', state: 'MG', fullName: 'Mateus Leme - MG', latitude: -19.9869, longitude: -44.4289, region: 'Metropolitana de Belo Horizonte' },
   { id: 'formosa-go', ibgeCode: 5208004, name: 'Formosa', state: 'GO', fullName: 'Formosa - GO', latitude: -15.5375, longitude: -47.3336, region: 'Entorno do DF' },
   { id: 'mineiros-go', ibgeCode: 5213103, name: 'Mineiros', state: 'GO', fullName: 'Mineiros - GO', latitude: -17.5681, longitude: -52.5511, region: 'Sudoeste Goiano' },
   { id: 'montividiu-go', ibgeCode: 5213756, name: 'Montividiu', state: 'GO', fullName: 'Montividiu - GO', latitude: -17.4422, longitude: -51.1731, region: 'Sudoeste Goiano' },
@@ -120,66 +132,69 @@ export const EXPANDED_AGRO_CITIES: BrazilCity[] = [
   { id: 'campo-grande-ms', ibgeCode: 5002704, name: 'Campo Grande', state: 'MS', fullName: 'Campo Grande - MS', latitude: -20.4697, longitude: -54.6201, region: 'Centro MS' },
 ];
 
-// In-memory cache for loaded IBGE cities
+// In-memory cache and promise deduplication for IBGE cities
 let cachedIbgeCities: BrazilCity[] | null = null;
-let isFetchingIbge = false;
+let ibgeCitiesPromise: Promise<BrazilCity[]> | null = null;
 
 /**
  * Dynamically fetches all ~5,570 Brazilian municipalities from the official IBGE API
  */
 export async function fetchAllIbgeMunicipalities(): Promise<BrazilCity[]> {
-  if (cachedIbgeCities && cachedIbgeCities.length > 0) {
+  if (cachedIbgeCities && cachedIbgeCities.length > 100) {
     return cachedIbgeCities;
   }
 
-  if (isFetchingIbge) {
-    // Wait briefly if already fetching
-    await new Promise(res => setTimeout(res, 400));
-    return cachedIbgeCities || EXPANDED_AGRO_CITIES;
+  if (ibgeCitiesPromise) {
+    return ibgeCitiesPromise;
   }
 
-  try {
-    isFetchingIbge = true;
-    const response = await fetch('https://servicodados.ibge.gov.br/api/v1/localidades/municipios?orderBy=nome');
-    if (!response.ok) {
-      throw new Error(`IBGE API returned status ${response.status}`);
+  ibgeCitiesPromise = (async () => {
+    try {
+      const response = await fetch('https://servicodados.ibge.gov.br/api/v1/localidades/municipios?orderBy=nome');
+      if (!response.ok) {
+        throw new Error(`IBGE API returned status ${response.status}`);
+      }
+
+      const rawData = await response.json();
+      if (Array.isArray(rawData) && rawData.length > 0) {
+        const parsed: BrazilCity[] = rawData.map((item: any) => {
+          const cityName = item.nome;
+          const stateUf = item.microrregiao?.mesorregiao?.UF?.sigla || 
+                          item.regiaoImediata?.regiaoIntermediaria?.UF?.sigla || 
+                          item.UF?.sigla || 
+                          'BR';
+          const fullName = `${cityName} - ${stateUf}`;
+          const cleanId = `${cityName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '-')}-${stateUf.toLowerCase()}`;
+
+          // Match preset coords if available
+          const preset = EXPANDED_AGRO_CITIES.find(c => c.ibgeCode === item.id || normalizeLocationString(c.fullName) === normalizeLocationString(fullName));
+
+          return {
+            id: cleanId,
+            ibgeCode: item.id,
+            name: cityName,
+            state: stateUf,
+            fullName,
+            latitude: preset?.latitude,
+            longitude: preset?.longitude,
+            region: item.microrregiao?.nome || item.regiaoImediata?.nome || 'Brasil'
+          };
+        });
+
+        cachedIbgeCities = parsed;
+        return parsed;
+      }
+    } catch (err) {
+      console.warn('Fallback to preloaded agro cities (offline or network restriction):', err);
+    } finally {
+      ibgeCitiesPromise = null;
     }
 
-    const rawData = await response.json();
-    if (Array.isArray(rawData) && rawData.length > 0) {
-      const parsed: BrazilCity[] = rawData.map((item: any) => {
-        const cityName = item.nome;
-        const stateUf = item.microrregiao?.mesorregiao?.UF?.sigla || item.regiaoImediata?.regiaoIntermediaria?.UF?.sigla || 'BR';
-        const fullName = `${cityName} - ${stateUf}`;
-        const cleanId = `${cityName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '-')}-${stateUf.toLowerCase()}`;
+    cachedIbgeCities = EXPANDED_AGRO_CITIES;
+    return EXPANDED_AGRO_CITIES;
+  })();
 
-        // See if we have exact preset coords
-        const preset = EXPANDED_AGRO_CITIES.find(c => c.ibgeCode === item.id || c.fullName.toLowerCase() === fullName.toLowerCase());
-
-        return {
-          id: cleanId,
-          ibgeCode: item.id,
-          name: cityName,
-          state: stateUf,
-          fullName,
-          latitude: preset?.latitude,
-          longitude: preset?.longitude,
-          region: item.microrregiao?.nome || item.regiaoImediata?.nome || 'Brasil'
-        };
-      });
-
-      cachedIbgeCities = parsed;
-      isFetchingIbge = false;
-      return parsed;
-    }
-  } catch (err) {
-    console.warn('Fallback to preloaded agro cities (offline or network restriction):', err);
-  } finally {
-    isFetchingIbge = false;
-  }
-
-  cachedIbgeCities = EXPANDED_AGRO_CITIES;
-  return EXPANDED_AGRO_CITIES;
+  return ibgeCitiesPromise;
 }
 
 /**
@@ -189,11 +204,16 @@ export async function searchBrazilCities(
   query: string, 
   stateFilter?: string
 ): Promise<BrazilCity[]> {
+  // Ensure cities are loading
+  if (!cachedIbgeCities && !ibgeCitiesPromise) {
+    fetchAllIbgeMunicipalities();
+  }
+
   const all = cachedIbgeCities && cachedIbgeCities.length > 100 
     ? cachedIbgeCities 
     : EXPANDED_AGRO_CITIES;
 
-  const cleanQuery = query.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const cleanQuery = normalizeLocationString(query);
 
   let filtered = all.filter(c => {
     if (stateFilter && stateFilter !== 'ALL' && c.state !== stateFilter) {
@@ -202,30 +222,31 @@ export async function searchBrazilCities(
 
     if (!cleanQuery) return true;
 
-    const cleanName = c.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const cleanFull = c.fullName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const cleanName = normalizeLocationString(c.name);
+    const cleanFull = normalizeLocationString(c.fullName);
 
     return cleanName.includes(cleanQuery) || cleanFull.includes(cleanQuery);
   });
 
-  // If query is present, also cross-search in all Brazilian Districts (e.g. "Jacarandira" -> Resende Costa - MG)
+  // If query is present, also cross-search in all Brazilian Districts (e.g. "Jacarandira" -> Resende Costa, "Sitio Novo" -> Mateus Leme)
   if (cleanQuery) {
-    if (!cachedAllDistricts && !isFetchingAllDistricts) {
+    if (!cachedAllDistricts && !ibgeDistrictsPromise) {
       fetchAllIbgeDistricts();
     }
 
-    const districts = cachedAllDistricts || [];
+    const districts = cachedAllDistricts || KNOWN_RECOGNIZED_DISTRICTS;
     const matchedDistricts = districts.filter(d => {
       if (stateFilter && stateFilter !== 'ALL' && d.state !== stateFilter) return false;
-      const dNameClean = d.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const dNameClean = normalizeLocationString(d.name);
       return dNameClean.includes(cleanQuery);
     });
 
     matchedDistricts.forEach(d => {
-      const exists = filtered.some(c => c.fullName.toLowerCase() === d.cityFullName.toLowerCase());
+      const exists = filtered.some(c => normalizeLocationString(c.fullName) === normalizeLocationString(d.cityFullName));
       if (!exists) {
         filtered.push({
           id: `dist-city-${d.id}`,
+          ibgeCode: d.ibgeCode ? Math.floor(d.ibgeCode / 100) : undefined,
           name: d.cityName,
           state: d.state,
           fullName: d.cityFullName,
@@ -233,19 +254,19 @@ export async function searchBrazilCities(
           region: `Distrito: ${d.name}`
         });
       } else {
-        const found = filtered.find(c => c.fullName.toLowerCase() === d.cityFullName.toLowerCase());
+        const found = filtered.find(c => normalizeLocationString(c.fullName) === normalizeLocationString(d.cityFullName));
         if (found && !found.matchedDistrict) {
           found.matchedDistrict = d.name;
         }
       }
     });
 
-    // If still 0 results and districts not yet cached, fetch on demand
+    // If still 0 results and full IBGE list hasn't finished loading, await both
     if (filtered.length === 0 && !cachedAllDistricts) {
       const fullDistricts = await fetchAllIbgeDistricts();
       const directMatches = fullDistricts.filter(d => {
         if (stateFilter && stateFilter !== 'ALL' && d.state !== stateFilter) return false;
-        const dNameClean = d.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const dNameClean = normalizeLocationString(d.name);
         return dNameClean.includes(cleanQuery);
       });
       directMatches.forEach(d => {
@@ -266,12 +287,12 @@ export async function searchBrazilCities(
     return filtered.slice(0, 30);
   }
 
-  // If local list yielded few results, trigger IBGE fetch if not loaded yet
+  // If local list yielded few results, wait for IBGE fetch
   if (filtered.length === 0 && !cachedIbgeCities) {
     const fullIbge = await fetchAllIbgeMunicipalities();
     return fullIbge.filter(c => {
       if (stateFilter && stateFilter !== 'ALL' && c.state !== stateFilter) return false;
-      const cleanName = c.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const cleanName = normalizeLocationString(c.name);
       return cleanName.includes(cleanQuery);
     }).slice(0, 30);
   }
@@ -287,20 +308,20 @@ export function resolveCityLocation(cityStateStr?: string): CityLocation {
     return POPULAR_AGRO_CITIES[0]; // Rio Verde - GO default
   }
 
-  const clean = cityStateStr.toLowerCase().trim();
+  const clean = normalizeLocationString(cityStateStr);
 
   // Try exact match in popular agro cities first
   const agroMatch = POPULAR_AGRO_CITIES.find(c => {
-    const full = `${c.name} - ${c.state}`.toLowerCase();
-    return full === clean || c.name.toLowerCase() === clean || clean.includes(c.name.toLowerCase());
+    const full = normalizeLocationString(`${c.name} - ${c.state}`);
+    return full === clean || normalizeLocationString(c.name) === clean || clean.includes(normalizeLocationString(c.name));
   });
 
   if (agroMatch) return agroMatch;
 
   // Try match in expanded list
   const expandedMatch = EXPANDED_AGRO_CITIES.find(c => {
-    const full = c.fullName.toLowerCase();
-    return full === clean || c.name.toLowerCase() === clean || clean.includes(c.name.toLowerCase());
+    const full = normalizeLocationString(c.fullName);
+    return full === clean || normalizeLocationString(c.name) === clean || clean.includes(normalizeLocationString(c.name));
   });
 
   if (expandedMatch) {
@@ -326,7 +347,7 @@ export function resolveCityLocation(cityStateStr?: string): CityLocation {
     name: namePart,
     state: ufPart,
     country: 'Brasil',
-    latitude: -17.7947, // Centroid estimate or default
+    latitude: -17.7947,
     longitude: -50.9192,
     elevationMeters: 600,
     region: `Município (${ufPart})`,
@@ -343,6 +364,20 @@ export interface BrazilDistrict {
   cityFullName: string;
 }
 
+// Recognized municipal subdistricts and agricultural communities
+export const KNOWN_RECOGNIZED_DISTRICTS: BrazilDistrict[] = [
+  { id: 'dist-314070430', ibgeCode: 314070430, name: 'Sítio Novo', cityName: 'Mateus Leme', state: 'MG', cityFullName: 'Mateus Leme - MG', fullName: 'Sítio Novo (Mateus Leme - MG)' },
+  { id: 'dist-314070410', ibgeCode: 314070410, name: 'Azurita', cityName: 'Mateus Leme', state: 'MG', cityFullName: 'Mateus Leme - MG', fullName: 'Azurita (Mateus Leme - MG)' },
+  { id: 'dist-314070420', ibgeCode: 314070420, name: 'Serra Azul', cityName: 'Mateus Leme', state: 'MG', cityFullName: 'Mateus Leme - MG', fullName: 'Serra Azul (Mateus Leme - MG)' },
+  { id: 'dist-315420010', ibgeCode: 315420010, name: 'Jacarandira', cityName: 'Resende Costa', state: 'MG', cityFullName: 'Resende Costa - MG', fullName: 'Jacarandira (Resende Costa - MG)' },
+  { id: 'dist-315420005', ibgeCode: 315420005, name: 'Distrito Sede', cityName: 'Resende Costa', state: 'MG', cityFullName: 'Resende Costa - MG', fullName: 'Distrito Sede (Resende Costa - MG)' },
+  { id: 'dist-521880505', ibgeCode: 521880505, name: 'Riverlândia', cityName: 'Rio Verde', state: 'GO', cityFullName: 'Rio Verde - GO', fullName: 'Riverlândia (Rio Verde - GO)' },
+  { id: 'dist-521880510', ibgeCode: 521880510, name: 'Ouroana', cityName: 'Rio Verde', state: 'GO', cityFullName: 'Rio Verde - GO', fullName: 'Ouroana (Rio Verde - GO)' },
+  { id: 'dist-521880515', ibgeCode: 521880515, name: 'Lagoa do Bauzinho', cityName: 'Rio Verde', state: 'GO', cityFullName: 'Rio Verde - GO', fullName: 'Lagoa do Bauzinho (Rio Verde - GO)' },
+  { id: 'dist-354340205', ibgeCode: 354340205, name: 'Bonfim Paulista', cityName: 'Ribeirão Preto', state: 'SP', cityFullName: 'Ribeirão Preto - SP', fullName: 'Bonfim Paulista (Ribeirão Preto - SP)' },
+  { id: 'dist-355170205', ibgeCode: 355170205, name: 'Cruz das Posses', cityName: 'Sertãozinho', state: 'SP', cityFullName: 'Sertãozinho - SP', fullName: 'Cruz das Posses (Sertãozinho - SP)' },
+];
+
 // Popular Agro Districts preset fallback
 export const POPULAR_AGRO_DISTRICTS: Record<string, string[]> = {
   'rio verde - go': ['Distrito Sede', 'Distrito de Riverlândia', 'Distrito de Ouroana', 'Distrito de Lagoa do Bauzinho'],
@@ -356,77 +391,88 @@ export const POPULAR_AGRO_DISTRICTS: Record<string, string[]> = {
   'uberlândia - mg': ['Distrito Sede', 'Distrito de Tapuirama', 'Distrito de Martinésia', 'Distrito de Cruzeiro dos Peixotos'],
   'ribeirão preto - sp': ['Distrito Sede', 'Distrito de Bonfim Paulista'],
   'sertãozinho - sp': ['Distrito Sede', 'Distrito de Cruz das Posses'],
-  'resende costa - mg': ['Distrito Sede', 'Jacarandira', 'Distrito de Jacarandira', 'Pintos'],
+  'resende costa - mg': ['Distrito Sede', 'Jacarandira', 'Distrito de Jacarandira'],
+  'resende costa': ['Distrito Sede', 'Jacarandira', 'Distrito de Jacarandira'],
+  'mateus leme - mg': ['Distrito Sede', 'Sítio Novo', 'Azurita', 'Serra Azul'],
+  'matheus leme - mg': ['Distrito Sede', 'Sítio Novo', 'Azurita', 'Serra Azul'],
+  'mateus leme': ['Distrito Sede', 'Sítio Novo', 'Azurita', 'Serra Azul'],
+  'matheus leme': ['Distrito Sede', 'Sítio Novo', 'Azurita', 'Serra Azul'],
 };
 
-// In-memory cache for all Brazilian IBGE districts
+// In-memory cache and promise deduplication for all Brazilian IBGE districts
 let cachedAllDistricts: BrazilDistrict[] | null = null;
-let isFetchingAllDistricts = false;
+let ibgeDistrictsPromise: Promise<BrazilDistrict[]> | null = null;
 const cachedDistrictsByCity = new Map<string, BrazilDistrict[]>();
 
 /**
- * Dynamically fetches all ~10,600+ Brazilian districts from the official IBGE API
+ * Dynamically fetches all ~10,750+ Brazilian districts from the official IBGE API
  */
 export async function fetchAllIbgeDistricts(): Promise<BrazilDistrict[]> {
-  if (cachedAllDistricts && cachedAllDistricts.length > 0) {
+  if (cachedAllDistricts && cachedAllDistricts.length > 500) {
     return cachedAllDistricts;
   }
 
-  if (isFetchingAllDistricts) {
-    await new Promise(res => setTimeout(res, 400));
-    return cachedAllDistricts || [];
+  if (ibgeDistrictsPromise) {
+    return ibgeDistrictsPromise;
   }
 
-  try {
-    isFetchingAllDistricts = true;
-    const response = await fetch('https://servicodados.ibge.gov.br/api/v1/localidades/distritos?orderBy=nome');
-    if (!response.ok) {
-      throw new Error(`IBGE Distritos API returned status ${response.status}`);
+  ibgeDistrictsPromise = (async () => {
+    try {
+      const response = await fetch('https://servicodados.ibge.gov.br/api/v1/localidades/distritos');
+      if (!response.ok) {
+        throw new Error(`IBGE Distritos API returned status ${response.status}`);
+      }
+
+      const rawData = await response.json();
+      if (Array.isArray(rawData) && rawData.length > 0) {
+        const parsed: BrazilDistrict[] = rawData.map((item: any) => {
+          const districtName = item.nome;
+          const cityName = item.municipio?.nome || 'Município';
+          const stateUf = item.municipio?.microrregiao?.mesorregiao?.UF?.sigla || 
+                          item.municipio?.['regiao-imediata']?.['regiao-intermediaria']?.UF?.sigla ||
+                          item.municipio?.regiaoImediata?.regiaoIntermediaria?.UF?.sigla || 
+                          item.municipio?.microrregiao?.UF?.sigla || 
+                          item.municipio?.UF?.sigla ||
+                          'BR';
+          const cityFullName = `${cityName} - ${stateUf}`;
+          const fullName = `${districtName} (${cityFullName})`;
+
+          return {
+            id: `dist-${item.id}`,
+            ibgeCode: item.id,
+            name: districtName,
+            cityName,
+            state: stateUf,
+            cityFullName,
+            fullName,
+          };
+        });
+
+        // Merge recognized districts to guarantee they are never missed
+        KNOWN_RECOGNIZED_DISTRICTS.forEach(kd => {
+          const exists = parsed.some(p => 
+            normalizeLocationString(p.name) === normalizeLocationString(kd.name) && 
+            normalizeLocationString(p.cityFullName) === normalizeLocationString(kd.cityFullName)
+          );
+          if (!exists) {
+            parsed.push(kd);
+          }
+        });
+
+        cachedAllDistricts = parsed;
+        return parsed;
+      }
+    } catch (err) {
+      console.warn('Erro ao carregar distritos do IBGE via API:', err);
+    } finally {
+      ibgeDistrictsPromise = null;
     }
 
-    const rawData = await response.json();
-    if (Array.isArray(rawData) && rawData.length > 0) {
-      const parsed: BrazilDistrict[] = rawData.map((item: any) => {
-        const districtName = item.nome;
-        const cityName = item.municipio?.nome || 'Município';
-        const stateUf = item.municipio?.microrregiao?.mesorregiao?.UF?.sigla || 
-                        item.municipio?.microrregiao?.UF?.sigla || 
-                        item.municipio?.regiaoImediata?.regiaoIntermediaria?.UF?.sigla || 
-                        'BR';
-        const cityFullName = `${cityName} - ${stateUf}`;
-        const fullName = `${districtName} (${cityFullName})`;
+    cachedAllDistricts = KNOWN_RECOGNIZED_DISTRICTS;
+    return KNOWN_RECOGNIZED_DISTRICTS;
+  })();
 
-        return {
-          id: `dist-${item.id}`,
-          ibgeCode: item.id,
-          name: districtName,
-          cityName,
-          state: stateUf,
-          cityFullName,
-          fullName,
-        };
-      });
-
-      cachedAllDistricts = parsed;
-      isFetchingAllDistricts = false;
-      return parsed;
-    }
-  } catch (err) {
-    console.warn('Erro ao carregar distritos do IBGE via API:', err);
-  } finally {
-    isFetchingAllDistricts = false;
-  }
-
-  // Pre-seed Jacarandira and popular districts if network restricted
-  const fallbackList: BrazilDistrict[] = [
-    { id: 'dist-315450708', ibgeCode: 315450708, name: 'Jacarandira', cityName: 'Resende Costa', state: 'MG', cityFullName: 'Resende Costa - MG', fullName: 'Jacarandira (Resende Costa - MG)' },
-    { id: 'dist-521880505', ibgeCode: 521880505, name: 'Riverlândia', cityName: 'Rio Verde', state: 'GO', cityFullName: 'Rio Verde - GO', fullName: 'Riverlândia (Rio Verde - GO)' },
-    { id: 'dist-521880510', ibgeCode: 521880510, name: 'Ouroana', cityName: 'Rio Verde', state: 'GO', cityFullName: 'Ouroana (Rio Verde - GO)' },
-    { id: 'dist-521880515', ibgeCode: 521880515, name: 'Lagoa do Bauzinho', cityName: 'Rio Verde', state: 'GO', cityFullName: 'Lagoa do Bauzinho (Rio Verde - GO)' },
-    { id: 'dist-354340205', ibgeCode: 354340205, name: 'Bonfim Paulista', cityName: 'Ribeirão Preto', state: 'SP', cityFullName: 'Ribeirão Preto - SP', fullName: 'Bonfim Paulista (Ribeirão Preto - SP)' },
-  ];
-  cachedAllDistricts = fallbackList;
-  return fallbackList;
+  return ibgeDistrictsPromise;
 }
 
 /**
@@ -435,27 +481,55 @@ export async function fetchAllIbgeDistricts(): Promise<BrazilDistrict[]> {
 export async function fetchDistrictsForCity(cityStateStr: string): Promise<BrazilDistrict[]> {
   if (!cityStateStr || !cityStateStr.trim()) return [];
 
-  const key = cityStateStr.toLowerCase().trim();
+  const key = normalizeLocationString(cityStateStr);
   if (cachedDistrictsByCity.has(key)) {
     return cachedDistrictsByCity.get(key)!;
   }
 
-  // Check in cached all districts first
-  if (cachedAllDistricts && cachedAllDistricts.length > 0) {
-    const cleanKey = key.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const inAll = cachedAllDistricts.filter(d => {
-      const dCity = d.cityFullName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      return dCity === cleanKey || dCity.includes(cleanKey);
+  // Parse city name and state UF
+  const parts = cityStateStr.split('-');
+  const rawCity = parts[0]?.trim() || cityStateStr;
+  const rawState = parts[1]?.trim().toUpperCase() || '';
+  const cleanCity = normalizeLocationString(rawCity);
+
+  // 1. Check in all loaded IBGE districts
+  const allDistricts = cachedAllDistricts && cachedAllDistricts.length > 100 
+    ? cachedAllDistricts 
+    : await fetchAllIbgeDistricts();
+
+  if (allDistricts && allDistricts.length > 0) {
+    const matched = allDistricts.filter(d => {
+      if (rawState && d.state !== rawState) return false;
+      const dCityClean = normalizeLocationString(d.cityName);
+      return dCityClean === cleanCity || dCityClean.includes(cleanCity) || cleanCity.includes(dCityClean);
     });
-    if (inAll.length > 0) {
-      cachedDistrictsByCity.set(key, inAll);
-      return inAll;
+
+    if (matched.length > 0) {
+      const listWithSede = [...matched];
+      const hasSedeName = listWithSede.some(d => normalizeLocationString(d.name) === 'distrito sede');
+      if (!hasSedeName) {
+        const seatIdx = listWithSede.findIndex(d => normalizeLocationString(d.name) === cleanCity);
+        if (seatIdx >= 0) {
+          const seatDistrict = listWithSede[seatIdx];
+          listWithSede.splice(seatIdx, 1, {
+            ...seatDistrict,
+            name: `${seatDistrict.name} (Distrito Sede)`,
+            fullName: `${seatDistrict.name} (Distrito Sede) (${cityStateStr})`,
+          });
+        }
+      }
+
+      cachedDistrictsByCity.set(key, listWithSede);
+      return listWithSede;
     }
   }
 
-  // 1. Try to find municipality IBGE code from cached IBGE cities or search
+  // 2. Direct IBGE API endpoint for the specific municipality code
   const cities = cachedIbgeCities && cachedIbgeCities.length > 0 ? cachedIbgeCities : EXPANDED_AGRO_CITIES;
-  const match = cities.find(c => c.fullName.toLowerCase() === key || c.name.toLowerCase() === key);
+  const match = cities.find(c => {
+    const cClean = normalizeLocationString(c.name);
+    return (cClean === cleanCity || normalizeLocationString(c.fullName) === key) && (!rawState || c.state === rawState);
+  });
 
   if (match && match.ibgeCode) {
     try {
@@ -481,13 +555,16 @@ export async function fetchDistrictsForCity(cityStateStr: string): Promise<Brazi
     }
   }
 
-  // Fallback to preset districts or Sede
-  const presets = POPULAR_AGRO_DISTRICTS[key] || ['Distrito Sede', 'Distrito Industrial', 'Distrito Rural'];
+  // 3. Fallback to preset districts
+  const presets = POPULAR_AGRO_DISTRICTS[key] || 
+                  POPULAR_AGRO_DISTRICTS[cleanCity] || 
+                  ['Distrito Sede', 'Distrito Rural'];
+
   const fallbackList: BrazilDistrict[] = presets.map((dName, idx) => ({
-    id: `preset-dist-${key}-${idx}`,
+    id: `preset-dist-${cleanCity}-${idx}`,
     name: dName,
-    cityName: match?.name || cityStateStr,
-    state: match?.state || '',
+    cityName: match?.name || rawCity,
+    state: match?.state || rawState,
     cityFullName: match?.fullName || cityStateStr,
     fullName: `${dName} (${cityStateStr})`,
   }));
@@ -504,33 +581,56 @@ export async function searchBrazilDistricts(
   cityStateStr?: string,
   stateFilter?: string
 ): Promise<BrazilDistrict[]> {
-  const cleanQuery = query ? query.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '') : '';
-  const cleanCity = cityStateStr ? cityStateStr.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '') : '';
+  const cleanQuery = normalizeLocationString(query);
+  const cleanCity = normalizeLocationString(cityStateStr || '');
 
-  // Trigger background loading of all districts
-  if (!cachedAllDistricts && !isFetchingAllDistricts) {
+  // Ensure background load of all 10,750+ districts
+  if (!cachedAllDistricts && !ibgeDistrictsPromise) {
     fetchAllIbgeDistricts();
   }
 
-  const all = cachedAllDistricts || [];
+  // If city is specified and query is empty, return that city's districts
+  if (cityStateStr && !cleanQuery) {
+    const cityDistricts = await fetchDistrictsForCity(cityStateStr);
+    if (cityDistricts.length > 0) {
+      return cityDistricts;
+    }
+  }
 
-  if (all.length > 0) {
+  // Get full districts list (await if empty)
+  const all = cachedAllDistricts && cachedAllDistricts.length > 100
+    ? cachedAllDistricts
+    : await fetchAllIbgeDistricts();
+
+  if (all && all.length > 0) {
+    // If a city is selected, search within that city first
+    if (cleanCity) {
+      const cityMatches = all.filter(d => {
+        const dCityClean = normalizeLocationString(d.cityName);
+        const inCity = dCityClean.includes(cleanCity) || cleanCity.includes(dCityClean);
+        if (!inCity) return false;
+
+        if (!cleanQuery) return true;
+        const dNameClean = normalizeLocationString(d.name);
+        return dNameClean.includes(cleanQuery);
+      });
+
+      if (cityMatches.length > 0) {
+        return cityMatches.slice(0, 40);
+      }
+    }
+
+    // Nationwide search (or filtered by UF)
     let filtered = all.filter(d => {
       if (stateFilter && stateFilter !== 'ALL' && d.state !== stateFilter) {
         return false;
       }
 
-      // If user hasn't typed a query but selected a city, show districts of that city
-      if (cleanCity && !cleanQuery) {
-        const dCityClean = d.cityFullName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-        return dCityClean === cleanCity || dCityClean.includes(cleanCity);
-      }
-
       if (!cleanQuery) return true;
 
-      const dNameClean = d.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      const dCityClean = d.cityName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      const dFullClean = d.fullName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const dNameClean = normalizeLocationString(d.name);
+      const dCityClean = normalizeLocationString(d.cityName);
+      const dFullClean = normalizeLocationString(d.fullName);
 
       return dNameClean.includes(cleanQuery) || dCityClean.includes(cleanQuery) || dFullClean.includes(cleanQuery);
     });
@@ -540,36 +640,15 @@ export async function searchBrazilDistricts(
     }
   }
 
-  // If no results in memory or cache pending, fetch all from IBGE
-  if (!cachedAllDistricts) {
-    const fullDistricts = await fetchAllIbgeDistricts();
-    if (fullDistricts.length > 0) {
-      return fullDistricts.filter(d => {
-        if (stateFilter && stateFilter !== 'ALL' && d.state !== stateFilter) return false;
-        if (!cleanQuery) {
-          if (cleanCity) {
-            return d.cityFullName.toLowerCase().includes(cleanCity);
-          }
-          return true;
-        }
-        const dNameClean = d.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-        const dFullClean = d.fullName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-        return dNameClean.includes(cleanQuery) || dFullClean.includes(cleanQuery);
-      }).slice(0, 40);
-    }
-  }
-
   // Fallback to city-specific search
   if (cityStateStr) {
     const cityDistricts = await fetchDistrictsForCity(cityStateStr);
     if (!cleanQuery) return cityDistricts;
     return cityDistricts.filter(d => {
-      const cleanName = d.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const cleanName = normalizeLocationString(d.name);
       return cleanName.includes(cleanQuery);
     });
   }
 
   return [];
 }
-
-

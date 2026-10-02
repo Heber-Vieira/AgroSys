@@ -52,7 +52,7 @@ import {
 } from '../utils/audioAlerts';
 import { ScheduleOrderModal } from './scheduling/ScheduleOrderModal';
 import { ScheduleConflictsModal } from './scheduling/ScheduleConflictsModal';
-import { formatDateBR } from '../utils/formatters';
+import { formatDateBR, formatLocalDate, parseLocalDate } from '../utils/formatters';
 import { filterOrdersForUser, isServiceOrderAssignedToUser, doNamesMatch } from '../utils/userPermissions';
 
 interface ScheduleCalendarViewProps {
@@ -156,10 +156,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
 
   // Date Navigation Helpers
   const selectedDateStr = useMemo(() => {
-    const y = currentDate.getFullYear();
-    const m = String(currentDate.getMonth() + 1).padStart(2, '0');
-    const d = String(currentDate.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
+    return formatLocalDate(currentDate);
   }, [currentDate]);
 
   const handlePrevDay = () => {
@@ -290,7 +287,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
   const handleOpenNewModal = (dateStr?: string, timeStr?: string) => {
     playSlotSelectedTone();
     setEditingOrder(null);
-    setModalInitialDate(dateStr || currentDate.toISOString().split('T')[0]);
+    setModalInitialDate(dateStr || formatLocalDate(currentDate));
     setModalInitialStartTime(timeStr || '07:00');
     setIsModalOpen(true);
   };
@@ -317,14 +314,8 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
   };
 
   const handleJumpToDateStr = (dateStr: string) => {
-    const parts = dateStr.split('-');
-    if (parts.length === 3) {
-      const y = parseInt(parts[0], 10);
-      const m = parseInt(parts[1], 10) - 1;
-      const d = parseInt(parts[2], 10);
-      setCurrentDate(new Date(y, m, d));
-      playSlotSelectedTone();
-    }
+    setCurrentDate(parseLocalDate(dateStr));
+    playSlotSelectedTone();
   };
 
   // Month Grid Calculations
@@ -343,7 +334,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
       const dayNum = daysInPrevMonth - i;
       const d = new Date(year, month - 1, dayNum);
       days.push({
-        dateStr: d.toISOString().split('T')[0],
+        dateStr: formatLocalDate(d),
         dayNumber: dayNum,
         isCurrentMonth: false,
         dateObj: d,
@@ -354,7 +345,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
     for (let dayNum = 1; dayNum <= totalDaysInMonth; dayNum++) {
       const d = new Date(year, month, dayNum);
       days.push({
-        dateStr: d.toISOString().split('T')[0],
+        dateStr: formatLocalDate(d),
         dayNumber: dayNum,
         isCurrentMonth: true,
         dateObj: d,
@@ -366,7 +357,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
     for (let dayNum = 1; dayNum <= remaining; dayNum++) {
       const d = new Date(year, month + 1, dayNum);
       days.push({
-        dateStr: d.toISOString().split('T')[0],
+        dateStr: formatLocalDate(d),
         dayNumber: dayNum,
         isCurrentMonth: false,
         dateObj: d,
@@ -383,10 +374,9 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
 
     // Center currentDate at index 3 (4th column out of 7)
     for (let i = -3; i <= 3; i++) {
-      const d = new Date(currentDate);
-      d.setDate(currentDate.getDate() + i);
+      const d = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() + i);
       days.push({
-        dateStr: d.toISOString().split('T')[0],
+        dateStr: formatLocalDate(d),
         dayNumber: d.getDate(),
         dayName: names[d.getDay()],
         fullDate: d,
@@ -654,7 +644,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                   <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Hora</span>
                 </div>
                 {weekDays.map((d, i) => {
-                  const isToday = d.dateStr === new Date().toISOString().split('T')[0];
+                  const isToday = d.dateStr === formatLocalDate(new Date());
                   const dayOrders = filteredOrders.filter(o => o.scheduledDate === d.dateStr);
 
                   return (
@@ -844,7 +834,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
               {monthData.map((cell, idx) => {
                 const dayOrders = filteredOrders.filter(o => o.scheduledDate === cell.dateStr);
                 const hasConflictsToday = dayOrders.some(o => conflictsMap.has(o.id));
-                const isToday = cell.dateStr === new Date().toISOString().split('T')[0];
+                const isToday = cell.dateStr === formatLocalDate(new Date());
 
                 return (
                   <div
@@ -913,7 +903,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
           <div className="flex flex-col h-full min-h-0 p-3 space-y-3 overflow-y-auto">
             <div className="flex items-center justify-between shrink-0">
               <span className="text-xs font-black uppercase text-emerald-950 dark:text-emerald-100">
-                Alocação de Recursos ({currentDate.toISOString().split('T')[0]}):
+                Alocação de Recursos ({formatLocalDate(currentDate)}):
               </span>
               <div className="flex items-center p-0.5 bg-emerald-50 dark:bg-emerald-950 rounded-lg border border-emerald-200/60 dark:border-emerald-800/60">
                 <button
@@ -941,7 +931,7 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                 const resourceId = resource.id;
                 const resourceName = 'name' in resource ? resource.name : resource.modelName;
                 const resourceSub = 'deceaLicense' in resource ? resource.deceaLicense : resource.anacPrefix;
-                const dayStr = currentDate.toISOString().split('T')[0];
+                const dayStr = formatLocalDate(currentDate);
                 const resourceOrders = filteredOrders.filter(o => {
                   if (o.scheduledDate !== dayStr) return false;
                   return timelineResource === 'pilot' ? o.pilotId === resourceId : o.droneId === resourceId;

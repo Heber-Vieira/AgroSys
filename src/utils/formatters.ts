@@ -240,3 +240,29 @@ export function formatDateTimeBR(val: string | number | Date | null | undefined,
   return String(val);
 }
 
+/**
+ * Converte um objeto Date em string de data local no formato YYYY-MM-DD.
+ * Evita o desvio de fuso horário (UTC offset shift) causado por Date.prototype.toISOString().
+ */
+export function formatLocalDate(date: Date = new Date()): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * Converte uma string YYYY-MM-DD em um objeto Date local (às 00:00:00 local).
+ * Evita que 'YYYY-MM-DD' seja interpretado como UTC meia-noite (que em GMT-3 vira o dia anterior às 21h).
+ */
+export function parseLocalDate(dateStr: string): Date {
+  if (!dateStr) return new Date();
+  const match = dateStr.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) {
+    const [, y, m, d] = match;
+    return new Date(parseInt(y, 10), parseInt(m, 10) - 1, parseInt(d, 10));
+  }
+  return new Date(dateStr);
+}
+
+

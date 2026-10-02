@@ -44,7 +44,7 @@ import {
   resolveCityForPlot, 
   WeatherFeasibilityCheck 
 } from '../../services/scheduleWeatherChecker';
-import { formatDecimal, formatHectares } from '../../utils/formatters';
+import { formatDecimal, formatHectares, formatLocalDate } from '../../utils/formatters';
 import { 
   POPULAR_AGRO_CITIES, 
   CityLocation 
@@ -187,7 +187,7 @@ export const ScheduleOrderModal: React.FC<ScheduleOrderModalProps> = ({
     }
   }, [effectiveDrones, targetCompanyId, selectedDroneId]);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = formatLocalDate(new Date());
   const [scheduledDate, setScheduledDate] = useState<string>(
     editingOrder?.scheduledDate || initialDate || todayStr
   );
@@ -640,7 +640,7 @@ export const ScheduleOrderModal: React.FC<ScheduleOrderModalProps> = ({
                 onClick={() => {
                   const tomorrow = new Date();
                   tomorrow.setDate(tomorrow.getDate() + 1);
-                  setScheduledDate(tomorrow.toISOString().split('T')[0]);
+                  setScheduledDate(formatLocalDate(tomorrow));
                 }}
                 className="px-2.5 py-1 rounded-md font-bold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
               >
@@ -651,7 +651,7 @@ export const ScheduleOrderModal: React.FC<ScheduleOrderModalProps> = ({
                 onClick={() => {
                   const in2Days = new Date();
                   in2Days.setDate(in2Days.getDate() + 2);
-                  setScheduledDate(in2Days.toISOString().split('T')[0]);
+                  setScheduledDate(formatLocalDate(in2Days));
                 }}
                 className="px-2.5 py-1 rounded-md font-bold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
               >
