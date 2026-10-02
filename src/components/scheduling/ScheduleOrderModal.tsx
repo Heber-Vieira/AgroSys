@@ -411,6 +411,7 @@ export const ScheduleOrderModal: React.FC<ScheduleOrderModalProps> = ({
       startTime,
       endTime,
       cityState: `${selectedCity.name} - ${selectedCity.state}`,
+      district: matchedClient?.district || '',
       sprayRateLHa: sprayRate,
       droneId: currentDrone.id,
       droneModel: currentDrone.modelName,

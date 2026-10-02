@@ -36,7 +36,11 @@ import {
   Edit2,
   Trash2,
   Play,
-  ArrowRight
+  ArrowRight,
+  Sprout,
+  Target,
+  Check,
+  Maximize2
 } from 'lucide-react';
 import { 
   detectAllScheduleCollisions, 
@@ -763,6 +767,8 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                             const leftPct = (overlapIndex >= 0 ? overlapIndex : 0) * widthPct;
 
                             const hasConflict = conflictsMap.has(order.id);
+                            const matchedClient = clients?.find(c => c.id === order.clientId || c.name === order.clientName);
+                            const districtLabel = order.district || matchedClient?.district || (order.cityState ? order.cityState.split(' - ')[0] : '');
 
                             return (
                               <div
@@ -777,29 +783,110 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                                   left: `${leftPct}%`,
                                   width: `calc(${widthPct}% - 2px)`,
                                 }}
-                                className={`absolute z-10 p-1.5 rounded-lg text-left transition-all hover:scale-[1.01] hover:z-20 cursor-pointer border text-[10px] shadow-sm pointer-events-auto flex flex-col justify-between overflow-hidden ${
+                                className={`absolute z-10 p-2 rounded-xl text-left transition-all duration-200 hover:scale-[1.015] hover:z-30 cursor-pointer border text-xs shadow-md backdrop-blur-md pointer-events-auto flex flex-col justify-between overflow-hidden group ${
                                   hasConflict
-                                    ? 'bg-rose-500 text-white border-rose-600 font-bold animate-pulse'
+                                    ? 'bg-gradient-to-br from-rose-950 via-red-900 to-rose-900 text-rose-100 border-rose-500/80 shadow-rose-950/50 animate-pulse'
                                     : order.status === 'OPERATING'
-                                    ? 'bg-emerald-600 text-white border-emerald-700 font-bold shadow-md'
+                                    ? 'bg-gradient-to-br from-emerald-600 via-teal-700 to-emerald-800 text-white border-emerald-400/60 shadow-emerald-950/40 ring-1 ring-emerald-400/30'
                                     : order.status === 'COMPLETED'
-                                    ? 'bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300'
-                                    : 'bg-emerald-600 dark:bg-emerald-700 text-white border-emerald-700 dark:border-emerald-600 font-bold'
+                                    ? 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-slate-200 border-slate-700/80 hover:border-emerald-500/50'
+                                    : 'bg-gradient-to-br from-[#064e3b] via-[#04392b] to-[#022c22] text-emerald-50 border-emerald-500/40 hover:border-emerald-400/80 shadow-emerald-950/60 ring-1 ring-emerald-500/20'
                                 }`}
-                                title={`${order.code} • ${order.startTime} às ${order.endTime}\n${order.plotName} (${order.pilotName.split(' ')[0]} / ${order.droneModel.replace('DJI Agras ', '')})`}
+                                title={`OS: ${order.code}\nCliente: ${order.clientName}\nDistrito: ${districtLabel || 'N/A'}\nCidade: ${order.cityState || 'N/A'}\nHorário: ${order.startTime} - ${order.endTime}\nFazenda/Talhão: ${order.farmName ? order.farmName + ' - ' : ''}${order.plotName} (${order.targetHectares || 0} ha)\nCultura: ${order.crop || 'N/A'}\nAlvo: ${order.targetPestOrGoal || 'Geral'}\nPiloto: ${order.pilotName}\nDrone: ${order.droneModel}`}
                               >
-                                <div className="flex items-center justify-between gap-1 leading-tight font-black">
-                                  <span className="truncate">{order.code}</span>
-                                  <span className="text-[9px] opacity-95 font-mono shrink-0">
+                                {/* HEADER ROW: OS Code + Time Badge */}
+                                <div className="flex items-center justify-between gap-1 leading-none shrink-0">
+                                  <div className="flex items-center gap-1 min-w-0">
+                                    <span className={`px-1.5 py-0.5 rounded-md text-[9.5px] font-black tracking-wide shrink-0 ${
+                                      hasConflict
+                                        ? 'bg-rose-500/30 text-rose-200 border border-rose-400/40'
+                                        : order.status === 'OPERATING'
+                                        ? 'bg-white/20 text-white border border-white/30 animate-pulse'
+                                        : order.status === 'COMPLETED'
+                                        ? 'bg-slate-700 text-slate-300'
+                                        : 'bg-emerald-500/25 text-emerald-200 border border-emerald-400/30'
+                                    }`}>
+                                      {order.code}
+                                    </span>
+
+                                    {order.status === 'OPERATING' && (
+                                      <span className="inline-flex items-center px-1 py-0.2 text-[8px] font-extrabold uppercase bg-emerald-400 text-emerald-950 rounded-full animate-bounce shrink-0">
+                                        Voo
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  <span className="text-[9.5px] font-mono font-bold tracking-tight opacity-90 shrink-0 bg-black/30 px-1.5 py-0.5 rounded">
                                     {order.startTime} - {order.endTime}
                                   </span>
                                 </div>
-                                <div className="text-[9.5px] opacity-90 truncate font-semibold">
-                                  {order.plotName}
-                                </div>
-                                {heightPx > 40 && (
-                                  <div className="text-[9px] opacity-80 truncate font-normal">
-                                    👨‍✈️ {order.pilotName.split(' ')[0]} • 🛸 {order.droneModel.replace('DJI Agras ', '')}
+
+                                {/* BODY SECTION: Client Name, District Location, Plot, Hectares */}
+                                {heightPx >= 44 && (
+                                  <div className="my-1 space-y-1 min-w-0 flex-1 flex flex-col justify-center overflow-hidden">
+                                    {/* Line 1: Nome do Cliente & Nome do Distrito */}
+                                    <div className="flex items-center justify-between gap-1 text-[11px] font-black text-white leading-tight min-w-0">
+                                      <span className="truncate flex items-center gap-1 min-w-0">
+                                        <User className="w-3 h-3 text-emerald-400 shrink-0 inline" />
+                                        <span className="truncate">{order.clientName || 'Cliente'}</span>
+                                      </span>
+                                      {districtLabel && (
+                                        <span className="text-[9.5px] font-extrabold text-amber-300 truncate shrink-0 max-w-[55%] flex items-center gap-0.5 bg-black/40 px-1.5 py-0.3 rounded border border-amber-400/30 shadow-2xs">
+                                          <MapPin className="w-2.5 h-2.5 text-amber-400 shrink-0 inline" />
+                                          <span className="truncate">{districtLabel}</span>
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {/* Line 2: Talhão & Área (ha) */}
+                                    <div className="flex items-center justify-between gap-1.5 text-[10px] font-bold text-emerald-100 min-w-0">
+                                      <span className="truncate flex items-center gap-1 min-w-0">
+                                        <span className="opacity-75 text-[9px]">Talhão:</span>
+                                        <span className="font-extrabold text-white truncate">{order.plotName}</span>
+                                      </span>
+                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded bg-emerald-950/80 text-emerald-200 border border-emerald-500/40 text-[9.5px] font-mono font-black shrink-0 shadow-2xs">
+                                        <Maximize2 className="w-2.5 h-2.5 text-amber-400 shrink-0 inline" />
+                                        {order.targetHectares || 0} ha
+                                      </span>
+                                    </div>
+
+                                    {/* Line 3: Cultura & Alvo (Height >= 85px) */}
+                                    {heightPx >= 85 && (
+                                      <div className="flex items-center gap-1.5 text-[9px] font-semibold text-emerald-200/90 min-w-0 pt-0.5">
+                                        {order.crop && (
+                                          <span className="flex items-center gap-1 bg-black/30 px-1.5 py-0.5 rounded shrink-0">
+                                            <Sprout className="w-2.5 h-2.5 text-emerald-400 inline" />
+                                            {order.crop}
+                                          </span>
+                                        )}
+                                        {order.targetPestOrGoal && (
+                                          <span className="flex items-center gap-1 bg-black/30 px-1.5 py-0.5 rounded truncate min-w-0">
+                                            <Target className="w-2.5 h-2.5 text-amber-400 shrink-0 inline" />
+                                            <span className="truncate">{order.targetPestOrGoal}</span>
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* FOOTER SECTION: Piloto & Drone (Height >= 65px) */}
+                                {heightPx >= 65 && (
+                                  <div className="pt-1 border-t border-white/10 flex items-center justify-between gap-1 text-[9px] font-medium text-emerald-100/90 shrink-0">
+                                    <div className="flex items-center gap-1 min-w-0 truncate">
+                                      <span className="truncate bg-black/30 px-1.5 py-0.5 rounded font-semibold">
+                                        👨‍✈️ {order.pilotName ? order.pilotName.split(' ')[0] : 'Piloto'}
+                                      </span>
+                                      <span className="truncate bg-black/30 px-1.5 py-0.5 rounded font-semibold">
+                                        🛸 {order.droneModel ? order.droneModel.replace('DJI Agras ', '') : 'Drone'}
+                                      </span>
+                                    </div>
+
+                                    {heightPx >= 105 && (
+                                      <span className="hidden sm:inline-flex items-center gap-0.5 text-[8.5px] px-1.5 py-0.2 rounded bg-emerald-950/70 text-emerald-300 border border-emerald-500/30 font-bold shrink-0">
+                                        🍃 Clima OK
+                                      </span>
+                                    )}
                                   </div>
                                 )}
                               </div>
@@ -869,15 +956,22 @@ export const ScheduleCalendarView: React.FC<ScheduleCalendarViewProps> = ({
                               e.stopPropagation();
                               handleOpenEditModal(order);
                             }}
-                            className={`px-1 py-0.2 rounded text-[9px] font-extrabold truncate flex items-center justify-between border ${
+                            className={`px-1.5 py-0.5 rounded-md text-[8.5px] font-bold truncate flex items-center justify-between border transition-all hover:scale-[1.02] shadow-2xs ${
                               hasConflict
-                                ? 'bg-rose-500 text-white border-rose-600'
+                                ? 'bg-rose-950 text-rose-200 border-rose-600 animate-pulse'
                                 : order.status === 'OPERATING'
-                                ? 'bg-emerald-600 text-white border-emerald-700'
-                                : 'bg-emerald-50 text-emerald-950 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-800'
+                                ? 'bg-emerald-600 text-white border-emerald-400 font-extrabold'
+                                : order.status === 'COMPLETED'
+                                ? 'bg-slate-800 text-slate-300 border-slate-700'
+                                : 'bg-[#04392b] text-emerald-100 border-emerald-600/50 hover:border-emerald-400'
                             }`}
+                            title={`OS: ${order.code} • ${order.startTime} às ${order.endTime}\n${order.plotName}`}
                           >
-                            <span className="truncate">{order.startTime || '07:00'} {order.code}</span>
+                            <span className="truncate flex items-center gap-1">
+                              <span className="font-mono text-[8px] opacity-80">{order.startTime || '07:00'}</span>
+                              <span className="font-extrabold">{order.code}</span>
+                            </span>
+                            <span className="opacity-75 text-[8px] truncate ml-1 hidden xl:inline">{order.plotName}</span>
                           </div>
                         );
                       })}

@@ -343,6 +343,7 @@ export interface ServiceOrder {
   startTime?: string; // HH:mm (e.g. '07:00')
   endTime?: string;   // HH:mm (e.g. '09:30')
   cityState?: string; // Reference location for weather validation
+  district?: string;  // Distrito / Bairro registrado (Cadastro IBGE)
   notes?: string;
   weatherFeasibility?: {
     status: string;
