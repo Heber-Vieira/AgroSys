@@ -393,6 +393,24 @@ export async function hydrateAllCloudData(): Promise<CloudHydrationResult> {
     } catch (e) {
       console.warn('Aviso ao hidratar perfis de usuários:', e);
     }
+
+    // 7. Hydrate Service Orders (OS) from Supabase Cloud
+    try {
+      const cloudOrders = await loadServiceOrdersFromSupabase();
+      if (cloudOrders && cloudOrders.length > 0) {
+        const rawLocal = localStorage.getItem('agrodrone_orders_fleet');
+        const localOrders: ServiceOrder[] = rawLocal ? JSON.parse(rawLocal) : [];
+        const orderMap = new Map<string, ServiceOrder>();
+        localOrders.forEach(o => { if (o.id) orderMap.set(o.id, o); });
+        cloudOrders.forEach(o => { if (o.id) orderMap.set(o.id, { ...(orderMap.get(o.id) || {}), ...o }); });
+        const mergedOrders = Array.from(orderMap.values());
+        localStorage.setItem('agrodrone_orders_fleet', JSON.stringify(mergedOrders));
+        await saveToDurableStorage('agrodrone_orders_fleet', mergedOrders, STORES.SETTINGS);
+        result.orders = mergedOrders;
+      }
+    } catch (e) {
+      console.warn('Aviso ao hidratar ordens de serviço:', e);
+    }
   } catch (err) {
     console.warn('Aviso durante hidratação da nuvem:', err);
   }

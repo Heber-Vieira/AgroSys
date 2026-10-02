@@ -49,7 +49,7 @@ import { DronePhoto, DroneBadge, getDronePhotoUrl } from './DronePhotoBadge';
 import { UserAvatar, getStoredUserPhoto } from './UserAvatar';
 import { SprayReportModal } from './SprayReportModal';
 import { WeatherAlertOperatorPanel } from './weather/WeatherAlertOperatorPanel';
-import { formatBRL, formatHectares, formatDecimal, formatDateBR, formatDateTimeBR } from '../utils/formatters';
+import { formatBRL, formatHectares, formatDecimal, formatDateBR, formatDateTimeBR, formatLocalDate } from '../utils/formatters';
 import { filterOrdersForUser, isServiceOrderAssignedToUser, isMasterUser, doNamesMatch } from '../utils/userPermissions';
 import { INITIAL_PILOTS, INITIAL_ASSISTANTS } from '../data/mockAppState';
 
@@ -232,33 +232,57 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
 
   const handleCreateOS = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedPlot || !selectedDrone || !selectedPilot || !selectedAssistant) return;
+    const activePlot = selectedPlot || plots[0] || {
+      id: `plot-custom-${Date.now()}`,
+      name: 'Talhão 01',
+      farmName: 'Fazenda Principal',
+      clientName: currentUser.name || 'Produtor Rural',
+      hectares: 30,
+      crop: 'Soja',
+      companyId: targetCompanyId
+    };
+
+    const activeDrone = selectedDrone || drones[0] || {
+      id: 'drone-default',
+      modelName: 'DJI Agras T40',
+      anacPrefix: 'PR-AGR'
+    };
+
+    const activePilot = selectedPilot || pilots[0] || {
+      id: currentUser.id || 'pilot-default',
+      name: currentUser.name || 'Piloto Principal'
+    };
+
+    const activeAssistant = selectedAssistant || assistants[0] || {
+      id: 'assistant-default',
+      name: 'Auxiliar de Campo'
+    };
 
     const newOrder: ServiceOrder = {
       id: `os-${Date.now()}`,
-      companyId: targetCompanyId,
+      companyId: activePlot.companyId || targetCompanyId || 'ciclodrone',
       code: `OS-2026-0${orders.length + 42}`,
       createdAt: new Date().toISOString(),
       clientId: currentUser.role === 'USER' ? currentUser.id : 'user-client',
-      clientName: currentUser.role === 'USER' ? currentUser.name : selectedPlot.clientName,
-      farmName: selectedPlot.farmName,
-      plotId: selectedPlot.id,
-      plotName: selectedPlot.name,
-      crop: selectedPlot.crop,
-      targetHectares: selectedPlot.hectares,
+      clientName: currentUser.role === 'USER' ? currentUser.name : activePlot.clientName,
+      farmName: activePlot.farmName,
+      plotId: activePlot.id,
+      plotName: activePlot.name,
+      crop: activePlot.crop,
+      targetHectares: activePlot.hectares,
       sprayedHectares: 0,
       targetPestOrGoal: newOSTargetPest,
       status: 'SCHEDULED',
-      scheduledDate: new Date().toISOString().split('T')[0],
+      scheduledDate: formatLocalDate(new Date()),
       sprayRateLHa: newOSSprayRate,
-      droneId: selectedDrone.id,
-      droneModel: selectedDrone.modelName,
-      droneAnac: selectedDrone.anacPrefix,
-      dronePhotoUrl: selectedDrone.photoUrl || getDronePhotoUrl({ droneId: selectedDrone.id, modelName: selectedDrone.modelName }),
-      pilotId: selectedPilot.id,
-      pilotName: selectedPilot.name,
-      assistantId: selectedAssistant.id,
-      assistantName: selectedAssistant.name,
+      droneId: activeDrone.id,
+      droneModel: activeDrone.modelName,
+      droneAnac: activeDrone.anacPrefix,
+      dronePhotoUrl: activeDrone.photoUrl || getDronePhotoUrl({ droneId: activeDrone.id, modelName: activeDrone.modelName }),
+      pilotId: activePilot.id,
+      pilotName: activePilot.name,
+      assistantId: activeAssistant.id,
+      assistantName: activeAssistant.name,
       pricingModel: 'PER_HECTARE',
       baseRatePerHa: 75.00,
       totalGrossValue: estimatedGrossValue,
@@ -270,6 +294,7 @@ export const ServiceOrdersView: React.FC<ServiceOrdersViewProps> = ({
     };
 
     setOrders(prev => [newOrder, ...prev]);
+    showToast(`Ordem de Serviço ${newOrder.code} criada com sucesso!`, 'success');
     setShowNewOSModal(false);
   };
 

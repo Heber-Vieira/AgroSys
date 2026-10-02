@@ -32,7 +32,7 @@ import {
   UserPlus
 } from 'lucide-react';
 import { QuickAddClientModal } from '../common/QuickAddClientModal';
-import { showConfirm } from '../../services/notificationService';
+import { showConfirm, showToast } from '../../services/notificationService';
 import { 
   checkOrderConflicts, 
   findAvailableTimeSlots, 
@@ -126,7 +126,15 @@ export const ScheduleOrderModal: React.FC<ScheduleOrderModalProps> = ({
     setSelectedPlotId(newPlot.id);
   };
 
-  const currentPlot = plots.find(p => p.id === selectedPlotId) || plots[0];
+  const currentPlot = plots.find(p => p.id === selectedPlotId) || plots[0] || {
+    id: `plot-custom-${Date.now()}`,
+    name: 'Talhão Principal',
+    farmName: 'Fazenda Principal',
+    clientName: currentUser.name || 'Produtor Rural',
+    hectares: 30,
+    crop: 'Soja',
+    companyId: theme?.tenantId || 'ciclodrone'
+  };
   const targetCompanyId = currentPlot?.companyId || editingOrder?.companyId || theme?.tenantId || 'ciclodrone';
 
   // Scoped lists strictly for the company of the selected plot
@@ -211,9 +219,27 @@ export const ScheduleOrderModal: React.FC<ScheduleOrderModalProps> = ({
     c.name === currentPlot?.clientName || 
     c.farmNames?.some(f => f.toLowerCase() === currentPlot?.farmName?.toLowerCase())
   );
-  const currentDrone = effectiveDrones.find(d => d.id === selectedDroneId) || effectiveDrones[0] || drones[0];
-  const currentPilot = effectivePilots.find(p => p.id === selectedPilotId) || effectivePilots[0];
-  const currentAssistant = effectiveAssistants.find(a => a.id === selectedAssistantId) || effectiveAssistants[0];
+
+  const currentDrone = effectiveDrones.find(d => d.id === selectedDroneId) || effectiveDrones[0] || drones[0] || {
+    id: 'drone-default',
+    modelName: 'DJI Agras T40',
+    anacPrefix: 'PR-AGR',
+    photoUrl: ''
+  };
+
+  const currentPilot = effectivePilots.find(p => p.id === selectedPilotId) || effectivePilots[0] || pilots[0] || {
+    id: currentUser.id || 'pilot-default',
+    name: currentUser.name || 'Piloto Principal',
+    commissionRatePerHa: 8.0,
+    photoUrl: currentUser.photoUrl || ''
+  };
+
+  const currentAssistant = effectiveAssistants.find(a => a.id === selectedAssistantId) || effectiveAssistants[0] || assistants[0] || {
+    id: 'assistant-default',
+    name: 'Auxiliar de Campo',
+    commissionRatePerHa: 3.0,
+    photoUrl: ''
+  };
 
   // Initialize values when opening or changing editingOrder
   useEffect(() => {
@@ -357,7 +383,11 @@ export const ScheduleOrderModal: React.FC<ScheduleOrderModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentPlot || !currentDrone || !currentPilot || !currentAssistant) return;
+
+    if (!currentPlot) {
+      showToast('Selecione ou cadastre uma propriedade/talhão para prosseguir com o agendamento.', 'warning');
+      return;
+    }
 
     const estimatedGross = (currentPlot.hectares || 30) * 75.0;
     const estimatedPilotComm = (currentPlot.hectares || 30) * (currentPilot.commissionRatePerHa || 8.0);
@@ -365,14 +395,15 @@ export const ScheduleOrderModal: React.FC<ScheduleOrderModalProps> = ({
 
     const orderData: ServiceOrder = {
       id: editingOrder ? editingOrder.id : `os-${Date.now()}`,
+      companyId: currentPlot.companyId || targetCompanyId || 'ciclodrone',
       code: editingOrder ? editingOrder.code : `OS-2026-0${existingOrders.length + 42}`,
-      clientId: currentUser.role === 'USER' ? currentUser.id : 'user-client',
-      clientName: currentUser.role === 'USER' ? currentUser.name : currentPlot.clientName,
-      farmName: currentPlot.farmName,
+      clientId: currentUser.role === 'USER' ? currentUser.id : (matchedClient?.id || 'user-client'),
+      clientName: currentUser.role === 'USER' ? currentUser.name : (currentPlot.clientName || 'Produtor Rural'),
+      farmName: currentPlot.farmName || 'Fazenda Principal',
       plotId: currentPlot.id,
-      plotName: currentPlot.name,
-      crop: currentPlot.crop,
-      targetHectares: currentPlot.hectares,
+      plotName: currentPlot.name || 'Talhão Principal',
+      crop: currentPlot.crop || 'Soja',
+      targetHectares: currentPlot.hectares || 30,
       sprayedHectares: editingOrder ? editingOrder.sprayedHectares : 0,
       targetPestOrGoal: targetPest,
       status: editingOrder ? editingOrder.status : 'SCHEDULED',
@@ -414,6 +445,7 @@ export const ScheduleOrderModal: React.FC<ScheduleOrderModalProps> = ({
 
     playSuccessChime();
     onSaveOrder(orderData);
+    showToast(`Agendamento ${orderData.code} salvo com sucesso!`, 'success');
     onClose();
   };
 

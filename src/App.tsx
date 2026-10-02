@@ -354,6 +354,20 @@ export default function App() {
     } catch (e) {}
   }, [allOrders]);
 
+  // Hydrate cloud service orders on mount
+  useEffect(() => {
+    loadServiceOrdersFromCloud().then((cloudOrders) => {
+      if (cloudOrders && cloudOrders.length > 0) {
+        setAllOrders(prev => {
+          const map = new Map<string, ServiceOrder>();
+          prev.forEach(o => { if (o.id) map.set(o.id, o); });
+          cloudOrders.forEach(o => { if (o.id) map.set(o.id, { ...(map.get(o.id) || {}), ...o }); });
+          return Array.from(map.values());
+        });
+      }
+    }).catch(e => console.warn('Erro ao carregar ordens de serviço na inicialização', e));
+  }, []);
+
   const [allPlots, setAllPlots] = useState<FarmPlot[]>(() => 
     loadAndMergeWithMock('agrodrone_plots_fleet', INITIAL_PLOTS)
   );
